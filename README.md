@@ -99,10 +99,13 @@ This will start:
 *Machine Learning Enthusiast | Software Engineer*
 
 ---
+## 📄 License
+
+MIT License © 2025 Stefan Jativa
+
+---
 
 ## 📚 References & Credits
-
-### LANL Authentication Dataset
 
 ### LANL Authentication Dataset
 
@@ -125,7 +128,4 @@ This will start:
 
 *All dataset assets and samples used in this project are credited to their respective authors and institutions as referenced above.*
 
----
-## 📄 License
 
-MIT License © 2025 Stefan Jativa
