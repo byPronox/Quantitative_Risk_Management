@@ -32,7 +32,7 @@ A full-stack application for **quantitative risk assessment and mitigation**, po
 ## 📂 Project Structure
 
 ```
-quantitative_risk_managment/
+Quantitative_Risk_Management/
 ├── backend/
 │   └── app/
 │       ├── api/          # Routes & Schemas
