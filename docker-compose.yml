@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   backend:
     build: ./backend
@@ -8,6 +7,7 @@ services:
       - "8000:8000"
     depends_on:
       - db
+    restart: always
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
       - NVD_API_KEY=b0f20683-6364-4314-97cc-6f85ea75df67
@@ -18,6 +18,20 @@ services:
       - "5173:80"
     depends_on:
       - backend
+    restart: always
+
+  gateway:
+    build: ./api_gateway
+    ports:
+      - "8080:8000"
+    environment:
+      - CICIDS_URL=http://backend:8000/predict/cicids/
+      - LANL_URL=http://backend:8000/predict/lanl/
+      - COMBINED_URL=http://backend:8000/predict/combined/
+      - NVD_URL=http://backend:8000/nvd
+    depends_on:
+      - backend
+    restart: always
 
   db:
     image: postgres:15
