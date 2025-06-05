@@ -10,6 +10,7 @@ services:
       - db
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+      - NVD_API_KEY=b0f20683-6364-4314-97cc-6f85ea75df67
 
   frontend:
     build: ./frontend

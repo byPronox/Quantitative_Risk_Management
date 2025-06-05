@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database.db import Base, engine
 from api.routes import router
+from api import nvd
 
 app = FastAPI()
 
@@ -20,3 +21,4 @@ def read_root():
 
 Base.metadata.create_all(bind=engine)
 app.include_router(router)
+app.include_router(nvd.router)
