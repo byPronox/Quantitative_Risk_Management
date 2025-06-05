@@ -28,3 +28,12 @@ class CICIDSFeatures(BaseModel):
     Avg_Bwd_Segment_Size: float = Field(..., alias="Avg Bwd Segment Size")
     Init_Win_bytes_forward: int = Field(..., alias="Init_Win_bytes_forward")
     Init_Win_bytes_backward: int = Field(..., alias="Init_Win_bytes_backward")
+
+class LANLFeatures(BaseModel):
+    time: int
+    user: str
+    computer: str
+
+class CombinedFeatures(BaseModel):
+    cicids: CICIDSFeatures
+    lanl: LANLFeatures

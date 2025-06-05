@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database.db import Base, engine
-from api.routes import router as risk_router
+from api.routes import router
 
 app = FastAPI()
 
@@ -19,4 +19,4 @@ def read_root():
     return {"message": "Backend is running"}
 
 Base.metadata.create_all(bind=engine)
-app.include_router(risk_router)
+app.include_router(router)
