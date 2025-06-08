@@ -104,19 +104,40 @@ This will start:
 
 ## 🏛️ Design Patterns Used
 
-- **Factory Method:** For loading and instantiating different ML models and encoders.
-- **Strategy:** For switching between different prediction algorithms (CICIDS, LANL).
-- **Singleton:** For ensuring only one instance of each ML model is loaded in memory.
+- **Factory Method:** Used in `ml/engine.py` (`PredictionFactory`) to instantiate the correct prediction strategy (CICIDS, LANL) based on input.
+- **Strategy:** Abstract base class `PredictionStrategy` allows interchangeable prediction logic for different models.
+- **Singleton:** Each model strategy (`CICIDSPredictionStrategy`, `LANLPredictionStrategy`) is loaded only once per process, ensuring efficient resource use.
 
 ---
 
-## 🛠️ Future Enhancements
+## ⚙️ Configuration Management
 
-- ✅ Authentication system (JWT)
-- ✅ Admin dashboard with analytics
-- ✅ Model training from the UI
-- ✅ CI/CD pipeline
-- ✅ Exportable reports (PDF)
+- All secrets and configuration (database URL, API keys, model paths, queue settings) are managed via environment variables and `backend/app/config.py`.
+- No secrets or credentials are hardcoded in the codebase.
+
+---
+
+## 🩺 Observability & Health Checks
+
+- Logging is enabled throughout the backend for model loading, errors, and queue operations.
+- All prediction endpoints include error handling and log failures.
+- `/health` endpoint is available for health checks.
+
+---
+
+## 📨 Message Queue Integration
+
+- The backend integrates a message queue (stub in `backend/app/queue.py`) for asynchronous processing (e.g., logging predictions, batch tasks).
+- Ready for Azure Service Bus or a local alternative (see `QUEUE_CONNECTION_STRING` and `QUEUE_NAME` in config).
+- Example: Combined prediction results are sent to the queue for async processing.
+
+---
+
+## 🔒 Security & Best Practices
+
+- All code, comments, and documentation are in English.
+- Modular, testable, and extensible backend using dependency injection and design patterns.
+- No sensitive data in source code or Docker images.
 
 ---
 
@@ -132,6 +153,78 @@ This project integrates with the [National Vulnerability Database (NVD)](https:/
 - **Credits:**  
   - National Vulnerability Database (NVD), Information Technology Laboratory, NIST  
   - [NVD Legal Disclaimer](https://nvd.nist.gov/general/disclaimer)
+
+---
+
+## 🛣️ API Gateway Endpoints
+
+All frontend requests are routed through the API Gateway. Main endpoints:
+
+| Method | Endpoint                | Description                       |
+|--------|-------------------------|-----------------------------------|
+| POST   | /predict/cicids/        | Predict risk using CICIDS model   |
+| POST   | /predict/lanl/          | Predict risk using LANL model     |
+| POST   | /predict/combined/      | Combined risk prediction          |
+| GET    | /nvd                    | Search NVD vulnerabilities        |
+| GET    | /health                 | Health check                      |
+
+---
+
+## 🌐 API Gateway & CORS
+
+- The API Gateway (FastAPI) is the single entry point for all frontend API calls.
+- CORS is enabled to allow requests from the frontend (see `main.py` in `api_gateway`).
+- Set your frontend API base URL to the gateway:
+  
+  ```env
+  VITE_API_URL=http://localhost:8080
+  ```
+
+---
+
+## 🧠 Model Files & Configuration
+
+- Trained model files must be present in `backend/app/ml/`:
+  - `rf_cicids2017_model.pkl`
+  - `isolation_forest_model.pkl`
+- The backend expects these files at `/app/ml/` inside the Docker container.
+- You can override the paths with environment variables `CICIDS_MODEL_PATH` and `LANL_MODEL_PATH` if needed.
+
+---
+
+## ⚙️ Environment Variables Example
+
+```env
+# .env for frontend
+VITE_API_URL=http://localhost:8080
+
+# docker-compose.yml for backend/gateway
+DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+NVD_API_KEY=your-nvd-api-key
+CICIDS_MODEL_PATH=/app/ml/rf_cicids2017_model.pkl
+LANL_MODEL_PATH=/app/ml/isolation_forest_model.pkl
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+- **CORS/Preflight errors:** Ensure CORS middleware is enabled in the API Gateway (`main.py`).
+- **Model file not found:** Make sure model files exist in `backend/app/ml/` and are copied into the Docker image.
+- **Import errors:** Remove any local files that shadow standard library modules (e.g., `queue.py`).
+- **Frontend 404 on /nvd:** Do not visit `/nvd` directly in the browser; use the app navigation.
+
+---
+
+## 🔄 Development & Hot Reload
+
+- For local development, you can run each service separately and use `docker-compose` for orchestration.
+- Rebuild containers after changing dependencies or model paths:
+  
+  ```sh
+  docker-compose build
+  docker-compose up -d
+  ```
 
 ---
 

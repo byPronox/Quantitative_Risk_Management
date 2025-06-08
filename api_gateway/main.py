@@ -1,11 +1,16 @@
+# api_gateway/main.py
+"""
+FastAPI entry point for the API Gateway, using dependency injection and service abstraction.
+"""
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from backend_service import BackendServiceInterface, HttpBackendService
-import os
 import logging
+from services.http_backend_service import HttpBackendService
+from interfaces.backend_service_interface import BackendServiceInterface
 
 app = FastAPI()
 
+# Habilita CORS para permitir preflight y peticiones desde el frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # O especifica ["http://localhost:5173"]
@@ -13,11 +18,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-CICIDS_URL = os.getenv("CICIDS_URL", "http://cicids:8000/predict/cicids/")
-LANL_URL = os.getenv("LANL_URL", "http://lanl:8000/predict/lanl/")
-NVD_URL = os.getenv("NVD_URL", "http://nvd:8000/nvd")
-COMBINED_URL = os.getenv("COMBINED_URL", "http://combined:8000/predict/combined/")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api_gateway")

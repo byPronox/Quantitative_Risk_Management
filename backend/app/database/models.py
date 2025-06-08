@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float
-from .db import Base
+from database.db import Base
 
 class Risk(Base):
     __tablename__ = "risks"
