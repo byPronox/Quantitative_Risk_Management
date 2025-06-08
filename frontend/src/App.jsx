@@ -14,14 +14,13 @@ export default function App() {
   return (
     <Router>
       <nav>
-        <Link to="/">Dashboard</Link> | <Link to="/nvd">Vulnerabilidades NVD</Link>
+        <Link to="/">Dashboard</Link>
+        <Link to="/nvd">NVD Vulnerabilities</Link>
       </nav>
       <Routes>
         <Route
           path="/"
-          element={
-            <Dashboard />
-          }
+          element={<Dashboard />}
         />
         <Route path="/nvd" element={<NvdPage />} />
       </Routes>
@@ -38,7 +37,7 @@ function Dashboard() {
     <div className="dashboard">
       <AssetList assets={assets} selectedId={selectedId} onSelect={setSelectedId} />
       <main>
-        <h1>Quantitative Risk Management Dashboard</h1>
+        <h1>Quantitative Risk Management</h1>
         <CombinedAnalysisForm asset={selectedAsset} />
       </main>
     </div>

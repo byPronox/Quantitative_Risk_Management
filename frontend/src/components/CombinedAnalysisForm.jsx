@@ -62,8 +62,8 @@ export default function CombinedAnalysisForm({ asset }) {
 
   return (
     <section className="analysis-form">
-      <h2>Analyze Asset: {asset.name}</h2>
-      <form onSubmit={handleSubmit}>
+      <h2>Analyze Asset: <span style={{color:'#23272f', fontWeight:600}}>{asset.name}</span></h2>
+      <form onSubmit={handleSubmit} autoComplete="off">
         <fieldset>
           <legend>CICIDS Features</legend>
           <div className="form-grid">
@@ -76,6 +76,8 @@ export default function CombinedAnalysisForm({ asset }) {
                   value={cicids[key]}
                   onChange={handleCicidsChange}
                   required
+                  min={0}
+                  step={1}
                 />
               </label>
             ))}
@@ -92,6 +94,8 @@ export default function CombinedAnalysisForm({ asset }) {
                 value={lanl.time}
                 onChange={handleLanlChange}
                 required
+                min={0}
+                step={1}
               />
             </label>
             <label>
@@ -103,6 +107,7 @@ export default function CombinedAnalysisForm({ asset }) {
                 onChange={handleLanlChange}
                 required
                 placeholder="U1"
+                maxLength={8}
               />
             </label>
             <label>
@@ -114,11 +119,12 @@ export default function CombinedAnalysisForm({ asset }) {
                 onChange={handleLanlChange}
                 required
                 placeholder="C1"
+                maxLength={8}
               />
             </label>
           </div>
         </fieldset>
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading} aria-busy={loading}>
           {loading ? "Analyzing..." : "Analyze Risk"}
         </button>
       </form>
