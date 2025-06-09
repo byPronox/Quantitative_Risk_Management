@@ -98,26 +98,14 @@ async def gateway_nvd_clear_queue(backend: BackendServiceInterface = Depends(get
         logger.error("Gateway: NVD clear queue request failed: %s", e)
         return {"error": "NVD clear queue failed."}, 500
 
-@app.post("/nvd/enterprise_metrics")
-async def gateway_nvd_enterprise_metrics(backend: BackendServiceInterface = Depends(get_backend_service)):
+@app.post("/nvd/add_to_queue")
+async def gateway_nvd_add_to_queue(request: Request, backend: BackendServiceInterface = Depends(get_backend_service)):
+    data = await request.json()
+    keyword = data.get("keyword")
+    if not keyword:
+        return {"error": "Keyword is required"}, 400
     try:
-        return await backend.get_nvd_enterprise_metrics()
+        return await backend.add_keyword_to_queue(keyword)
     except Exception as e:
-        logger.error("Gateway: NVD enterprise metrics request failed: %s", e)
-        return {"error": "NVD enterprise metrics failed."}, 500
-
-@app.get("/nvd/queue_status")
-async def gateway_nvd_queue_status(backend: BackendServiceInterface = Depends(get_backend_service)):
-    try:
-        return await backend.get_nvd_queue_status()
-    except Exception as e:
-        logger.error("Gateway: NVD queue status request failed: %s", e)
-        return {"error": "NVD queue status failed."}, 500
-
-@app.post("/nvd/clear_queue")
-async def gateway_nvd_clear_queue(backend: BackendServiceInterface = Depends(get_backend_service)):
-    try:
-        return await backend.clear_nvd_queue()
-    except Exception as e:
-        logger.error("Gateway: NVD clear queue request failed: %s", e)
-        return {"error": "NVD clear queue failed."}, 500
+        logger.error("Gateway: Add keyword to queue request failed: %s", e)
+        return {"error": "Add keyword to queue failed."}, 500

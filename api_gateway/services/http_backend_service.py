@@ -66,3 +66,10 @@ class HttpBackendService(BackendServiceInterface):
             resp.raise_for_status()
             logger.info("Gateway: NVD clear queue request succeeded.")
             return resp.json()
+
+    async def add_keyword_to_queue(self, keyword: str) -> Dict[str, Any]:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(gateway_settings.NVD_URL + "/add_to_queue", json={"keyword": keyword})
+            resp.raise_for_status()
+            logger.info("Gateway: Add keyword to queue request succeeded.")
+            return resp.json()

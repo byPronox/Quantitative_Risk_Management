@@ -1,5 +1,6 @@
 # backend/app/api/nvd.py
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 import httpx
 import logging
 from config.config import settings
@@ -11,6 +12,9 @@ router = APIRouter()
 NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 logger = logging.getLogger(__name__)
 
+class KeywordRequest(BaseModel):
+    keyword: str
+
 @router.get("/nvd")
 async def get_vulnerabilities(keyword: str = "react"):
     headers = {"apiKey": settings.NVD_API_KEY}
@@ -21,13 +25,37 @@ async def get_vulnerabilities(keyword: str = "react"):
             response.raise_for_status()
             logger.info("NVD query for keyword '%s' succeeded.", keyword)
             data = response.json()
-            # Guarda la búsqueda en la cola RabbitMQ
-            mq = MessageQueue()
-            mq.send_message({"keyword": keyword, "vulnerabilities": data.get("vulnerabilities", [])})
-            return data
+            # Return data without saving to queue (only for display)
+            return {"vulnerabilities": data.get("vulnerabilities", [])}
     except Exception as e:
         logger.error("NVD API request failed: %s", e)
         raise HTTPException(status_code=500, detail="Failed to fetch vulnerabilities from NVD API.") from e
+
+@router.post("/nvd/add_to_queue")
+async def add_keyword_to_queue(request: KeywordRequest):
+    """Add a specific keyword to the analysis queue"""
+    keyword = request.keyword
+    if not keyword:
+        raise HTTPException(status_code=400, detail="Keyword is required")
+    
+    headers = {"apiKey": settings.NVD_API_KEY}
+    params = {"keywordSearch": keyword, "startIndex": 0, "resultsPerPage": 10}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(NVD_API_URL, headers=headers, params=params)
+            response.raise_for_status()
+            logger.info("NVD query for keyword '%s' added to queue.", keyword)
+            data = response.json()
+            # Save to queue for analysis
+            mq = MessageQueue()
+            mq.send_message({"keyword": keyword, "vulnerabilities": data.get("vulnerabilities", [])})
+            return {
+                "message": f"Keyword '{keyword}' added to analysis queue",
+                "vulnerabilities_count": len(data.get("vulnerabilities", []))
+            }
+    except Exception as e:
+        logger.error("NVD API request failed: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to add keyword to queue") from e
 
 @router.post("/nvd/analyze_risk")
 async def analyze_nvd_risk():

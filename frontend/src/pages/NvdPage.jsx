@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { fetchNvdVulnerabilities, analyzeNvdRisk } from "../services/nvd";
+import { fetchNvdVulnerabilities, analyzeNvdRisk, addKeywordToQueue } from "../services/nvd";
 import NvdRiskPie from "../components/NvdRiskPie";
 import AssetRiskMatrix from "../components/AssetRiskMatrix";
 
@@ -10,12 +10,12 @@ export default function NvdPage() {
   const [error, setError] = useState("");
   const [riskResults, setRiskResults] = useState(null);
   const [addedKeywords, setAddedKeywords] = useState([]);
-  const [analysisHistory, setAnalysisHistory] = useState([]);
-  const [riskThresholds, setRiskThresholds] = useState({
+  const [analysisHistory, setAnalysisHistory] = useState([]);  const [riskThresholds, setRiskThresholds] = useState({
     critical: 80,
     high: 60,
     medium: 40,
-    low: 20
+    low: 20,
+    "very low": 10
   });
   const [activeTab, setActiveTab] = useState("search"); // "search", "analysis", "history"
 
@@ -31,9 +31,25 @@ export default function NvdPage() {
       setLoading(false);
     }
   };
-
-  const handleAdd = () => {
-    setAddedKeywords((prev) => [...new Set([...prev, keyword])]);
+  const handleAdd = async () => {
+    if (!keyword.trim()) {
+      setError("Please enter a keyword before adding to queue");
+      return;
+    }
+    
+    setLoading(true);
+    setError("");
+    try {
+      const result = await addKeywordToQueue(keyword);
+      setAddedKeywords((prev) => [...new Set([...prev, keyword])]);
+      // Optionally show success message
+      console.log("Added to queue:", result.message);
+    } catch (error) {
+      setError("Error adding keyword to analysis queue");
+      console.error("Add to queue error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
   const handleAnalyze = async () => {
     setLoading(true);

@@ -37,3 +37,7 @@ class BackendServiceInterface(ABC):
     @abstractmethod
     async def clear_nvd_queue(self) -> Dict[str, Any]:
         pass
+
+    @abstractmethod
+    async def add_keyword_to_queue(self, keyword: str) -> Dict[str, Any]:
+        pass
