@@ -2,20 +2,28 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Copia solo lo necesario para instalar dependencias primero
+# Copy package files
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm ci
 
-# Luego copia el resto del código
+# Copy source code
 COPY . .
 
-# Construye el proyecto
+# Build the application
 RUN npm run build
 
-# Etapa de producción
+# Production stage
 FROM nginx:alpine
 
+# Copy built files
 COPY --from=build /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Remove default nginx config
+RUN rm /etc/nginx/conf.d/default.conf.bak 2>/dev/null || true
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

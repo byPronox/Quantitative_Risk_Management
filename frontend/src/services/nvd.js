@@ -6,3 +6,8 @@ export async function fetchNvdVulnerabilities(keyword = "react") {
   });
   return response.data;
 }
+
+export async function analyzeNvdRisk() {
+  const response = await api.post("/nvd/analyze_risk");
+  return response.data;
+}

@@ -65,3 +65,59 @@ async def gateway_combined(request: Request, backend: BackendServiceInterface = 
     except Exception as e:
         logger.error("Gateway: Combined prediction failed: %s", e)
         return {"error": "Combined prediction failed."}, 500
+
+@app.post("/nvd/analyze_risk")
+async def gateway_nvd_analyze_risk(backend: BackendServiceInterface = Depends(get_backend_service)):
+    try:
+        return await backend.analyze_nvd_risk()
+    except Exception as e:
+        logger.error("Gateway: NVD analyze risk request failed: %s", e)
+        return {"error": "NVD analyze risk failed."}, 500
+
+@app.post("/nvd/enterprise_metrics")
+async def gateway_nvd_enterprise_metrics(backend: BackendServiceInterface = Depends(get_backend_service)):
+    try:
+        return await backend.get_nvd_enterprise_metrics()
+    except Exception as e:
+        logger.error("Gateway: NVD enterprise metrics request failed: %s", e)
+        return {"error": "NVD enterprise metrics failed."}, 500
+
+@app.get("/nvd/queue_status")
+async def gateway_nvd_queue_status(backend: BackendServiceInterface = Depends(get_backend_service)):
+    try:
+        return await backend.get_nvd_queue_status()
+    except Exception as e:
+        logger.error("Gateway: NVD queue status request failed: %s", e)
+        return {"error": "NVD queue status failed."}, 500
+
+@app.post("/nvd/clear_queue")
+async def gateway_nvd_clear_queue(backend: BackendServiceInterface = Depends(get_backend_service)):
+    try:
+        return await backend.clear_nvd_queue()
+    except Exception as e:
+        logger.error("Gateway: NVD clear queue request failed: %s", e)
+        return {"error": "NVD clear queue failed."}, 500
+
+@app.post("/nvd/enterprise_metrics")
+async def gateway_nvd_enterprise_metrics(backend: BackendServiceInterface = Depends(get_backend_service)):
+    try:
+        return await backend.get_nvd_enterprise_metrics()
+    except Exception as e:
+        logger.error("Gateway: NVD enterprise metrics request failed: %s", e)
+        return {"error": "NVD enterprise metrics failed."}, 500
+
+@app.get("/nvd/queue_status")
+async def gateway_nvd_queue_status(backend: BackendServiceInterface = Depends(get_backend_service)):
+    try:
+        return await backend.get_nvd_queue_status()
+    except Exception as e:
+        logger.error("Gateway: NVD queue status request failed: %s", e)
+        return {"error": "NVD queue status failed."}, 500
+
+@app.post("/nvd/clear_queue")
+async def gateway_nvd_clear_queue(backend: BackendServiceInterface = Depends(get_backend_service)):
+    try:
+        return await backend.clear_nvd_queue()
+    except Exception as e:
+        logger.error("Gateway: NVD clear queue request failed: %s", e)
+        return {"error": "NVD clear queue failed."}, 500

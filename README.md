@@ -228,6 +228,22 @@ LANL_MODEL_PATH=/app/ml/isolation_forest_model.pkl
 
 ---
 
+## 🆕 Recent Improvements (2025)
+
+- 🐇 **RabbitMQ integration**: Real message queue for NVD vulnerability searches. All NVD searches are enqueued and risk analysis dequeues and analyzes all items.
+- 🐳 **Robust Dockerization**: All services (backend, gateway, frontend, RabbitMQ, PostgreSQL) are fully dockerized and orchestrated with Docker Compose. Backend and gateway Dockerfiles set `PYTHONPATH` and support all dependencies.
+- 🔄 **Lazy queue connection**: The backend's `MessageQueue` now uses lazy connection and retry logic, so the backend does not crash if RabbitMQ is not ready at import time.
+- 🛡️ **API Gateway**: All API calls from the frontend are routed through a FastAPI API gateway, which exposes all backend endpoints and uses dependency injection for backend service abstraction.
+- 🌐 **CORS**: CORS middleware enabled in the API gateway for seamless frontend-backend communication.
+- 🖼️ **Modern UI/UX**: The frontend uses a minimalist, responsive, and visually appealing design. The NVD page now uses a two-column layout: vulnerabilities/search on the left, and a risk analysis pie chart on the right.
+- 📊 **SVG Pie Chart**: Custom SVG pie chart for NVD risk analysis results, shown in a dedicated right column.
+- 🧹 **Frontend state sync**: After analyzing risk, the "Added keywords" list is cleared to reflect the emptied backend queue.
+- 🐞 **Import fixes**: All backend imports standardized to avoid `ModuleNotFoundError` in Docker. `sys.path` is set in `main.py` for robust absolute imports.
+- 🛠️ **Error handling**: Improved error handling for RabbitMQ connection and API gateway routes.
+- 🔄 **Queue state**: The frontend disables the "Analyze Risk" button if no keywords are added, and the queue is cleared after analysis.
+
+---
+
 ## 👨‍💻 Author
 
 **Stefan Jativa** — [@byPronox](https://github.com/byPronox)  

@@ -21,3 +21,19 @@ class BackendServiceInterface(ABC):
     @abstractmethod
     async def get_nvd(self, params: Dict[str, Any]) -> Dict[str, Any]:
         pass
+
+    @abstractmethod
+    async def analyze_nvd_risk(self) -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
+    async def get_nvd_enterprise_metrics(self) -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
+    async def get_nvd_queue_status(self) -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
+    async def clear_nvd_queue(self) -> Dict[str, Any]:
+        pass

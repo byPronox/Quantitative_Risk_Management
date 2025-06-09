@@ -6,7 +6,7 @@ from api.schemas import RiskCreate, RiskOut, CICIDSFeatures, LANLFeatures, Combi
 from typing import List
 from ml.engine import PredictionFactory, PredictionStrategy
 import logging
-from queue_manager.queue import queue
+from queue_manager.queue import MessageQueue
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,8 @@ def predict_combined_endpoint(features: CombinedFeatures, cicids_strategy: Predi
         prob_lanl = lanl_strategy.predict(features.lanl.dict(by_alias=True))
         combined_score = (prob_cicids + prob_lanl) / 2
         # Send prediction result to message queue for async processing/logging
-        queue.send_message({
+        mq = MessageQueue()
+        mq.send_message({
             "type": "combined_prediction",
             "cicids_probability": prob_cicids,
             "lanl_probability": prob_lanl,

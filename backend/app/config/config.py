@@ -16,5 +16,7 @@ class Settings:
     # Message queue (example: Azure Service Bus connection string)
     QUEUE_CONNECTION_STRING: str = os.getenv("QUEUE_CONNECTION_STRING", "")
     QUEUE_NAME: str = os.getenv("QUEUE_NAME", "risk-tasks")
+    # Redis
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
 settings = Settings()
