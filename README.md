@@ -2,19 +2,30 @@
 
 A full-stack, microservices-based application for **quantitative risk assessment and mitigation**, powered by **Machine Learning** and **Dynamic Programming**. This system predicts potential risks, evaluates their impact, and recommends optimal mitigation strategies using intelligent algorithms and data-driven insights.
 
+![Quantitative Risk Management System Demo](docs/images/demo.png)
+
+*Screenshot: NVD Vulnerability Management System with comprehensive risk analysis dashboard, featuring tabbed interface for vulnerability search, risk assessment configuration, and enterprise-level asset categorization.*
+
 ---
 
 ## ✨ Features
 
-- 🎯 Risk Prediction using trained ML models (CICIDS, LANL)
-- 🧠 Dynamic Programming engine for optimal decision-making
-- 📊 Interactive Dashboard built with React + Tailwind CSS
-- 🔄 RESTful APIs powered by FastAPI (Python)
-- 🐳 Fully containerized with Docker & Docker Compose
-- 📁 PostgreSQL Database integration
-- 📈 Data visualization with Chart.js
-- 🛡️ Integration with the National Vulnerability Database (NVD) API
-- 🏛️ Microservices architecture with API Gateway
+- 🎯 **Advanced Risk Prediction** using trained ML models (CICIDS, LANL)
+- 🧠 **Dynamic Programming Engine** for optimal decision-making
+- 📊 **Interactive Dashboard** built with React + Tailwind CSS
+- 🔄 **RESTful APIs** powered by FastAPI (Python)
+- 🐳 **Fully Containerized** with Docker & Docker Compose
+- 📁 **PostgreSQL Database** integration
+- 📈 **Data Visualization** with Chart.js and custom SVG components
+- 🛡️ **NVD Integration** with the National Vulnerability Database (NVD) API
+- 🏛️ **Microservices Architecture** with API Gateway
+- 🔍 **Comprehensive Vulnerability Search** with keyword-based filtering
+- 📋 **Queue Management System** with RabbitMQ for asynchronous processing
+- 🎛️ **Risk Assessment Configuration** with customizable thresholds
+- 🏢 **Enterprise Asset Categorization** (Web Apps, Infrastructure, Databases, etc.)
+- 📊 **Business Impact Analysis** with weighted scoring algorithms
+- 📈 **Analysis History Tracking** for audit and compliance
+- 🎨 **Modern Responsive UI** with tabbed interface and real-time updates
 
 ---
 
@@ -39,6 +50,42 @@ A full-stack, microservices-based application for **quantitative risk assessment
 - **Database** (PostgreSQL): Stores risk analysis results and user data.
 
 All services are containerized and orchestrated with Docker Compose.
+
+---
+
+## 🛡️ NVD Vulnerability Management System
+
+Our enhanced NVD integration provides comprehensive vulnerability assessment and enterprise risk management:
+
+### 🔍 **Search & Discovery**
+- Real-time vulnerability search using NVD API
+- Keyword-based filtering for specific technologies
+- Detailed CVE information with publication dates and descriptions
+
+### 📊 **Risk Analysis Dashboard** 
+- **Tabbed Interface**: Search, Analysis, and History views
+- **Risk Assessment Configuration**: Customizable thresholds (Critical: 80%, High: 60%, Medium: 40%, Low: 20%, Very Low: 10%)
+- **Queue Management**: Add specific vulnerabilities to analysis queue
+- **Enterprise Metrics**: Comprehensive business impact analysis
+
+### 🏢 **Enterprise Asset Categorization**
+- **Web Applications**: React, Vue, Angular, JavaScript, Node.js
+- **Infrastructure**: Apache, Nginx, Docker, Kubernetes, Linux, Windows  
+- **Databases**: MySQL, PostgreSQL, MongoDB, Redis, Oracle
+- **Development Tools**: Git, Jenkins, Python, Java, PHP, Ruby
+- **Security Tools**: OpenSSL, SSH, SSL/TLS, Crypto, Vault
+
+### 📈 **Business Impact Analysis**
+- Weighted scoring algorithms based on asset criticality
+- Automated risk level classification (Critical, High, Medium, Low, Very Low)
+- Enterprise-wide risk aggregation and reporting
+- Actionable recommendations based on risk assessment
+
+### 🔄 **Queue-Based Processing**
+- RabbitMQ integration for asynchronous vulnerability processing
+- Selective analysis - only analyze explicitly queued items
+- Real-time queue status monitoring
+- Bulk analysis capabilities
 
 ---
 
@@ -160,13 +207,18 @@ This project integrates with the [National Vulnerability Database (NVD)](https:/
 
 All frontend requests are routed through the API Gateway. Main endpoints:
 
-| Method | Endpoint                | Description                       |
-|--------|-------------------------|-----------------------------------|
-| POST   | /predict/cicids/        | Predict risk using CICIDS model   |
-| POST   | /predict/lanl/          | Predict risk using LANL model     |
-| POST   | /predict/combined/      | Combined risk prediction          |
-| GET    | /nvd                    | Search NVD vulnerabilities        |
-| GET    | /health                 | Health check                      |
+| Method | Endpoint                    | Description                           |
+|--------|-----------------------------|---------------------------------------|
+| POST   | /predict/cicids/            | Predict risk using CICIDS model       |
+| POST   | /predict/lanl/              | Predict risk using LANL model         |
+| POST   | /predict/combined/          | Combined risk prediction              |
+| GET    | /nvd                        | Search NVD vulnerabilities            |
+| POST   | /nvd/add_to_queue          | Add keyword to analysis queue         |
+| POST   | /nvd/analyze_risk          | Analyze queued vulnerabilities        |
+| POST   | /nvd/enterprise_metrics    | Get enterprise risk metrics           |
+| GET    | /nvd/queue_status          | Get current queue status              |
+| POST   | /nvd/clear_queue           | Clear analysis queue                  |
+| GET    | /health                     | Health check                          |
 
 ---
 
@@ -230,17 +282,42 @@ LANL_MODEL_PATH=/app/ml/isolation_forest_model.pkl
 
 ## 🆕 Recent Improvements (2025)
 
-- 🐇 **RabbitMQ integration**: Real message queue for NVD vulnerability searches. All NVD searches are enqueued and risk analysis dequeues and analyzes all items.
-- 🐳 **Robust Dockerization**: All services (backend, gateway, frontend, RabbitMQ, PostgreSQL) are fully dockerized and orchestrated with Docker Compose. Backend and gateway Dockerfiles set `PYTHONPATH` and support all dependencies.
-- 🔄 **Lazy queue connection**: The backend's `MessageQueue` now uses lazy connection and retry logic, so the backend does not crash if RabbitMQ is not ready at import time.
-- 🛡️ **API Gateway**: All API calls from the frontend are routed through a FastAPI API gateway, which exposes all backend endpoints and uses dependency injection for backend service abstraction.
-- 🌐 **CORS**: CORS middleware enabled in the API gateway for seamless frontend-backend communication.
-- 🖼️ **Modern UI/UX**: The frontend uses a minimalist, responsive, and visually appealing design. The NVD page now uses a two-column layout: vulnerabilities/search on the left, and a risk analysis pie chart on the right.
-- 📊 **SVG Pie Chart**: Custom SVG pie chart for NVD risk analysis results, shown in a dedicated right column.
-- 🧹 **Frontend state sync**: After analyzing risk, the "Added keywords" list is cleared to reflect the emptied backend queue.
-- 🐞 **Import fixes**: All backend imports standardized to avoid `ModuleNotFoundError` in Docker. `sys.path` is set in `main.py` for robust absolute imports.
-- 🛠️ **Error handling**: Improved error handling for RabbitMQ connection and API gateway routes.
-- 🔄 **Queue state**: The frontend disables the "Analyze Risk" button if no keywords are added, and the queue is cleared after analysis.
+### 🛡️ **Enhanced NVD Vulnerability Management**
+- **Tabbed Interface**: Complete redesign with Search, Analysis, and History tabs
+- **Enterprise Asset Risk Matrix**: Comprehensive risk assessment with business impact analysis
+- **Selective Queue Processing**: Only analyze vulnerabilities explicitly added to queue
+- **Risk Threshold Configuration**: Customizable risk appetite settings (Critical, High, Medium, Low, Very Low)
+- **Analysis History**: Track and audit all risk assessments for compliance
+
+### 🏢 **Enterprise-Level Features**
+- **Asset Categorization**: Automatic classification of assets by type (Web Apps, Infrastructure, Databases, Dev Tools, Security)
+- **Business Impact Scoring**: Weighted algorithms for calculating enterprise-wide risk exposure
+- **Automated Recommendations**: AI-driven suggestions based on risk assessment results
+- **Comprehensive Reporting**: Enterprise metrics with drill-down capabilities
+
+### 🎨 **Modern UI/UX Enhancements**
+- **Responsive Design**: Full-screen layout that adapts to all screen sizes
+- **Centered Layout**: Professional appearance with optimal content distribution
+- **Interactive Components**: Custom SVG pie charts and real-time data visualization
+- **Improved Navigation**: Intuitive tabbed interface with clear visual hierarchy
+
+### 🔄 **Backend Architecture Improvements**
+- **RabbitMQ Integration**: Real message queue for NVD vulnerability searches with reliable async processing
+- **Robust Dockerization**: All services (backend, gateway, frontend, RabbitMQ, PostgreSQL) fully containerized
+- **API Gateway Enhancement**: Complete endpoint coverage with dependency injection and service abstraction
+- **Queue Management**: Lazy connection with retry logic, preventing crashes when RabbitMQ is not ready
+
+### 🐳 **DevOps & Infrastructure**
+- **Docker Optimization**: Improved Dockerfiles with proper PYTHONPATH and dependency management
+- **CORS Configuration**: Seamless frontend-backend communication through API gateway
+- **Error Handling**: Enhanced error handling for queue connections and API routing
+- **Health Monitoring**: Comprehensive logging and health check endpoints
+
+### 🔧 **Technical Debt Resolution**
+- **Import Standardization**: All backend imports standardized to avoid Docker ModuleNotFoundError
+- **State Synchronization**: Frontend state properly synced with backend queue operations
+- **Code Quality**: Improved error handling, logging, and code organization
+- **Security**: No hardcoded credentials, all configuration via environment variables
 
 ---
 
