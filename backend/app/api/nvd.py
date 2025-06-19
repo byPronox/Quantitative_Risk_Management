@@ -6,6 +6,9 @@ import logging
 from config.config import settings
 from queue_manager.queue import MessageQueue
 from datetime import datetime
+from sqlalchemy.orm import Session
+from database.models import Risk
+from database.db import SessionLocal
 
 router = APIRouter()
 
@@ -59,40 +62,62 @@ async def add_keyword_to_queue(request: KeywordRequest):
 
 @router.post("/nvd/analyze_risk")
 async def analyze_nvd_risk():
-    # Palabras clave de ejemplo para cada nivel de riesgo
-    risk_keywords = {
-        "Critical": ["remote code execution", "privilege escalation", "arbitrary code", "unauthenticated", "root access", "critical"],
-        "High": ["denial of service", "bypass authentication", "sql injection", "directory traversal", "high"],
-        "Medium": ["information disclosure", "medium", "xss", "cross-site scripting", "csrf"],
-        "Low": ["low", "minor", "limited impact"],
-        "Very Low": ["no impact", "informational", "very low"]
-    }
-    mq = MessageQueue()
-    messages = mq.get_all_messages()
-    if not messages:
-        return {"detail": "No NVD searches in queue."}
-    # Analiza los riesgos por palabra clave
-    results = []
-    for msg in messages:
-        keyword = msg["keyword"]
-        vulns = msg["vulnerabilities"]
-        risk_count = {k: 0 for k in risk_keywords}
-        total = 0
-        for vuln in vulns:
-            desc = vuln["cve"]["descriptions"][0]["value"].lower()
-            assigned = False
-            for level, words in risk_keywords.items():
-                if any(w in desc for w in words):
-                    risk_count[level] += 1
-                    assigned = True
-                    break
-            if not assigned:
-                risk_count["Low"] += 1  # Default to Low if no match
-            total += 1
-        # Calcula el porcentaje de cada nivel
-        risk_percent = {level: (risk_count[level] / total * 100) if total else 0 for level in risk_keywords}
-        results.append({"keyword": keyword, "risk_percent": risk_percent})
-    return {"results": results}
+    from fastapi import Depends
+    db = SessionLocal()
+    try:
+        risk_keywords = {
+            "Critical": ["remote code execution", "privilege escalation", "arbitrary code", "unauthenticated", "root access", "critical"],
+            "High": ["denial of service", "bypass authentication", "sql injection", "directory traversal", "high"],
+            "Medium": ["information disclosure", "medium", "xss", "cross-site scripting", "csrf"],
+            "Low": ["low", "minor", "limited impact"],
+            "Very Low": ["no impact", "informational", "very low"]
+        }
+        mq = MessageQueue()
+        messages = mq.get_all_messages()
+        if not messages:
+            return {"detail": "No NVD searches in queue."}
+        results = []
+        for msg in messages:
+            keyword = msg["keyword"]
+            vulns = msg["vulnerabilities"]
+            risk_count = {k: 0 for k in risk_keywords}
+            total = 0
+            for vuln in vulns:
+                desc = vuln["cve"]["descriptions"][0]["value"].lower()
+                assigned = False
+                for level, words in risk_keywords.items():
+                    if any(w in desc for w in words):
+                        risk_count[level] += 1
+                        assigned = True
+                        break
+                if not assigned:
+                    risk_count["Low"] += 1
+                total += 1
+            risk_percent = {level: (risk_count[level] / total * 100) if total else 0 for level in risk_keywords}
+            # Calcular probabilidad e impacto (puedes ajustar la lógica)
+            probability = (risk_percent["Critical"] + risk_percent["High"]) / 100
+            impact = (risk_percent["Critical"] * 2 + risk_percent["High"] + risk_percent["Medium"] * 0.5) / 100
+            # Buscar si ya existe el riesgo
+            db_risk = db.query(Risk).filter(Risk.name == keyword).first()
+            if db_risk:
+                db_risk.probability = probability
+                db_risk.impact = impact
+                db.commit()
+                db.refresh(db_risk)
+            else:
+                db_risk = Risk(name=keyword, probability=probability, impact=impact, status="Pendiente")
+                db.add(db_risk)
+                db.commit()
+                db.refresh(db_risk)
+            results.append({
+                "id": db_risk.id,
+                "keyword": db_risk.name,
+                "risk_percent": risk_percent,
+                "status": db_risk.status
+            })
+        return {"results": results}
+    finally:
+        db.close()
 
 @router.post("/nvd/enterprise_metrics")
 async def get_enterprise_metrics():

@@ -92,7 +92,7 @@ export default function NvdPage() {
 
   useEffect(() => {
     if (riskResults && riskResults.length > 0) {
-      setSelectedRiskId(riskResults[0].id || 1); // Ajustar según cómo se maneje el id
+      setSelectedRiskId(Number(riskResults[0].id));
     }
   }, [riskResults]);
 
@@ -616,8 +616,8 @@ export default function NvdPage() {
                   style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #e2e8f0", fontSize: "1rem" }}
                 >
                   {riskResults.map(risk => (
-                    <option key={risk.id || risk.keyword} value={risk.id || 1}>
-                      {risk.keyword || `Risk ${risk.id || 1}`}
+                    <option key={risk.id} value={risk.id}>
+                      {risk.keyword || `Risk ${risk.id}`}
                     </option>
                   ))}
                 </select>
@@ -718,7 +718,7 @@ export default function NvdPage() {
                 </thead>
                 <tbody>
                   {riskResults.map(risk => (
-                    <tr key={risk.id || risk.keyword}>
+                    <tr key={risk.id}>
                       <td style={{ padding: 8 }}>{risk.keyword}</td>
                       <td style={{ padding: 8 }}>{risk.status || "Pendiente"}</td>
                       <td style={{ padding: 8 }}>
