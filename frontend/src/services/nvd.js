@@ -18,3 +18,20 @@ export async function addKeywordToQueue(keyword) {
   });
   return response.data;
 }
+
+export async function createObservation(observation) {
+  const response = await api.post("/observations/", observation);
+  return response.data;
+}
+
+export async function fetchObservations(riskId) {
+  const response = await api.get(`/observations/${riskId}`);
+  return response.data;
+}
+
+export async function updateRiskStatus(riskId, status) {
+  const response = await api.patch(`/risks/${riskId}/status`, status, {
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return response.data;
+}

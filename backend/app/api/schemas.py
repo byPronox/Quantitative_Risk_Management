@@ -4,6 +4,7 @@ class RiskCreate(BaseModel):
     name: str
     probability: float
     impact: float
+    status: str = "Pendiente"
 
 class RiskOut(RiskCreate):
     id: int
@@ -37,3 +38,15 @@ class LANLFeatures(BaseModel):
 class CombinedFeatures(BaseModel):
     cicids: CICIDSFeatures
     lanl: LANLFeatures
+
+class ObservationCreate(BaseModel):
+    risk_id: int
+    content: str
+    author: str | None = None
+    timestamp: str
+
+class ObservationOut(ObservationCreate):
+    id: int
+
+    class Config:
+        from_attributes = True

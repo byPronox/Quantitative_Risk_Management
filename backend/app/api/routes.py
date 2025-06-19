@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from database.models import Risk
+from database.models import Risk, Observation
 from database.db import SessionLocal
-from api.schemas import RiskCreate, RiskOut, CICIDSFeatures, LANLFeatures, CombinedFeatures
+from api.schemas import RiskCreate, RiskOut, CICIDSFeatures, LANLFeatures, CombinedFeatures, ObservationCreate, ObservationOut
 from typing import List
 from ml.engine import PredictionFactory, PredictionStrategy
 import logging
@@ -79,3 +79,25 @@ def predict_combined_endpoint(features: CombinedFeatures, cicids_strategy: Predi
     except Exception as e:
         logger.error("Combined prediction failed: %s", e)
         raise HTTPException(status_code=500, detail="Prediction failed") from e
+
+@router.post("/observations/", response_model=ObservationOut)
+def create_observation(obs: ObservationCreate, db: Session = Depends(get_db)):
+    db_obs = Observation(**obs.dict())
+    db.add(db_obs)
+    db.commit()
+    db.refresh(db_obs)
+    return db_obs
+
+@router.get("/observations/{risk_id}", response_model=List[ObservationOut])
+def list_observations(risk_id: int, db: Session = Depends(get_db)):
+    return db.query(Observation).filter(Observation.risk_id == risk_id).all()
+
+@router.patch("/risks/{risk_id}/status", response_model=RiskOut)
+def update_risk_status(risk_id: int, status: str = Body(...), db: Session = Depends(get_db)):
+    risk = db.query(Risk).filter(Risk.id == risk_id).first()
+    if not risk:
+        raise HTTPException(status_code=404, detail="Risk not found")
+    risk.status = status
+    db.commit()
+    db.refresh(risk)
+    return risk

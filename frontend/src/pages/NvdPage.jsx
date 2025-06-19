@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { fetchNvdVulnerabilities, analyzeNvdRisk, addKeywordToQueue } from "../services/nvd";
+import { fetchNvdVulnerabilities, analyzeNvdRisk, addKeywordToQueue, createObservation, fetchObservations, updateRiskStatus } from "../services/nvd";
 import NvdRiskPie from "../components/NvdRiskPie";
 import AssetRiskMatrix from "../components/AssetRiskMatrix";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
 
 export default function NvdPage() {
   const [keyword, setKeyword] = useState("");
@@ -10,7 +12,8 @@ export default function NvdPage() {
   const [error, setError] = useState("");
   const [riskResults, setRiskResults] = useState(null);
   const [addedKeywords, setAddedKeywords] = useState([]);
-  const [analysisHistory, setAnalysisHistory] = useState([]);  const [riskThresholds, setRiskThresholds] = useState({
+  const [analysisHistory, setAnalysisHistory] = useState([]);
+  const [riskThresholds, setRiskThresholds] = useState({
     critical: 80,
     high: 60,
     medium: 40,
@@ -18,6 +21,13 @@ export default function NvdPage() {
     "very low": 10
   });
   const [activeTab, setActiveTab] = useState("search"); // "search", "analysis", "history"
+  const [observations, setObservations] = useState([]);
+  const [observationText, setObservationText] = useState("");
+  const [obsLoading, setObsLoading] = useState(false);
+  const [selectedRiskId, setSelectedRiskId] = useState(null);
+
+  // Opciones de estado
+  const riskStatusOptions = ["Pendiente", "Mitigado", "En revisión", "Aceptado"];
 
   const handleSearch = async () => {
     setLoading(true);
@@ -78,7 +88,113 @@ export default function NvdPage() {
   useEffect(() => {
     // Removed automatic search on load since keyword starts empty
     // eslint-disable-next-line
-  }, []);return (
+  }, []);
+
+  useEffect(() => {
+    if (riskResults && riskResults.length > 0) {
+      setSelectedRiskId(riskResults[0].id || 1); // Ajustar según cómo se maneje el id
+    }
+  }, [riskResults]);
+
+  useEffect(() => {
+    if (selectedRiskId) {
+      fetchObservations(selectedRiskId).then(setObservations);
+    }
+  }, [selectedRiskId]);
+
+  const handleObservationSubmit = async (e) => {
+    e.preventDefault();
+    if (!observationText.trim() || !selectedRiskId) return;
+    setObsLoading(true);
+    const newObs = {
+      risk_id: selectedRiskId,
+      content: observationText,
+      author: "user", // O puedes pedir el nombre
+      timestamp: new Date().toISOString()
+    };
+    try {
+      await createObservation(newObs);
+      setObservationText("");
+      const updated = await fetchObservations(selectedRiskId);
+      setObservations(updated);
+    } finally {
+      setObsLoading(false);
+    }
+  };
+
+  // Función para exportar a CSV
+  const exportAnalysisToCSV = async () => {
+    if (!riskResults || riskResults.length === 0) return;
+    let csv = "Keyword,Risk Level,Critical %,High %,Medium %,Low %,Very Low %,Observations\n";
+    for (const risk of riskResults) {
+      // Obtener observaciones para cada riesgo
+      let obsList = [];
+      try {
+        obsList = await fetchObservations(risk.id || 1);
+      } catch {}
+      const obsText = obsList.map(o => `${o.author || "Anon"} (${new Date(o.timestamp).toLocaleString()}): ${o.content.replace(/\n/g, " ")}`).join(" | ");
+      csv += `"${risk.keyword}","${risk.risk_percent?.Critical?.toFixed(1) || 0}","${risk.risk_percent?.High?.toFixed(1) || 0}","${risk.risk_percent?.Medium?.toFixed(1) || 0}","${risk.risk_percent?.Low?.toFixed(1) || 0}","${risk.risk_percent?.['Very Low']?.toFixed(1) || 0}","${obsText}"
+`;
+    }
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, `risk_analysis_${new Date().toISOString().slice(0,10)}.csv`);
+  };
+
+  // Función para exportar a PDF
+  const exportAnalysisToPDF = async () => {
+    if (!riskResults || riskResults.length === 0) return;
+    const doc = new jsPDF();
+    let y = 10;
+    doc.setFontSize(16);
+    doc.text("Risk Analysis Report", 10, y);
+    y += 8;
+    doc.setFontSize(10);
+    doc.text(`Date: ${new Date().toLocaleString()}`, 10, y);
+    y += 8;
+    for (const risk of riskResults) {
+      doc.setFontSize(12);
+      doc.text(`Keyword: ${risk.keyword}`, 10, y);
+      y += 6;
+      doc.setFontSize(10);
+      doc.text(`Critical: ${risk.risk_percent?.Critical?.toFixed(1) || 0}%  High: ${risk.risk_percent?.High?.toFixed(1) || 0}%  Medium: ${risk.risk_percent?.Medium?.toFixed(1) || 0}%  Low: ${risk.risk_percent?.Low?.toFixed(1) || 0}%  Very Low: ${risk.risk_percent?.['Very Low']?.toFixed(1) || 0}%`, 10, y);
+      y += 6;
+      // Observaciones
+      let obsList = [];
+      try {
+        obsList = await fetchObservations(risk.id || 1);
+      } catch {}
+      if (obsList.length > 0) {
+        doc.setFontSize(10);
+        doc.text("Observations:", 10, y);
+        y += 5;
+        obsList.forEach(obs => {
+          const obsText = `${obs.author || "Anon"} (${new Date(obs.timestamp).toLocaleString()}): ${obs.content}`;
+          const lines = doc.splitTextToSize(obsText, 180);
+          lines.forEach(line => {
+            doc.text(line, 12, y);
+            y += 5;
+          });
+        });
+      } else {
+        doc.text("No observations.", 10, y);
+        y += 5;
+      }
+      y += 3;
+      if (y > 270) { doc.addPage(); y = 10; }
+    }
+    doc.save(`risk_analysis_${new Date().toISOString().slice(0,10)}.pdf`);
+  };
+
+  // Función para actualizar el estado de un riesgo
+  const handleStatusChange = async (riskId, newStatus) => {
+    await updateRiskStatus(riskId, JSON.stringify(newStatus));
+    // Refrescar los resultados de riesgo si es necesario
+    setRiskResults(riskResults =>
+      riskResults.map(r => r.id === riskId ? { ...r, status: newStatus } : r)
+    );
+  };
+
+  return (
     <div className="nvd-page" style={{ 
       padding: "2rem", 
       maxWidth: "1400px", 
@@ -480,6 +596,147 @@ export default function NvdPage() {
               riskResults={riskResults} 
               riskThresholds={riskThresholds}
             />
+          )}
+
+          {/* Formulario de observaciones */}
+          <div style={{
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: "0.75rem",
+            padding: "1.5rem",
+            marginTop: "2rem"
+          }}>
+            <h3 style={{ color: "#1e40af", marginBottom: "1rem" }}>📝 Observations & Recommendations</h3>
+            {riskResults && riskResults.length > 0 && (
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ fontWeight: 600, color: "#374151", marginRight: 8 }}>Select Risk:</label>
+                <select
+                  value={selectedRiskId || ""}
+                  onChange={e => setSelectedRiskId(Number(e.target.value))}
+                  style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #e2e8f0", fontSize: "1rem" }}
+                >
+                  {riskResults.map(risk => (
+                    <option key={risk.id || risk.keyword} value={risk.id || 1}>
+                      {risk.keyword || `Risk ${risk.id || 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <form onSubmit={handleObservationSubmit} style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
+              <textarea
+                value={observationText}
+                onChange={e => setObservationText(e.target.value)}
+                placeholder="Add your observation or recommendation..."
+                rows={2}
+                style={{ flex: 1, borderRadius: "0.5rem", border: "1px solid #e2e8f0", padding: "0.75rem", fontSize: "1rem" }}
+              />
+              <button type="submit" disabled={obsLoading || !observationText.trim()} style={{
+                background: "#2563eb",
+                color: "#fff",
+                border: "none",
+                borderRadius: "0.5rem",
+                padding: "0.75rem 1.5rem",
+                fontWeight: "600",
+                cursor: obsLoading ? "not-allowed" : "pointer"
+              }}>
+                {obsLoading ? "Saving..." : "Add"}
+              </button>
+            </form>
+            <div style={{ maxHeight: 200, overflowY: "auto" }}>
+              {observations.length === 0 ? (
+                <p style={{ color: "#64748b" }}>No observations yet.</p>
+              ) : (
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                  {observations.map(obs => (
+                    <li key={obs.id} style={{
+                      background: "#fff",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "0.5rem",
+                      padding: "0.75rem",
+                      marginBottom: "0.5rem"
+                    }}>
+                      <div style={{ fontSize: "0.95rem", color: "#374151" }}>{obs.content}</div>
+                      <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: 4 }}>
+                        {obs.author ? <b>{obs.author}</b> : "Anon"} | {new Date(obs.timestamp).toLocaleString()}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {riskResults && riskResults.length > 0 && (
+              <button
+                onClick={exportAnalysisToCSV}
+                style={{
+                  marginBottom: 16,
+                  background: "#059669",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "0.5rem",
+                  padding: "0.75rem 1.5rem",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  float: "right"
+                }}
+              >
+                ⬇️ Export Analysis to CSV
+              </button>
+            )}
+            {riskResults && riskResults.length > 0 && (
+              <button
+                onClick={exportAnalysisToPDF}
+                style={{
+                  marginBottom: 16,
+                  marginLeft: 8,
+                  background: "#2563eb",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "0.5rem",
+                  padding: "0.75rem 1.5rem",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  float: "right"
+                }}
+              >
+                ⬇️ Export Analysis to PDF
+              </button>
+            )}
+          </div>
+
+          {/* En la sección de análisis, debajo del gráfico o matriz de riesgos, mostrar la lista de riesgos con su estado y selector */}
+          {riskResults && riskResults.length > 0 && (
+            <div style={{ marginTop: 32, marginBottom: 32 }}>
+              <h3 style={{ color: "#1e40af", marginBottom: 12 }}>🛡️ Risk Status Tracking</h3>
+              <table style={{ width: "100%", background: "#fff", borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 2px 8px #0001", fontSize: 15 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc" }}>
+                    <th style={{ padding: 8, textAlign: "left" }}>Keyword</th>
+                    <th style={{ padding: 8, textAlign: "left" }}>Current Status</th>
+                    <th style={{ padding: 8, textAlign: "left" }}>Change Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {riskResults.map(risk => (
+                    <tr key={risk.id || risk.keyword}>
+                      <td style={{ padding: 8 }}>{risk.keyword}</td>
+                      <td style={{ padding: 8 }}>{risk.status || "Pendiente"}</td>
+                      <td style={{ padding: 8 }}>
+                        <select
+                          value={risk.status || "Pendiente"}
+                          onChange={e => handleStatusChange(risk.id, e.target.value)}
+                          style={{ padding: "0.5rem", borderRadius: 6, border: "1px solid #e2e8f0" }}
+                        >
+                          {riskStatusOptions.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}      {activeTab === "history" && (
