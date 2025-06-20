@@ -12,7 +12,11 @@ export default function NvdPage() {
   const [error, setError] = useState("");
   const [riskResults, setRiskResults] = useState(null);
   const [addedKeywords, setAddedKeywords] = useState([]);
-  const [analysisHistory, setAnalysisHistory] = useState([]);
+  const [allSearchedVulnerabilities, setAllSearchedVulnerabilities] = useState([]);
+  const [analysisHistory, setAnalysisHistory] = useState(() => {
+    const saved = localStorage.getItem('analysisHistory');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [riskThresholds, setRiskThresholds] = useState({
     critical: 80,
     high: 60,
@@ -34,7 +38,14 @@ export default function NvdPage() {
     setError("");
     try {
       const data = await fetchNvdVulnerabilities(keyword);
-      setVulnerabilities(data.vulnerabilities || []);
+      const newVulns = data.vulnerabilities || [];
+      setVulnerabilities(newVulns);
+      // Accumulate all vulnerabilities for the report
+      setAllSearchedVulnerabilities(prevVulns => {
+        const existingIds = new Set(prevVulns.map(v => v.cve.id));
+        const filteredNewVulns = newVulns.filter(v => !existingIds.has(v.cve.id));
+        return [...prevVulns, ...filteredNewVulns];
+      });
     } catch (error) {
       setError("Error fetching NVD data");
     } finally {
@@ -86,9 +97,8 @@ export default function NvdPage() {
     }
   };
   useEffect(() => {
-    // Removed automatic search on load since keyword starts empty
-    // eslint-disable-next-line
-  }, []);
+    localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+  }, [analysisHistory]);
 
   useEffect(() => {
     if (riskResults && riskResults.length > 0) {
@@ -164,7 +174,7 @@ export default function NvdPage() {
     if (riskResults && riskResults.length > 0) {
       for (const risk of riskResults) {
         const keyword = risk.keyword;
-        const vulnsForKeyword = (vulnerabilities || []).filter(vuln => {
+        const vulnsForKeyword = (allSearchedVulnerabilities || []).filter(vuln => {
           // Simple match: check if keyword is in description or id (case-insensitive)
           const desc = vuln.cve.descriptions[0]?.value?.toLowerCase() || '';
           return desc.includes(keyword.toLowerCase()) || vuln.cve.id.toLowerCase().includes(keyword.toLowerCase());
@@ -183,7 +193,7 @@ export default function NvdPage() {
         }
         csv += '\n';
         // Add general recommendation (always show)
-        const highestSeverity = getHighestSeverityForKeyword(keyword, vulnerabilities);
+        const highestSeverity = getHighestSeverityForKeyword(keyword, allSearchedVulnerabilities);
         const rec = getRecommendationBySeverity(highestSeverity);
         csv += `General Recommendation:,${rec}\n\n`;
       }
@@ -275,7 +285,7 @@ export default function NvdPage() {
     if (riskResults && riskResults.length > 0) {
       for (const risk of riskResults) {
         const keyword = risk.keyword;
-        const vulnsForKeyword = (vulnerabilities || []).filter(vuln => {
+        const vulnsForKeyword = (allSearchedVulnerabilities || []).filter(vuln => {
           const desc = vuln.cve.descriptions[0]?.value?.toLowerCase() || '';
           return desc.includes(keyword.toLowerCase()) || vuln.cve.id.toLowerCase().includes(keyword.toLowerCase());
         });
@@ -301,7 +311,7 @@ export default function NvdPage() {
             y += 2;
             if (y > 270) { doc.addPage(); y = 10; }
             // Add general recommendation (always show)
-            const highestSeverity = getHighestSeverityForKeyword(keyword, vulnerabilities);
+            const highestSeverity = getHighestSeverityForKeyword(keyword, allSearchedVulnerabilities);
             const rec = getRecommendationBySeverity(highestSeverity);
             doc.setFontSize(10);
             doc.text(`General Recommendation: ${rec}`, 12, y);
@@ -354,7 +364,7 @@ export default function NvdPage() {
     doc.setFontSize(10);
     if (riskResults && riskResults.length > 0) {
       for (const risk of riskResults) {
-        const highestSeverity = getHighestSeverityForKeyword(risk.keyword, vulnerabilities);
+        const highestSeverity = getHighestSeverityForKeyword(risk.keyword, allSearchedVulnerabilities);
         const rec = getRecommendationBySeverity(highestSeverity);
         doc.text(`${risk.keyword}: ${rec}`, 12, y);
         y += 6;
@@ -990,7 +1000,7 @@ export default function NvdPage() {
               <h4 style={{ color: '#1e40af', marginBottom: 12 }}>General Recommendations by Keyword</h4>
               <ul style={{ listStyle: 'disc', paddingLeft: 24 }}>
                 {(riskResults || []).map(risk => {
-                  const highestSeverity = getHighestSeverityForKeyword(risk.keyword, vulnerabilities);
+                  const highestSeverity = getHighestSeverityForKeyword(risk.keyword, allSearchedVulnerabilities);
                   const rec = getRecommendationBySeverity(highestSeverity);
                   return (
                     <li key={risk.keyword} style={{ marginBottom: 8 }}>
