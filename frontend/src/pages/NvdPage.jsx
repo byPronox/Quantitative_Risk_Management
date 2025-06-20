@@ -27,7 +27,7 @@ export default function NvdPage() {
   const [selectedRiskId, setSelectedRiskId] = useState(null);
 
   // Opciones de estado
-  const riskStatusOptions = ["Pendiente", "Mitigado", "En revisión", "Aceptado"];
+  const riskStatusOptions = ["Pending", "Mitigated", "In Review", "Accepted"];
 
   const handleSearch = async () => {
     setLoading(true);
@@ -936,10 +936,10 @@ export default function NvdPage() {
                     {riskResults.map(risk => (
                       <tr key={risk.id}>
                         <td style={{ padding: 8 }}>{risk.keyword}</td>
-                        <td style={{ padding: 8 }}>{risk.status || "Pendiente"}</td>
+                        <td style={{ padding: 8 }}>{risk.status || "Pending"}</td>
                         <td style={{ padding: 8 }}>
                           <select
-                            value={risk.status || "Pendiente"}
+                            value={risk.status || "Pending"}
                             onChange={e => handleStatusChange(risk.id, e.target.value)}
                             style={{ padding: "0.5rem", borderRadius: 6, border: "1px solid #e2e8f0" }}
                           >
