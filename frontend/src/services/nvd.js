@@ -35,3 +35,8 @@ export async function updateRiskStatus(riskId, status) {
   });
   return response.data;
 }
+
+export async function deleteObservation(observationId) {
+  const response = await api.delete(`/observations/${observationId}`);
+  return response.data;
+}

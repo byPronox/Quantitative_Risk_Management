@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { fetchNvdVulnerabilities, analyzeNvdRisk, addKeywordToQueue, createObservation, fetchObservations, updateRiskStatus } from "../services/nvd";
+import { fetchNvdVulnerabilities, analyzeNvdRisk, addKeywordToQueue, createObservation, fetchObservations, updateRiskStatus, deleteObservation } from "../services/nvd";
 import NvdRiskPie from "../components/NvdRiskPie";
 import AssetRiskMatrix from "../components/AssetRiskMatrix";
 import { saveAs } from "file-saver";
@@ -119,6 +119,18 @@ export default function NvdPage() {
       setObservations(updated);
     } finally {
       setObsLoading(false);
+    }
+  };
+
+  const handleDeleteObservation = async (observationId) => {
+    try {
+      await deleteObservation(observationId);
+      // Refrescar la lista de observaciones
+      const updated = await fetchObservations(selectedRiskId);
+      setObservations(updated);
+    } catch (error) {
+      setError("Error deleting observation");
+      console.error("Delete observation error:", error);
     }
   };
 
@@ -869,12 +881,31 @@ export default function NvdPage() {
                       border: "1px solid #e2e8f0",
                       borderRadius: "0.5rem",
                       padding: "0.75rem",
-                      marginBottom: "0.5rem"
+                      marginBottom: "0.5rem",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
                     }}>
-                      <div style={{ fontSize: "0.95rem", color: "#374151" }}>{obs.content}</div>
-                      <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: 4 }}>
-                        {obs.author ? <b>{obs.author}</b> : "Anon"} | {new Date(obs.timestamp).toLocaleString()}
+                      <div>
+                        <div style={{ fontSize: "0.95rem", color: "#374151" }}>{obs.content}</div>
+                        <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: 4 }}>
+                          {obs.author ? <b>{obs.author}</b> : "Anon"} | {new Date(obs.timestamp).toLocaleString()}
+                        </div>
                       </div>
+                      <button 
+                        onClick={() => handleDeleteObservation(obs.id)}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "#ef4444",
+                          cursor: "pointer",
+                          fontSize: "1.2rem",
+                          padding: "0.25rem"
+                        }}
+                        title="Delete observation"
+                      >
+                        &times;
+                      </button>
                     </li>
                   ))}
                 </ul>
