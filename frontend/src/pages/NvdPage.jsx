@@ -124,66 +124,281 @@ export default function NvdPage() {
 
   // Función para exportar a CSV
   const exportAnalysisToCSV = async () => {
-    if (!riskResults || riskResults.length === 0) return;
-    let csv = "Keyword,Risk Level,Critical %,High %,Medium %,Low %,Very Low %,Observations\n";
-    for (const risk of riskResults) {
-      // Obtener observaciones para cada riesgo
-      let obsList = [];
-      try {
-        obsList = await fetchObservations(risk.id || 1);
-      } catch {}
-      const obsText = obsList.map(o => `${o.author || "Anon"} (${new Date(o.timestamp).toLocaleString()}): ${o.content.replace(/\n/g, " ")}`).join(" | ");
-      csv += `"${risk.keyword}","${risk.risk_percent?.Critical?.toFixed(1) || 0}","${risk.risk_percent?.High?.toFixed(1) || 0}","${risk.risk_percent?.Medium?.toFixed(1) || 0}","${risk.risk_percent?.Low?.toFixed(1) || 0}","${risk.risk_percent?.['Very Low']?.toFixed(1) || 0}","${obsText}"
-`;
+    let csv = '';
+    // 1. General summary
+    csv += 'Risk Analysis Full Report\n';
+    csv += `Date:,${new Date().toLocaleString()}\n`;
+    csv += `Analyzed Keywords:,${(riskResults || []).map(r=>r.keyword).join(', ')}\n\n`;
+
+    // 2. Current Analysis Results
+    csv += 'Current Risk Analysis Results\n';
+    csv += 'Keyword,Risk Status,Critical %,High %,Medium %,Low %,Very Low %,Observations\n';
+    if (riskResults && riskResults.length > 0) {
+      for (const risk of riskResults) {
+        let obsList = [];
+        try {
+          obsList = await fetchObservations(risk.id || 1);
+        } catch {}
+        const obsText = obsList.map(o => `${o.author || "Anon"} (${new Date(o.timestamp).toLocaleString()}): ${o.content.replace(/\n/g, " ")}`).join(" | ");
+        csv += `"${risk.keyword}","${risk.status || 'Pending'}","${risk.risk_percent?.Critical?.toFixed(1) || 0}","${risk.risk_percent?.High?.toFixed(1) || 0}","${risk.risk_percent?.Medium?.toFixed(1) || 0}","${risk.risk_percent?.Low?.toFixed(1) || 0}","${risk.risk_percent?.['Very Low']?.toFixed(1) || 0}","${obsText}"\n`;
+      }
+    } else {
+      csv += 'No current analysis results.\n';
+    }
+    csv += '\n';
+
+    // 3. Vulnerability Search Results (Grouped by Keyword)
+    csv += 'Vulnerability Search Results by Keyword\n';
+    if (riskResults && riskResults.length > 0) {
+      for (const risk of riskResults) {
+        const keyword = risk.keyword;
+        const vulnsForKeyword = (vulnerabilities || []).filter(vuln => {
+          // Simple match: check if keyword is in description or id (case-insensitive)
+          const desc = vuln.cve.descriptions[0]?.value?.toLowerCase() || '';
+          return desc.includes(keyword.toLowerCase()) || vuln.cve.id.toLowerCase().includes(keyword.toLowerCase());
+        });
+        csv += `Keyword:,${keyword}\n`;
+        csv += `Vulnerabilities Found:,${vulnsForKeyword.length}\n`;
+        csv += 'CVE ID,Description,Published Date\n';
+        if (vulnsForKeyword.length > 0) {
+          for (const vuln of vulnsForKeyword) {
+            const desc = vuln.cve.descriptions[0]?.value?.replace(/\n/g, ' ') || '';
+            const pub = vuln.cve.published ? new Date(vuln.cve.published).toLocaleDateString() : '';
+            csv += `"${vuln.cve.id}","${desc}","${pub}"\n`;
+          }
+        } else {
+          csv += 'No vulnerabilities found for this keyword.\n';
+        }
+        csv += '\n';
+        // Add general recommendation (always show)
+        const highestSeverity = getHighestSeverityForKeyword(keyword, vulnerabilities);
+        const rec = getRecommendationBySeverity(highestSeverity);
+        csv += `General Recommendation:,${rec}\n\n`;
+      }
+    } else {
+      csv += 'No keywords analyzed, so no grouped vulnerabilities.\n';
+    }
+    csv += '\n';
+
+    // 4. Analysis History
+    csv += 'Analysis History\n';
+    if (analysisHistory && analysisHistory.length > 0) {
+      for (const analysis of analysisHistory) {
+        csv += `Analysis #${analysis.id},Date:,${new Date(analysis.timestamp).toLocaleString()}\n`;
+        csv += `Keywords:,${analysis.keywords.join(', ')}\n`;
+        csv += 'Keyword,Critical %,High %,Medium %,Low %,Very Low %\n';
+        for (const result of analysis.results) {
+          csv += `"${result.keyword}","${result.risk_percent?.Critical?.toFixed(1) || 0}","${result.risk_percent?.High?.toFixed(1) || 0}","${result.risk_percent?.Medium?.toFixed(1) || 0}","${result.risk_percent?.Low?.toFixed(1) || 0}","${result.risk_percent?.['Very Low']?.toFixed(1) || 0}"\n`;
+        }
+        csv += '\n';
+      }
+    } else {
+      csv += 'No analysis history available.\n';
     }
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, `risk_analysis_${new Date().toISOString().slice(0,10)}.csv`);
+    saveAs(blob, `risk_analysis_full_${new Date().toISOString().slice(0,10)}.csv`);
   };
 
   // Función para exportar a PDF
   const exportAnalysisToPDF = async () => {
-    if (!riskResults || riskResults.length === 0) return;
     const doc = new jsPDF();
     let y = 10;
     doc.setFontSize(16);
-    doc.text("Risk Analysis Report", 10, y);
+    doc.text("Risk Analysis Full Report", 10, y);
     y += 8;
     doc.setFontSize(10);
     doc.text(`Date: ${new Date().toLocaleString()}`, 10, y);
     y += 8;
-    for (const risk of riskResults) {
-      doc.setFontSize(12);
-      doc.text(`Keyword: ${risk.keyword}`, 10, y);
-      y += 6;
-      doc.setFontSize(10);
-      doc.text(`Critical: ${risk.risk_percent?.Critical?.toFixed(1) || 0}%  High: ${risk.risk_percent?.High?.toFixed(1) || 0}%  Medium: ${risk.risk_percent?.Medium?.toFixed(1) || 0}%  Low: ${risk.risk_percent?.Low?.toFixed(1) || 0}%  Very Low: ${risk.risk_percent?.['Very Low']?.toFixed(1) || 0}%`, 10, y);
-      y += 6;
-      // Observaciones
-      let obsList = [];
-      try {
-        obsList = await fetchObservations(risk.id || 1);
-      } catch {}
-      if (obsList.length > 0) {
+    doc.text(`Analyzed Keywords: ${(riskResults || []).map(r=>r.keyword).join(', ')}`, 10, y);
+    y += 8;
+
+    // 1. Current Analysis Results
+    doc.setFontSize(13);
+    doc.text("Current Risk Analysis Results", 10, y);
+    y += 7;
+    doc.setFontSize(10);
+    if (riskResults && riskResults.length > 0) {
+      for (const risk of riskResults) {
+        doc.setFontSize(11);
+        doc.text(`Keyword: ${risk.keyword} | Status: ${risk.status || 'Pending'}`, 10, y);
+        y += 5;
         doc.setFontSize(10);
-        doc.text("Observations:", 10, y);
+        doc.text(`Critical: ${risk.risk_percent?.Critical?.toFixed(1) || 0}%  High: ${risk.risk_percent?.High?.toFixed(1) || 0}%  Medium: ${risk.risk_percent?.Medium?.toFixed(1) || 0}%  Low: ${risk.risk_percent?.Low?.toFixed(1) || 0}%  Very Low: ${risk.risk_percent?.['Very Low']?.toFixed(1) || 0}%`, 10, y);
         y += 5;
-        obsList.forEach(obs => {
-          const obsText = `${obs.author || "Anon"} (${new Date(obs.timestamp).toLocaleString()}): ${obs.content}`;
-          const lines = doc.splitTextToSize(obsText, 180);
-          lines.forEach(line => {
-            doc.text(line, 12, y);
-            y += 5;
+        // Observations
+        let obsList = [];
+        try {
+          obsList = await fetchObservations(risk.id || 1);
+        } catch {}
+        if (obsList.length > 0) {
+          doc.setFontSize(10);
+          doc.text("Observations:", 10, y);
+          y += 5;
+          obsList.forEach(obs => {
+            const obsText = `${obs.author || "Anon"} (${new Date(obs.timestamp).toLocaleString()}): ${obs.content}`;
+            const lines = doc.splitTextToSize(obsText, 180);
+            lines.forEach(line => {
+              doc.text(line, 12, y);
+              y += 5;
+            });
           });
-        });
-      } else {
-        doc.text("No observations.", 10, y);
-        y += 5;
+        } else {
+          doc.text("No observations.", 10, y);
+          y += 5;
+        }
+        y += 2;
+        if (y > 270) { doc.addPage(); y = 10; }
       }
-      y += 3;
-      if (y > 270) { doc.addPage(); y = 10; }
+    } else {
+      doc.text("No current analysis results.", 10, y);
+      y += 5;
     }
-    doc.save(`risk_analysis_${new Date().toISOString().slice(0,10)}.pdf`);
+    y += 5;
+
+    // 2. Vulnerability Search Results (Grouped by Keyword)
+    doc.setFontSize(13);
+    doc.text("Vulnerability Search Results by Keyword", 10, y);
+    y += 7;
+    doc.setFontSize(10);
+    if (riskResults && riskResults.length > 0) {
+      for (const risk of riskResults) {
+        const keyword = risk.keyword;
+        const vulnsForKeyword = (vulnerabilities || []).filter(vuln => {
+          const desc = vuln.cve.descriptions[0]?.value?.toLowerCase() || '';
+          return desc.includes(keyword.toLowerCase()) || vuln.cve.id.toLowerCase().includes(keyword.toLowerCase());
+        });
+        doc.setFontSize(11);
+        doc.text(`Keyword: ${keyword} | Vulnerabilities Found: ${vulnsForKeyword.length}`, 10, y);
+        y += 5;
+        doc.setFontSize(10);
+        if (vulnsForKeyword.length > 0) {
+          for (const vuln of vulnsForKeyword) {
+            doc.text(`CVE: ${vuln.cve.id}`, 12, y);
+            y += 5;
+            if (vuln.cve.descriptions[0]?.value) {
+              const descLines = doc.splitTextToSize(vuln.cve.descriptions[0].value, 170);
+              descLines.forEach(line => {
+                doc.text(line, 16, y);
+                y += 5;
+              });
+            }
+            if (vuln.cve.published) {
+              doc.text(`Published: ${new Date(vuln.cve.published).toLocaleDateString()}`, 16, y);
+              y += 5;
+            }
+            y += 2;
+            if (y > 270) { doc.addPage(); y = 10; }
+            // Add general recommendation (always show)
+            const highestSeverity = getHighestSeverityForKeyword(keyword, vulnerabilities);
+            const rec = getRecommendationBySeverity(highestSeverity);
+            doc.setFontSize(10);
+            doc.text(`General Recommendation: ${rec}`, 12, y);
+            y += 6;
+            if (y > 270) { doc.addPage(); y = 10; }
+          }
+        } else {
+          doc.text("No vulnerabilities found for this keyword.", 12, y);
+          y += 5;
+        }
+        y += 2;
+        if (y > 270) { doc.addPage(); y = 10; }
+      }
+    } else {
+      doc.text("No keywords analyzed, so no grouped vulnerabilities.", 10, y);
+      y += 5;
+    }
+    y += 5;
+
+    // 3. Analysis History
+    doc.setFontSize(13);
+    doc.text("Analysis History", 10, y);
+    y += 7;
+    doc.setFontSize(10);
+    if (analysisHistory && analysisHistory.length > 0) {
+      for (const analysis of analysisHistory) {
+        doc.setFontSize(11);
+        doc.text(`Analysis #${analysis.id} | Date: ${new Date(analysis.timestamp).toLocaleString()}`, 10, y);
+        y += 5;
+        doc.setFontSize(10);
+        doc.text(`Keywords: ${analysis.keywords.join(', ')}`, 10, y);
+        y += 5;
+        for (const result of analysis.results) {
+          doc.text(`  - ${result.keyword}: Critical: ${result.risk_percent?.Critical?.toFixed(1) || 0}%, High: ${result.risk_percent?.High?.toFixed(1) || 0}%, Medium: ${result.risk_percent?.Medium?.toFixed(1) || 0}%, Low: ${result.risk_percent?.Low?.toFixed(1) || 0}%, Very Low: ${result.risk_percent?.['Very Low']?.toFixed(1) || 0}%`, 10, y);
+          y += 5;
+          if (y > 270) { doc.addPage(); y = 10; }
+        }
+        y += 2;
+        if (y > 270) { doc.addPage(); y = 10; }
+      }
+    } else {
+      doc.text("No analysis history available.", 10, y);
+      y += 5;
+    }
+
+    // 4. General Recommendations by Keyword
+    doc.setFontSize(13);
+    doc.text("General Recommendations by Keyword", 10, y);
+    y += 7;
+    doc.setFontSize(10);
+    if (riskResults && riskResults.length > 0) {
+      for (const risk of riskResults) {
+        const highestSeverity = getHighestSeverityForKeyword(risk.keyword, vulnerabilities);
+        const rec = getRecommendationBySeverity(highestSeverity);
+        doc.text(`${risk.keyword}: ${rec}`, 12, y);
+        y += 6;
+        if (y > 270) { doc.addPage(); y = 10; }
+      }
+    } else {
+      doc.text("No keywords analyzed.", 10, y);
+      y += 5;
+    }
+
+    doc.save(`risk_analysis_full_${new Date().toISOString().slice(0,10)}.pdf`);
   };
+
+  // Helper: get highest severity for a keyword
+  function getHighestSeverityForKeyword(keyword, vulnerabilities) {
+    // Map severities to a score for comparison
+    const severityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1, 'very low': 0 };
+    let max = -1;
+    let found = null;
+    (vulnerabilities || []).forEach(vuln => {
+      const desc = vuln.cve.descriptions[0]?.value?.toLowerCase() || '';
+      if (desc.includes(keyword.toLowerCase()) || vuln.cve.id.toLowerCase().includes(keyword.toLowerCase())) {
+        // Try to get severity from vuln (NVD format: vuln.cve.metrics.cvssMetricV31[0].cvssData.baseSeverity)
+        let sev = null;
+        if (vuln.cve.metrics?.cvssMetricV31?.[0]?.cvssData?.baseSeverity) {
+          sev = vuln.cve.metrics.cvssMetricV31[0].cvssData.baseSeverity.toLowerCase();
+        } else if (vuln.cve.metrics?.cvssMetricV2?.[0]?.baseSeverity) {
+          sev = vuln.cve.metrics.cvssMetricV2[0].baseSeverity.toLowerCase();
+        }
+        if (sev && severityOrder[sev] !== undefined && severityOrder[sev] > max) {
+          max = severityOrder[sev];
+          found = sev;
+        }
+      }
+    });
+    // Fallback: if no severity found, return null
+    return found;
+  }
+
+  // Helper: get recommendation by severity
+  function getRecommendationBySeverity(severity) {
+    switch (severity) {
+      case 'critical':
+        return 'Immediate action required: Update to the latest version and apply all available security patches.';
+      case 'high':
+        return 'High risk detected: Review vendor advisories and apply recommended mitigations.';
+      case 'medium':
+        return 'Medium risk: Monitor for updates and consider applying mitigations.';
+      case 'low':
+        return 'Low risk: Keep systems updated and follow best security practices.';
+      case 'very low':
+        return 'Very low risk: Maintain regular security hygiene.';
+      default:
+        return 'No specific recommendation available. Follow general security best practices.';
+    }
+  }
 
   // Función para actualizar el estado de un riesgo
   const handleStatusChange = async (riskId, newStatus) => {
@@ -705,39 +920,56 @@ export default function NvdPage() {
           </div>
 
           {/* En la sección de análisis, debajo del gráfico o matriz de riesgos, mostrar la lista de riesgos con su estado y selector */}
-          {riskResults && riskResults.length > 0 && (
-            <div style={{ marginTop: 32, marginBottom: 32 }}>
-              <h3 style={{ color: "#1e40af", marginBottom: 12 }}>🛡️ Risk Status Tracking</h3>
-              <table style={{ width: "100%", background: "#fff", borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 2px 8px #0001", fontSize: 15 }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc" }}>
-                    <th style={{ padding: 8, textAlign: "left" }}>Keyword</th>
-                    <th style={{ padding: 8, textAlign: "left" }}>Current Status</th>
-                    <th style={{ padding: 8, textAlign: "left" }}>Change Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {riskResults.map(risk => (
-                    <tr key={risk.id}>
-                      <td style={{ padding: 8 }}>{risk.keyword}</td>
-                      <td style={{ padding: 8 }}>{risk.status || "Pendiente"}</td>
-                      <td style={{ padding: 8 }}>
-                        <select
-                          value={risk.status || "Pendiente"}
-                          onChange={e => handleStatusChange(risk.id, e.target.value)}
-                          style={{ padding: "0.5rem", borderRadius: 6, border: "1px solid #e2e8f0" }}
-                        >
-                          {riskStatusOptions.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      </td>
+          <div style={{ marginTop: 32, marginBottom: 32 }}>
+            {riskResults && riskResults.length > 0 && (
+              <>
+                <h3 style={{ color: "#1e40af", marginBottom: 12 }}>🛡️ Risk Status Tracking</h3>
+                <table style={{ width: "100%", background: "#fff", borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 2px 8px #0001", fontSize: 15 }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      <th style={{ padding: 8, textAlign: "left" }}>Keyword</th>
+                      <th style={{ padding: 8, textAlign: "left" }}>Current Status</th>
+                      <th style={{ padding: 8, textAlign: "left" }}>Change Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {riskResults.map(risk => (
+                      <tr key={risk.id}>
+                        <td style={{ padding: 8 }}>{risk.keyword}</td>
+                        <td style={{ padding: 8 }}>{risk.status || "Pendiente"}</td>
+                        <td style={{ padding: 8 }}>
+                          <select
+                            value={risk.status || "Pendiente"}
+                            onChange={e => handleStatusChange(risk.id, e.target.value)}
+                            style={{ padding: "0.5rem", borderRadius: 6, border: "1px solid #e2e8f0" }}
+                          >
+                            {riskStatusOptions.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+            {/* General Recommendations by Keyword (always show) */}
+            <div style={{ marginTop: 32, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 24 }}>
+              <h4 style={{ color: '#1e40af', marginBottom: 12 }}>General Recommendations by Keyword</h4>
+              <ul style={{ listStyle: 'disc', paddingLeft: 24 }}>
+                {(riskResults || []).map(risk => {
+                  const highestSeverity = getHighestSeverityForKeyword(risk.keyword, vulnerabilities);
+                  const rec = getRecommendationBySeverity(highestSeverity);
+                  return (
+                    <li key={risk.keyword} style={{ marginBottom: 8 }}>
+                      <b>{risk.keyword}:</b> {rec}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-          )}
+          </div>
         </div>
       )}      {activeTab === "history" && (
         <div style={{ 
