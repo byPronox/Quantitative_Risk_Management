@@ -19,20 +19,32 @@ class KeywordRequest(BaseModel):
     keyword: str
 
 @router.get("/nvd")
-async def get_vulnerabilities(keyword: str = "react"):
+async def get_vulnerabilities(request: Request):
+    keyword = request.query_params.get("keyword")
+    if not keyword:
+        raise HTTPException(status_code=400, detail="A keyword is required to search for vulnerabilities.")
+
     headers = {"apiKey": settings.NVD_API_KEY}
     params = {"keywordSearch": keyword, "startIndex": 0, "resultsPerPage": 10}
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(NVD_API_URL, headers=headers, params=params)
+            response = await client.get(NVD_API_URL, headers=headers, params=params, timeout=20.0)
             response.raise_for_status()
             logger.info("NVD query for keyword '%s' succeeded.", keyword)
             data = response.json()
-            # Return data without saving to queue (only for display)
             return {"vulnerabilities": data.get("vulnerabilities", [])}
-    except Exception as e:
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 403:
+            logger.error("NVD API request failed: Forbidden. Check your NVD_API_KEY.")
+            raise HTTPException(status_code=403, detail="Request to NVD API was forbidden. Check your NVD_API_KEY.")
+        logger.error("NVD API request failed with status %s: %s", e.response.status_code, e.response.text)
+        raise HTTPException(status_code=e.response.status_code, detail=f"Failed to fetch vulnerabilities from NVD API: {e.response.text}")
+    except httpx.RequestError as e:
         logger.error("NVD API request failed: %s", e)
-        raise HTTPException(status_code=500, detail="Failed to fetch vulnerabilities from NVD API.") from e
+        raise HTTPException(status_code=500, detail=f"Failed to connect to NVD API: {e}")
+    except Exception as e:
+        logger.error("An unexpected error occurred during NVD fetch: %s", e)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
 
 @router.post("/nvd/add_to_queue")
 async def add_keyword_to_queue(request: KeywordRequest):

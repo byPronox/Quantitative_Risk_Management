@@ -23,6 +23,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def on_startup():
+    logger.info("Creating database tables...")
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully.")
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {e}")
+
 @app.get("/")
 def read_root():
     return {"message": "Backend is running"}
@@ -31,6 +40,5 @@ def read_root():
 def health_check():
     return {"status": "ok"}
 
-Base.metadata.create_all(bind=engine)
 app.include_router(router)
 app.include_router(nvd.router)

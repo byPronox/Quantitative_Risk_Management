@@ -331,7 +331,26 @@ export default function NvdPage() {
     }
     y += 5;
 
-    // 3. Analysis History
+    // 4. General Recommendations by Keyword
+    doc.setFontSize(13);
+    doc.text("General Recommendations by Keyword", 10, y);
+    y += 7;
+    doc.setFontSize(10);
+    if (riskResults && riskResults.length > 0) {
+      for (const risk of riskResults) {
+        const highestSeverity = getHighestSeverityForKeyword(risk.keyword, allSearchedVulnerabilities);
+        const rec = getRecommendationBySeverity(highestSeverity);
+        doc.text(`${risk.keyword}: ${rec}`, 12, y);
+        y += 6;
+        if (y > 270) { doc.addPage(); y = 10; }
+      }
+    } else {
+      doc.text("No keywords analyzed.", 10, y);
+      y += 5;
+    }
+    y += 5;
+
+    // 5. Analysis History (Last Section)
     doc.setFontSize(13);
     doc.text("Analysis History", 10, y);
     y += 7;
@@ -354,24 +373,6 @@ export default function NvdPage() {
       }
     } else {
       doc.text("No analysis history available.", 10, y);
-      y += 5;
-    }
-
-    // 4. General Recommendations by Keyword
-    doc.setFontSize(13);
-    doc.text("General Recommendations by Keyword", 10, y);
-    y += 7;
-    doc.setFontSize(10);
-    if (riskResults && riskResults.length > 0) {
-      for (const risk of riskResults) {
-        const highestSeverity = getHighestSeverityForKeyword(risk.keyword, allSearchedVulnerabilities);
-        const rec = getRecommendationBySeverity(highestSeverity);
-        doc.text(`${risk.keyword}: ${rec}`, 12, y);
-        y += 6;
-        if (y > 270) { doc.addPage(); y = 10; }
-      }
-    } else {
-      doc.text("No keywords analyzed.", 10, y);
       y += 5;
     }
 

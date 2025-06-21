@@ -92,6 +92,15 @@ def create_observation(obs: ObservationCreate, db: Session = Depends(get_db)):
 def list_observations(risk_id: int, db: Session = Depends(get_db)):
     return db.query(Observation).filter(Observation.risk_id == risk_id).all()
 
+@router.delete("/observations/{observation_id}", status_code=204)
+def delete_observation(observation_id: int, db: Session = Depends(get_db)):
+    db_obs = db.query(Observation).filter(Observation.id == observation_id).first()
+    if not db_obs:
+        raise HTTPException(status_code=404, detail="Observation not found")
+    db.delete(db_obs)
+    db.commit()
+    return
+
 @router.patch("/risks/{risk_id}/status", response_model=RiskOut)
 def update_risk_status(risk_id: int, status: str = Body(...), db: Session = Depends(get_db)):
     risk = db.query(Risk).filter(Risk.id == risk_id).first()

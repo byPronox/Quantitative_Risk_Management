@@ -55,9 +55,12 @@ async def gateway_nvd(request: Request, backend: BackendServiceInterface = Depen
     params = dict(request.query_params)
     try:
         return await backend.get_nvd(params)
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Gateway: NVD request failed with status {e.response.status_code}: {e.response.text}")
+        return JSONResponse(status_code=e.response.status_code, content={"detail": e.response.json().get("detail", e.response.text)})
     except Exception as e:
-        logger.error("Gateway: NVD request failed: %s", e)
-        return {"error": "NVD request failed."}, 500
+        logger.error(f"Gateway: NVD request failed: {e}")
+        return JSONResponse(status_code=500, content={"error": "NVD request failed."})
 
 @app.post("/predict/combined/")
 async def gateway_combined(request: Request, backend: BackendServiceInterface = Depends(get_backend_service)):
@@ -113,43 +116,63 @@ async def gateway_nvd_add_to_queue(request: Request, backend: BackendServiceInte
         return {"error": "Add keyword to queue failed."}, 500
 
 # Proxy para /observations/
-@app.api_route("/observations/{path:path}", methods=["GET", "POST", "PATCH"])
+@app.api_route("/observations/{path:path}", methods=["GET", "POST", "PATCH", "DELETE"])
 async def proxy_observations(request: Request, path: str):
     backend_url = f"http://backend:8000/observations/{path}"
     async with httpx.AsyncClient() as client:
         method = request.method.lower()
         data = await request.body() if method in ["post", "patch"] else None
         headers = dict(request.headers)
+        headers["host"] = "backend"
         resp = await client.request(method, backend_url, content=data, headers=headers)
+        
+        if resp.status_code == 204:
+            return JSONResponse(status_code=resp.status_code, content=None)
+        
         return JSONResponse(status_code=resp.status_code, content=resp.json())
 
-@app.api_route("/observations/", methods=["GET", "POST", "PATCH"])
+@app.api_route("/observations/", methods=["GET", "POST", "PATCH", "DELETE"])
 async def proxy_observations_root(request: Request):
     backend_url = "http://backend:8000/observations/"
     async with httpx.AsyncClient() as client:
         method = request.method.lower()
         data = await request.body() if method in ["post", "patch"] else None
         headers = dict(request.headers)
+        headers["host"] = "backend"
         resp = await client.request(method, backend_url, content=data, headers=headers)
+        
+        if resp.status_code == 204:
+            return JSONResponse(status_code=resp.status_code, content=None)
+
         return JSONResponse(status_code=resp.status_code, content=resp.json())
 
 # Proxy para /risks/
-@app.api_route("/risks/{path:path}", methods=["GET", "POST", "PATCH"])
+@app.api_route("/risks/{path:path}", methods=["GET", "POST", "PATCH", "DELETE"])
 async def proxy_risks(request: Request, path: str):
     backend_url = f"http://backend:8000/risks/{path}"
     async with httpx.AsyncClient() as client:
         method = request.method.lower()
         data = await request.body() if method in ["post", "patch"] else None
         headers = dict(request.headers)
+        headers["host"] = "backend"
         resp = await client.request(method, backend_url, content=data, headers=headers)
+        
+        if resp.status_code == 204:
+            return JSONResponse(status_code=resp.status_code, content=None)
+
         return JSONResponse(status_code=resp.status_code, content=resp.json())
 
-@app.api_route("/risks/", methods=["GET", "POST", "PATCH"])
+@app.api_route("/risks/", methods=["GET", "POST", "PATCH", "DELETE"])
 async def proxy_risks_root(request: Request):
     backend_url = "http://backend:8000/risks/"
     async with httpx.AsyncClient() as client:
         method = request.method.lower()
         data = await request.body() if method in ["post", "patch"] else None
         headers = dict(request.headers)
+        headers["host"] = "backend"
         resp = await client.request(method, backend_url, content=data, headers=headers)
+        
+        if resp.status_code == 204:
+            return JSONResponse(status_code=resp.status_code, content=None)
+            
         return JSONResponse(status_code=resp.status_code, content=resp.json())

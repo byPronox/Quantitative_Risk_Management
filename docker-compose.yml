@@ -1,8 +1,6 @@
 services:
   backend:
     build: ./backend
-    volumes:
-      - ./backend/app:/app
     ports:
       - "8000:8000"
     depends_on:
@@ -11,7 +9,10 @@ services:
     restart: always
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
-      - NVD_API_KEY=b0f20683-6364-4314-97cc-6f85ea75df67
+      - NVD_API_KEY=4589eadd-2726-47a3-8386-9e3324d7bade
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
 
   frontend:
     build: ./frontend
@@ -51,6 +52,8 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     restart: always
     environment:
       RABBITMQ_DEFAULT_USER: guest
