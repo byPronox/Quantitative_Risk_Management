@@ -1,10 +1,26 @@
 import axios from "axios";
 
+// Backend URL Configuration
+const getBaseURL = () => {
+  // Check environment variable first
+  const envURL = import.meta.env.VITE_API_URL;
+  
+  if (envURL) {
+    console.log(`Using configured API URL: ${envURL}`);
+    return envURL;
+  }
+  
+  // Default to local backend for development
+  console.log('Using default backend URL: http://localhost:8000');
+  return "http://localhost:8000";
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080",
-  timeout: 10000,
+  baseURL: getBaseURL(),
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
+    'X-Client': 'quantitative-risk-frontend'
   }
 });
 

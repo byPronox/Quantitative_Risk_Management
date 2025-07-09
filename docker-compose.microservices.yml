@@ -1,0 +1,82 @@
+services:
+  # ML Prediction Microservice
+  ml-prediction-service:
+    build: ./microservices/ml_prediction_service
+    ports:
+      - "8001:8001"
+    depends_on:
+      - rabbitmq
+      - redis
+    restart: always
+    environment:
+      - ENVIRONMENT=development
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_QUEUE=ml_predictions
+      - REDIS_URL=redis://redis:6379
+      - MODEL_PATH=/app/app/models
+    volumes:
+      - ./microservices/ml_prediction_service/app:/app/app
+
+  # NVD Vulnerability Microservice
+  nvd-service:
+    build: ./microservices/nvd_service
+    ports:
+      - "8002:8002"
+    depends_on:
+      - rabbitmq
+      - redis
+    restart: always
+    environment:
+      - ENVIRONMENT=development
+      - NVD_API_KEY=${NVD_API_KEY:-}
+      - KONG_PROXY_URL=${KONG_PROXY_URL:-}
+      - USE_KONG_NVD=${USE_KONG_NVD:-false}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_QUEUE=nvd_searches
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./microservices/nvd_service/app:/app/app
+
+  # Frontend (for testing with microservices)
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - ml-prediction-service
+      - nvd-service
+    restart: always
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_ML_SERVICE_URL=http://localhost:8001
+      - VITE_NVD_SERVICE_URL=http://localhost:8002
+
+  # Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: always
+    volumes:
+      - redis_data:/data
+
+volumes:
+  rabbitmq_data:
+  redis_data:
