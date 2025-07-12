@@ -1,0 +1,117 @@
+services:
+  # Legacy backend service (for backward compatibility during migration)
+  # Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      
+  backend:
+    build: ./backend
+    volumes:
+      - ./backend/app:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - rabbitmq
+      - ml-prediction-service
+      - nvd-service
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+      - NVD_API_KEY=b0f20683-6364-4314-97cc-6f85ea75df67
+      - KONG_PROXY_URL=https://kong-b27b67aff4usnspl9.kongcloud.dev
+      - KONG_ADMIN_API=https://us.api.konghq.com/v2/control-planes/9d98c0ba-3ac1-44fd-b497-59743e18a80a
+      - KONG_CONTROL_PLANE_ID=9d98c0ba-3ac1-44fd-b497-59743e18a80a
+      - KONG_TOKEN=${KONG_TOKEN:-}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_QUEUE=nvd_searches
+      - ML_SERVICE_URL=http://ml-prediction-service:8001
+      - NVD_SERVICE_URL=http://nvd-service:8002
+
+  # ML Prediction Microservice
+  ml-prediction-service:
+    build: ./microservices/ml_prediction_service
+    ports:
+      - "8001:8001"
+    depends_on:
+      - rabbitmq
+    restart: always
+    environment:
+      - ENVIRONMENT=production
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_QUEUE=ml_predictions
+      - MODEL_PATH=/app/app/models
+    volumes:
+      - ./microservices/ml_prediction_service/app/models:/app/app/models
+
+  # NVD Vulnerability Microservice
+  nvd-service:
+    build: ./microservices/nvd_service
+    ports:
+      - "8002:8002"
+    depends_on:
+      - rabbitmq
+    restart: always
+    environment:
+      - ENVIRONMENT=production
+      - NVD_API_KEY=b0f20683-6364-4314-97cc-6f85ea75df67
+      - KONG_PROXY_URL=https://kong-b27b67aff4usnspl9.kongcloud.dev
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_QUEUE=nvd_searches
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+      - ml-prediction-service
+      - nvd-service
+    restart: always
+    environment:
+      - VITE_API_URL=https://kong-b27b67aff4usnspl9.kongcloud.dev
+      - VITE_ML_SERVICE_URL=http://ml-prediction-service:8001
+      - VITE_NVD_SERVICE_URL=http://nvd-service:8002
+
+  # Database
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  
+
+  # Redis Cache (for microservices)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: always
+    volumes:
+      - redis_data:/data
+
+volumes:
+  pgdata:
+  rabbitmq_data:
+  redis_data:
