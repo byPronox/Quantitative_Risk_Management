@@ -6,7 +6,11 @@ import json
 import logging
 import os
 import time
+import threading
+import asyncio
+import httpx
 from typing import List, Dict, Any, Optional
+from app.services.nvd_service import NVDService
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +25,12 @@ class QueueService:
         self.connection = None
         self.channel = None
         self._connected = False
+        self._jobs = {}  # In-memory job store
+        self._job_status = {}  # Track job status: queued, processing, completed
+        self._job_results = {}  # Store results for completed jobs
+        self._pending_queue = []  # Simulate RabbitMQ pending jobs
+        self._processing = set()  # Simulate jobs being processed
+        self._completed = set()   # Simulate completed jobs
     
     def _connect(self) -> None:
         """Establish connection to RabbitMQ with retry logic."""
@@ -122,92 +132,170 @@ class QueueService:
             logger.error("Failed to retrieve vulnerability data from queue: %s", e)
             return []
     
-    def peek_queue_status(self) -> Dict[str, Any]:
+    def add_job(self, keyword: str, metadata: dict) -> str:
         """
-        Get queue status without consuming messages.
-        
-        Returns:
-            Queue status information
+        Add a new job to the queue and return the job ID.
+        Now publishes the job to RabbitMQ instead of just storing in memory.
         """
+        job_id = str(int(time.time() * 1000)) + '-' + str(len(self._jobs) + 1)
+        job = {
+            "job_id": job_id,
+            "keyword": keyword,
+            "metadata": metadata,
+            "status": "queued",
+            "created_at": time.time(),
+        }
+        self._jobs[job_id] = job
+        self._job_status[job_id] = "queued"
+        # Publish job to RabbitMQ
         try:
             self._connect()
-            
-            # Get queue info
-            method = self.channel.queue_declare(queue=self.queue_name, passive=True)
-            message_count = method.method.message_count
-            
-            # Peek at messages without consuming them
-            messages = []
-            temp_messages = []
-            
-            # Get messages temporarily
-            while True:
-                method_frame, properties, body = self.channel.basic_get(self.queue_name)
-                if method_frame:
-                    message = json.loads(body)
-                    messages.append(message)
-                    temp_messages.append((method_frame, properties, body))
-                else:
-                    break
-            
-            # Put messages back
-            for method_frame, properties, body in temp_messages:
-                self.channel.basic_publish(
-                    exchange='',
-                    routing_key=self.queue_name,
-                    body=body,
-                    properties=properties
-                )
-                self.channel.basic_ack(method_frame.delivery_tag)
-            
-            keywords = [msg.get("keyword", "unknown") for msg in messages]
-            total_vulnerabilities = sum(len(msg.get("vulnerabilities", [])) for msg in messages)
-            
-            return {
-                "queue_size": len(messages),
-                "keywords": keywords,
-                "total_vulnerabilities": total_vulnerabilities,
-                "queue_name": self.queue_name
+            message = {
+                "job_id": job_id,
+                "keyword": keyword,
+                "metadata": metadata,
+                "created_at": job["created_at"]
             }
-            
+            self.channel.basic_publish(
+                exchange='',
+                routing_key=self.queue_name,
+                body=json.dumps(message),
+                properties=pika.BasicProperties(delivery_mode=2)  # Persistent message
+            )
+            logger.info(f"Job published to RabbitMQ: {job_id} for keyword: {keyword}")
         except Exception as e:
-            logger.error("Failed to get queue status: %s", e)
+            logger.error(f"Failed to publish job to RabbitMQ: {e}")
+            self._job_status[job_id] = "failed"
+            self._jobs[job_id]["status"] = "failed"
+        return job_id
+
+    def get_job(self, job_id: str) -> dict:
+        return self._jobs.get(job_id, {})
+
+    def get_job_result(self, job_id: str) -> dict:
+        # Return job info with status
+        job = self._jobs.get(job_id)
+        if not job:
+            return None
+        status = self._job_status.get(job_id, "queued")
+        result = {
+            "job_id": job_id,
+            "keyword": job.get("keyword"),
+            "status": status,
+        }
+        if status == "completed":
+            result.update({
+                "total_results": len(self._job_results.get(job_id, [])),
+                "vulnerabilities": self._job_results.get(job_id, []),
+                "processed_via": "queue_consumer"
+            })
+        return result
+
+    def get_all_job_results(self) -> dict:
+        # Return all jobs for /results/all endpoint
+        jobs = []
+        for job_id, job in self._jobs.items():
+            status = self._job_status.get(job_id, "queued")
+            job_copy = job.copy()
+            job_copy["status"] = status
+            if status == "completed":
+                job_copy["vulnerabilities"] = self._job_results.get(job_id, [])
+                job_copy["total_results"] = len(self._job_results.get(job_id, []))
+            jobs.append(job_copy)
+        return {"jobs": jobs}
+
+    def peek_queue_status(self) -> dict:
+        # Use a temporary connection/channel to avoid channel closed errors
+        try:
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host))
+            channel = connection.channel()
+            method = channel.queue_declare(queue=self.queue_name, passive=True)
+            pending = method.method.message_count
+            connection.close()
+            processing = len(self._processing)
+            completed = len(self._completed)
+            return {
+                "queue_size": pending,
+                "pending": pending,
+                "processing": processing,
+                "completed": completed,
+                "queue_name": self.queue_name,
+                "status": "healthy"
+            }
+        except Exception as e:
+            logger.error(f"Failed to get queue status: {e}")
             return {
                 "queue_size": 0,
-                "keywords": [],
-                "total_vulnerabilities": 0,
+                "pending": 0,
+                "processing": 0,
+                "completed": 0,
+                "queue_name": self.queue_name,
+                "status": "unhealthy",
                 "error": str(e)
             }
-    
-    def clear_queue(self) -> Dict[str, Any]:
-        """
-        Clear all messages from the queue.
-        
-        Returns:
-            Information about cleared items
-        """
-        try:
-            self._connect()
-            
-            # Count messages before clearing
-            messages = self.get_all_vulnerability_data()
-            cleared_count = len(messages)
-            
-            logger.info("Cleared %d messages from queue", cleared_count)
-            
-            return {
-                "message": "Queue cleared successfully",
-                "cleared_items": cleared_count,
-                "queue_name": self.queue_name
-            }
-            
-        except Exception as e:
-            logger.error("Failed to clear queue: %s", e)
-            return {
-                "message": "Failed to clear queue",
-                "error": str(e),
-                "cleared_items": 0
-            }
+
+    def start_consumer(self):
+        # Start a real RabbitMQ consumer in a background thread, with its own connection/channel
+        def consume():
+            try:
+                connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host))
+                channel = connection.channel()
+                channel.queue_declare(queue=self.queue_name, durable=True)
+                for method_frame, properties, body in channel.consume(self.queue_name, inactivity_timeout=1):
+                    if body is None:
+                        break  # No more messages
+                    try:
+                        job_data = json.loads(body)
+                        job_id = job_data.get("job_id")
+                        keyword = job_data.get("keyword")
+                        if not job_id or not keyword:
+                            logger.warning("Received job without job_id or keyword, skipping")
+                            channel.basic_ack(method_frame.delivery_tag)
+                            continue
+                        self._job_status[job_id] = "processing"
+                        self._jobs[job_id]["status"] = "processing"
+                        self._processing.add(job_id)
+                        # --- FETCH REAL VULNERABILITIES VIA BACKEND/KONG ---
+                        vulnerabilities = []
+                        total_results = 0
+                        try:
+                            backend_url = os.getenv("BACKEND_URL", "http://backend:8000")
+                            # Llama al endpoint del backend que pasa por Kong
+                            with httpx.Client(timeout=60.0) as client:
+                                response = client.get(f"{backend_url}/nvd", params={"keyword": keyword})
+                                if response.status_code == 200:
+                                    data = response.json()
+                                    vulnerabilities = data.get("vulnerabilities", [])
+                                    total_results = data.get("totalResults", 0)
+                                else:
+                                    logger.error(f"Failed to fetch vulnerabilities for {keyword}: {response.status_code} - {response.text}")
+                        except Exception as e:
+                            logger.error(f"Error fetching vulnerabilities for {keyword}: {e}")
+                        # --- END FETCH ---
+                        self._job_status[job_id] = "completed"
+                        self._jobs[job_id]["status"] = "completed"
+                        self._processing.remove(job_id)
+                        self._completed.add(job_id)
+                        self._job_results[job_id] = vulnerabilities
+                        self._jobs[job_id]["total_results"] = total_results
+                        self._jobs[job_id]["vulnerabilities"] = vulnerabilities
+                        self._jobs[job_id]["timestamp"] = time.time()
+                        self._jobs[job_id]["processed_via"] = "queue_consumer"
+                        logger.info(f"Job processed and completed: {job_id} (found {len(vulnerabilities)} vulns)")
+                        channel.basic_ack(method_frame.delivery_tag)
+                    except Exception as e:
+                        logger.error(f"Error processing job from queue: {e}")
+                        channel.basic_nack(method_frame.delivery_tag, requeue=False)
+                connection.close()
+            except Exception as e:
+                logger.error(f"Consumer failed: {e}")
+        t = threading.Thread(target=consume, daemon=True)
+        t.start()
+        return {"message": "Consumer started (RabbitMQ)"}
+
+    def stop_consumer(self):
+        # No-op for simulation
+        return {"message": "Consumer stopped"}
     
     def health_check(self) -> bool:
         """Check if the queue service is healthy."""
@@ -243,42 +331,6 @@ class QueueService:
                 "active_jobs": 0,
             }
     
-    def queue_job(self, job_type: str, job_data: Dict[str, Any]) -> bool:
-        """Queue a job for processing (stub implementation)."""
-        try:
-            # This would be a proper job queue implementation
-            logger.info("Job queued: %s - %s", job_type, job_data)
-            return True
-        except Exception as e:
-            logger.error("Failed to queue job: %s", e)
-            return False
-    
-    def get_job_status(self, job_id: str) -> Dict[str, Any]:
-        """Get job status (stub implementation)."""
-        return {
-            "job_id": job_id,
-            "status": "unknown",
-            "progress": 0.0,
-            "error": "Job tracking not implemented"
-        }
-    
-    def update_job_status(self, job_id: str, status: str, progress: float = 0.0):
-        """Update job status (stub implementation)."""
-        logger.info("Job %s status updated: %s (%.1f%%)", job_id, status, progress)
-    
-    def complete_job(self, job_id: str, result: Any):
-        """Complete a job (stub implementation)."""
-        logger.info("Job completed: %s", job_id)
-    
-    def fail_job(self, job_id: str, error: str):
-        """Mark job as failed (stub implementation)."""
-        logger.error("Job failed: %s - %s", job_id, error)
-    
-    def cancel_job(self, job_id: str) -> bool:
-        """Cancel a job (stub implementation)."""
-        logger.info("Job cancelled: %s", job_id)
-        return True
-
     def __enter__(self):
         """Context manager entry."""
         self._connect()

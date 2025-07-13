@@ -460,6 +460,26 @@ async def get_detailed_job_results(job_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get detailed job results: {str(e)}")
 
 
+@router.post("/consumer/start")
+async def start_consumer():
+    """Start the simulated consumer to process jobs from the queue."""
+    try:
+        result = queue_service.start_consumer()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start consumer: {str(e)}")
+
+
+@router.post("/consumer/stop")
+async def stop_consumer():
+    """Stop the simulated consumer."""
+    try:
+        result = queue_service.stop_consumer()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to stop consumer: {str(e)}")
+
+
 async def process_background_job(job_id: str, request: QueueJobRequest):
     """Process a background job"""
     try:
