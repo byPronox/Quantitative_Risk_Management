@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query, Request
 from typing import Optional, Dict, Any
 import uuid
 from datetime import datetime
@@ -93,6 +93,36 @@ async def search_vulnerabilities(request: VulnerabilitySearchRequest):
         
         # Return raw result without Pydantic validation for now
         # TODO: Transform NVD API response to match our schema
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@router.get("/vulnerabilities/search")
+async def search_vulnerabilities_get(
+    keywords: str = Query(default=None, description="Keywords to search for"),
+    results_per_page: int = Query(default=20, ge=1, le=2000),
+    cve_id: str = Query(default=None),
+    cpe_name: str = Query(default=None),
+    start_index: int = Query(default=0, ge=0),
+    pub_start_date: str = Query(default=None),
+    pub_end_date: str = Query(default=None),
+    last_mod_start_date: str = Query(default=None),
+    last_mod_end_date: str = Query(default=None)
+):
+    """Search for vulnerabilities using NVD API (GET version)"""
+    try:
+        result = await nvd_service.search_vulnerabilities(
+            keywords=keywords,
+            cve_id=cve_id,
+            cpe_name=cpe_name,
+            results_per_page=results_per_page,
+            start_index=start_index,
+            pub_start_date=pub_start_date,
+            pub_end_date=pub_end_date,
+            last_mod_start_date=last_mod_start_date,
+            last_mod_end_date=last_mod_end_date
+        )
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
@@ -201,14 +231,233 @@ async def cancel_job(job_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to cancel job: {str(e)}")
 
 
+# --- Cola de análisis NVD ---
 @router.get("/queue/status")
 async def get_queue_status():
-    """Get overall queue status"""
+    """Get RabbitMQ queue status for NVD analysis"""
     try:
-        status = queue_service.peek_queue_status()
-        return status
+        queue_info = queue_service.peek_queue_status()
+        return queue_info
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get queue status: {str(e)}")
+        return {
+            "error": str(e),
+            "connected": False,
+            "queue_size": 0,
+            "total_vulnerabilities": 0,
+            "keywords": []
+        }
+
+
+@router.delete("/queue/clear")
+async def clear_queue():
+    """Clear the RabbitMQ queue"""
+    try:
+        result = queue_service.clear_queue()
+        return {
+            "message": "Queue cleared successfully",
+            "cleared_items": result.get("cleared_items", 0),
+            "queue_name": result.get("queue_name", "nvd_queue")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear queue: {str(e)}")
+
+
+@router.post("/queue/add")
+async def add_to_queue(request: Dict[str, Any]):
+    """Add keyword to analysis queue"""
+    try:
+        keyword = request.get("keyword")
+        if not keyword:
+            raise HTTPException(status_code=400, detail="Keyword is required")
+        job_id = queue_service.add_job(keyword, request.get("metadata", {}))
+        status = "queued"
+        return {
+            "message": f"Keyword '{keyword}' added to analysis queue",
+            "job_id": job_id,
+            "keyword": keyword,
+            "status": status
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add to queue: {str(e)}")
+
+
+@router.post("/add_to_queue")
+async def add_to_queue_alt(request: Dict[str, Any]):
+    """Alternative endpoint for adding keyword to queue (frontend compatibility)"""
+    return await add_to_queue(request)
+
+
+@router.post("/analyze_software_async")
+async def analyze_software_async(request: Dict[str, Any]):
+    """Analyze multiple software packages asynchronously"""
+    try:
+        software_list = request.get("software_list", [])
+        if not software_list:
+            raise HTTPException(status_code=400, detail="Software list is required")
+        job_ids = []
+        jobs = []
+        for software in software_list:
+            job_id = queue_service.add_job(software, request.get("metadata", {}))
+            job_ids.append(job_id)
+            jobs.append({
+                "software": software,
+                "jobId": job_id,
+                "keyword": software,
+                "status": "queued"
+            })
+        return {
+            "message": f"{len(jobs)} software queued for analysis",
+            "job_ids": job_ids,
+            "estimated_time": len(jobs) * 3,
+            "jobs": jobs
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start async analysis: {str(e)}")
+
+
+@router.post("/analyze_risk")
+async def analyze_nvd_risk():
+    """Analyze NVD risk (placeholder endpoint)"""
+    try:
+        # Aquí se puede implementar lógica real de análisis de riesgo
+        return {
+            "risk_score": 7.5,
+            "risk_level": "High",
+            "recommendations": [
+                "Update affected software components",
+                "Implement additional monitoring",
+                "Review access controls"
+            ],
+            "vulnerability_count": 0,
+            "critical_count": 0,
+            "high_count": 0,
+            "medium_count": 0,
+            "low_count": 0
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Risk analysis failed: {str(e)}")
+
+
+@router.get("/results/all")
+async def get_all_job_results():
+    """Get all completed job results from the queue"""
+    try:
+        all_results = queue_service.get_all_job_results()
+        formatted_results = []
+        for job in all_results.get("jobs", []):
+            if job.get("status") == "completed":
+                formatted_job = {
+                    "job_id": job.get("job_id"),
+                    "keyword": job.get("keyword"),
+                    "status": job.get("status"),
+                    "total_results": job.get("total_results", 0),
+                    "vulnerabilities": job.get("vulnerabilities", [])[:10],
+                    "processed_at": job.get("timestamp"),
+                    "processed_via": job.get("processed_via", "unknown")
+                }
+                formatted_results.append(formatted_job)
+        return {
+            "success": True,
+            "total_completed_jobs": len(formatted_results),
+            "jobs": formatted_results,
+            "message": f"Found {len(formatted_results)} completed jobs"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "total_completed_jobs": 0,
+            "jobs": [],
+            "error": str(e),
+            "message": "Failed to retrieve job results"
+        }
+
+
+@router.get("/results/{job_id}")
+async def get_job_results(job_id: str):
+    """Get results for a specific job ID"""
+    try:
+        result = queue_service.get_job_result(job_id)
+        if result and result.get("status") == "completed":
+            return {
+                "job_id": job_id,
+                "status": "completed",
+                "keyword": result.get("keyword"),
+                "total_results": result.get("total_results", 0),
+                "vulnerabilities": result.get("vulnerabilities", [])[:10],
+                "processed_via": result.get("processed_via", "queue_consumer")
+            }
+        elif result and result.get("status") == "processing":
+            return {
+                "job_id": job_id,
+                "status": "processing",
+                "keyword": result.get("keyword"),
+                "message": "Job is being processed by consumer"
+            }
+        elif result and result.get("status") == "failed":
+            return {
+                "job_id": job_id,
+                "status": "failed",
+                "error": result.get("error"),
+                "keyword": result.get("keyword")
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Job not found",
+                    "job_id": job_id,
+                    "message": "Job may not exist or has expired."
+                }
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get job results: {str(e)}")
+
+
+@router.get("/results/{job_id}/detailed")
+async def get_detailed_job_results(job_id: str):
+    """Get detailed results for a specific job ID with all vulnerabilities"""
+    try:
+        result = queue_service.get_job_result(job_id)
+        if result and result.get("status") == "completed":
+            return {
+                "job_id": job_id,
+                "status": "completed",
+                "keyword": result.get("keyword"),
+                "total_results": result.get("total_results", 0),
+                "vulnerabilities": result.get("vulnerabilities", []),
+                "processed_via": result.get("processed_via", "queue_consumer"),
+                "processed_at": result.get("timestamp"),
+                "risk_analysis": {
+                    "high_severity": len([v for v in result.get("vulnerabilities", []) if v.get("cve", {}).get("metrics", {}).get("cvssMetricV2", [{}])[0].get("baseSeverity") == "HIGH"]),
+                    "medium_severity": len([v for v in result.get("vulnerabilities", []) if v.get("cve", {}).get("metrics", {}).get("cvssMetricV2", [{}])[0].get("baseSeverity") == "MEDIUM"]),
+                    "low_severity": len([v for v in result.get("vulnerabilities", []) if v.get("cve", {}).get("metrics", {}).get("cvssMetricV2", [{}])[0].get("baseSeverity") == "LOW"])
+                }
+            }
+        elif result and result.get("status") == "processing":
+            return {
+                "job_id": job_id,
+                "status": "processing",
+                "keyword": result.get("keyword"),
+                "message": "Job is being processed by consumer"
+            }
+        elif result and result.get("status") == "failed":
+            return {
+                "job_id": job_id,
+                "status": "failed",
+                "error": result.get("error"),
+                "keyword": result.get("keyword")
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "Job not found",
+                    "job_id": job_id,
+                    "message": "Job may not exist or has expired."
+                }
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get detailed job results: {str(e)}")
 
 
 async def process_background_job(job_id: str, request: QueueJobRequest):
