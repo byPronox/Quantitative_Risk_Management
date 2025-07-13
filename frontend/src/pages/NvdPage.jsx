@@ -1,6 +1,136 @@
 import React, { useEffect, useState } from "react";
 import { getAllQueueResults } from "../services/nvd";
 import AsyncSoftwareAnalysis from "../components/AsyncSoftwareAnalysis";
+import { Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend
+} from "chart.js";
+
+ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+
+function NvdDashboard({ allQueueResults, loading }) {
+  // Calculate dashboard metrics
+  const totalJobs = allQueueResults.length;
+  const completedJobs = allQueueResults.filter(j => j.status === "completed").length;
+  const inProgressJobs = allQueueResults.filter(j => j.status === "processing" || j.status === "pending").length;
+  const totalVulnerabilities = allQueueResults.reduce((sum, job) => sum + (job.vulnerabilities ? job.vulnerabilities.length : 0), 0);
+
+  // Prepare chart data: vulnerabilities per job
+  const chartLabels = allQueueResults.map(j => j.keyword || `Job ${j.job_id}`);
+  const chartData = allQueueResults.map(j => (j.vulnerabilities ? j.vulnerabilities.length : 0));
+  const barData = {
+    labels: chartLabels,
+    datasets: [
+      {
+        label: "Vulnerabilities per Job",
+        data: chartData,
+        backgroundColor: "#2563eb",
+        borderRadius: 8,
+        maxBarThickness: 40
+      }
+    ]
+  };
+  const barOptions = {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: true }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: "Job" },
+        ticks: { color: "#64748b" }
+      },
+      y: {
+        title: { display: true, text: "Vulnerabilities" },
+        beginAtZero: true,
+        ticks: { color: "#64748b", precision: 0 }
+      }
+    }
+  };
+
+  return (
+    <div style={{ marginTop: "2.5rem" }}>
+      <div style={{
+        display: "flex",
+        gap: "2rem",
+        marginBottom: "2rem",
+        justifyContent: "center"
+      }}>
+        <div style={{
+          background: "#f1f5f9",
+          borderRadius: "1rem",
+          padding: "1.5rem 2rem",
+          minWidth: "180px",
+          textAlign: "center",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.04)"
+        }}>
+          <div style={{ fontSize: "2rem" }}>📦</div>
+          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#1e40af" }}>{loading ? "..." : totalJobs}</div>
+          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Total Jobs</div>
+        </div>
+        <div style={{
+          background: "#f1f5f9",
+          borderRadius: "1rem",
+          padding: "1.5rem 2rem",
+          minWidth: "180px",
+          textAlign: "center",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.04)"
+        }}>
+          <div style={{ fontSize: "2rem" }}>✅</div>
+          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#16a34a" }}>{loading ? "..." : completedJobs}</div>
+          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Completed</div>
+        </div>
+        <div style={{
+          background: "#f1f5f9",
+          borderRadius: "1rem",
+          padding: "1.5rem 2rem",
+          minWidth: "180px",
+          textAlign: "center",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.04)"
+        }}>
+          <div style={{ fontSize: "2rem" }}>⏳</div>
+          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#f59e42" }}>{loading ? "..." : inProgressJobs}</div>
+          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>In Progress</div>
+        </div>
+        <div style={{
+          background: "#f1f5f9",
+          borderRadius: "1rem",
+          padding: "1.5rem 2rem",
+          minWidth: "180px",
+          textAlign: "center",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.04)"
+        }}>
+          <div style={{ fontSize: "2rem" }}>🚨</div>
+          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#dc2626" }}>{loading ? "..." : totalVulnerabilities}</div>
+          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Vulnerabilities Found</div>
+        </div>
+      </div>
+      <div style={{
+        background: "#fff",
+        borderRadius: "1rem",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.04)",
+        padding: "2rem",
+        maxWidth: "900px",
+        margin: "0 auto"
+      }}>
+        <h3 style={{ color: "#1e40af", fontWeight: 600, marginBottom: "1.5rem" }}>Vulnerabilities per Job</h3>
+        {chartLabels.length === 0 ? (
+          <div style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+            No jobs to display.
+          </div>
+        ) : (
+          <Bar data={barData} options={barOptions} height={260} />
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function NvdPage() {
   const [allQueueResults, setAllQueueResults] = useState([]);
@@ -289,6 +419,8 @@ export default function NvdPage() {
           </div>
         )}
       </div>
+      {/* NVD Dashboard (moved below) */}
+      <NvdDashboard allQueueResults={allQueueResults} loading={loadingAllResults} />
     </div>
   );
 }
