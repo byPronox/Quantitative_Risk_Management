@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import './GeneralReports.css';
 
 const GeneralReports = () => {
   const [keywords, setKeywords] = useState([]);
+  const [filteredKeywords, setFilteredKeywords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedKeyword, setSelectedKeyword] = useState(null);
   const [detailedReport, setDetailedReport] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch keywords summary on component mount
   useEffect(() => {
     fetchKeywordsSummary();
   }, []);
+
+  // Filter keywords when search term changes
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredKeywords(keywords);
+    } else {
+      const filtered = keywords.filter(keywordData =>
+        keywordData.keyword.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredKeywords(filtered);
+    }
+  }, [keywords, searchTerm]);
 
   const fetchKeywordsSummary = async () => {
     try {
@@ -21,6 +37,7 @@ const GeneralReports = () => {
       
       if (data.success) {
         setKeywords(data.keywords);
+        setFilteredKeywords(data.keywords);
       } else {
         console.error('Error fetching keywords:', data.error);
       }
@@ -56,6 +73,67 @@ const GeneralReports = () => {
     setDetailedReport(null);
   };
 
+  const downloadReportAsPDF = async () => {
+    try {
+      const reportElement = document.getElementById('detailed-report-content');
+      if (!reportElement) {
+        console.error('Report element not found');
+        return;
+      }
+
+      // Create a clone of the element to modify for PDF
+      const clonedElement = reportElement.cloneNode(true);
+      clonedElement.style.width = '800px';
+      clonedElement.style.backgroundColor = 'white';
+      clonedElement.style.padding = '20px';
+      
+      // Append temporarily to body (hidden)
+      clonedElement.style.position = 'absolute';
+      clonedElement.style.left = '-9999px';
+      document.body.appendChild(clonedElement);
+
+      // Generate canvas from the cloned element
+      const canvas = await html2canvas(clonedElement, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        width: 840,
+        height: clonedElement.scrollHeight
+      });
+
+      // Remove the cloned element
+      document.body.removeChild(clonedElement);
+
+      // Create PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add additional pages if needed
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Download the PDF
+      pdf.save(`${selectedKeyword}_Vulnerability_Report.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error generating PDF. Please try again.');
+    }
+  };
+
   const getSeverityColor = (severity) => {
     switch (severity.toLowerCase()) {
       case 'critical': return '#dc3545';
@@ -85,6 +163,9 @@ const GeneralReports = () => {
             ← Back to Summary
           </button>
           <h2>Detailed Report: {selectedKeyword}</h2>
+          <button className="download-button" onClick={downloadReportAsPDF}>
+            📄 Download Report
+          </button>
         </div>
 
         {loadingDetails ? (
@@ -93,7 +174,7 @@ const GeneralReports = () => {
             <p>Loading detailed report...</p>
           </div>
         ) : (
-          <div className="detailed-report">
+          <div className="detailed-report" id="detailed-report-content">
             {/* Summary Cards */}
             <div className="summary-cards">
               <div className="summary-card">
@@ -241,8 +322,27 @@ const GeneralReports = () => {
         <p>Click on any software keyword to view detailed vulnerability analysis</p>
       </div>
 
+      {/* Search Filter */}
+      <div className="search-section">
+        <div className="search-container">
+          <input
+            type="text"
+            placeholder="Search for keywords (e.g., Python, Node, Java...)"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+          <div className="search-icon">🔍</div>
+        </div>
+        {searchTerm && (
+          <div className="search-results-info">
+            Showing {filteredKeywords.length} result(s) for "{searchTerm}"
+          </div>
+        )}
+      </div>
+
       <div className="keywords-grid">
-        {keywords.map((keywordData, index) => (
+        {filteredKeywords.map((keywordData, index) => (
           <div 
             key={index} 
             className="keyword-card"
@@ -277,6 +377,13 @@ const GeneralReports = () => {
           </div>
         ))}
       </div>
+
+      {filteredKeywords.length === 0 && searchTerm && (
+        <div className="no-results">
+          <p>No keywords found matching "{searchTerm}"</p>
+          <p>Try searching for: Python, Java, Node, Apache, etc.</p>
+        </div>
+      )}
 
       {keywords.length === 0 && (
         <div className="no-data">
