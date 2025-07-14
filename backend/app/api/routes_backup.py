@@ -81,48 +81,6 @@ async def proxy_nvd(keyword: str = ""):
         logger.error("Error proxying to Kong NVD service: %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
-@router.get("/nvd/results/mongodb")
-async def get_nvd_results_from_mongodb():
-    """Obtener todos los resultados guardados en MongoDB cveScanner.jobs"""
-    try:
-        from database.mongodb import MongoDBConnection
-        
-        # Conectar a MongoDB
-        mongodb = MongoDBConnection()
-        await mongodb.connect()
-        
-        # Consultar todos los trabajos guardados
-        cursor = mongodb.db.jobs.find({}).sort("processed_at", -1)
-        results = []
-        
-        async for doc in cursor:
-            # Convertir ObjectId a string para serialización JSON
-            doc["_id"] = str(doc["_id"])
-            
-            # Convertir datetime a timestamp para compatibilidad
-            if "processed_at" in doc and isinstance(doc["processed_at"], datetime):
-                doc["processed_at"] = doc["processed_at"].timestamp()
-            
-            results.append(doc)
-        
-        await mongodb.disconnect()
-        
-        return {
-            "success": True,
-            "total_jobs": len(results),
-            "source": "mongodb_cveScanner_jobs",
-            "jobs": results
-        }
-        
-    except Exception as e:
-        logger.error(f"Error consultando MongoDB: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-            "total_jobs": 0,
-            "jobs": []
-        }
-
 @router.get("/nvd/results/{job_id}")
 async def proxy_nvd_job_result(job_id: str):
     """Proxy to NVD microservice for a specific job result (async analysis)"""
@@ -169,27 +127,15 @@ async def proxy_nvd_analyze_software_async(request: Request):
 @router.get("/nvd/results/all")
 async def proxy_nvd_results_all():
     """Proxy to NVD microservice for retrieving all results and save to MongoDB"""
-    logger.info("=== NVD Results All endpoint called ===")
     try:
         nvd_service_url = os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(f"{nvd_service_url}/api/v1/results/all")
             results_data = response.json()
             
-            # Debug logging
-            logger.info(f"Results data keys: {list(results_data.keys())}")
-            logger.info(f"Success: {results_data.get('success')}, Jobs count: {len(results_data.get('jobs', []))}")
-            
             # Guardar automáticamente en MongoDB si hay trabajos completados
-            if results_data.get("success") and results_data.get("jobs") and len(results_data.get("jobs", [])) > 0:
-                # Filtrar solo trabajos completados con vulnerabilidades
-                completed_jobs = [job for job in results_data["jobs"] if job.get("status") == "completed" and job.get("vulnerabilities")]
-                logger.info(f"Completed jobs found: {len(completed_jobs)}")
-                if completed_jobs:
-                    logger.info("Starting MongoDB save process...")
-                    await save_results_to_mongodb(completed_jobs)
-                else:
-                    logger.info("No completed jobs with vulnerabilities found")
+            if results_data.get("success") and results_data.get("jobs"):
+                await save_results_to_mongodb(results_data["jobs"])
             
             return results_data
     except Exception as e:
@@ -198,19 +144,16 @@ async def proxy_nvd_results_all():
 
 async def save_results_to_mongodb(jobs_data):
     """Guarda los resultados de trabajos NVD en MongoDB con tu estructura"""
-    logger.info(f"MongoDB save function called with {len(jobs_data)} jobs")
     try:
-        from database.mongodb import MongoDBConnection
+        from ..database.mongodb import MongoDBConnection
         from datetime import datetime
         
         # Conectar a MongoDB
         mongodb = MongoDBConnection()
         await mongodb.connect()
-        logger.info("MongoDB connection established in save function")
         
         for job in jobs_data:
             if job.get("status") == "completed" and job.get("vulnerabilities"):
-                logger.info(f"Processing job {job.get('job_id')} with {len(job.get('vulnerabilities', []))} vulnerabilities")
                 # Convertir la estructura para tu schema de MongoDB
                 job_document = {
                     "job_id": job.get("job_id", ""),
@@ -327,36 +270,153 @@ async def proxy_to_microservice(service_name: str, path: str):
         logger.error("Error proxying to %s: %s", service_name, str(e))
         raise HTTPException(status_code=503, detail=f"Service {service_name} unavailable") from e
 
-@router.get("/mongodb/nvd/results/all")
-async def get_nvd_results_mongodb_enhanced():
-    """Get all NVD results with automatic MongoDB saving (bypasses Kong interception)"""
-    logger.info("=== MongoDB-enhanced NVD Results endpoint called ===")
+@router.get("/nvd/results/mongodb")
+async def get_nvd_results_from_mongodb():
+    """Obtener todos los resultados guardados en MongoDB cveScanner.jobs"""
+    try:
+        from ..database.mongodb_connection import MongoDBConnection
+        
+        # Conectar a MongoDB
+        mongodb = MongoDBConnection()
+        await mongodb.connect()
+        
+        # Consultar todos los trabajos guardados
+        cursor = mongodb.db.jobs.find({}).sort("processed_at", -1)
+        results = []
+        
+        async for doc in cursor:
+            # Convertir ObjectId a string para serialización JSON
+            doc["_id"] = str(doc["_id"])
+            
+            # Convertir datetime a timestamp para compatibilidad
+            if "processed_at" in doc and isinstance(doc["processed_at"], datetime):
+                doc["processed_at"] = doc["processed_at"].timestamp()
+            
+            results.append(doc)
+        
+        await mongodb.disconnect()
+        
+        return {
+            "success": True,
+            "total_jobs": len(results),
+            "source": "mongodb_cveScanner_jobs",
+            "jobs": results
+        }
+        
+    except Exception as e:
+        logger.error(f"Error consultando MongoDB: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "total_jobs": 0,
+            "jobs": []
+        }
+
+@router.post("/nvd/consumer/start")
+async def proxy_nvd_consumer_start():
+    """Proxy to NVD microservice to start the consumer (process jobs from queue)"""
     try:
         nvd_service_url = os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
-        
-        # Fetch results directly from NVD service
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{nvd_service_url}/api/v1/results/all")
-            results_data = response.json()
-            
-            # Debug logging
-            logger.info(f"Results data keys: {list(results_data.keys())}")
-            logger.info(f"Success: {results_data.get('success')}, Jobs count: {len(results_data.get('jobs', []))}")
-            
-            # Automatically save to MongoDB if there are completed jobs
-            if results_data.get("success") and results_data.get("jobs") and len(results_data.get("jobs", [])) > 0:
-                # Filter only completed jobs with vulnerabilities
-                completed_jobs = [job for job in results_data["jobs"] if job.get("status") == "completed" and job.get("vulnerabilities")]
-                logger.info(f"Completed jobs found: {len(completed_jobs)}")
-                if completed_jobs:
-                    logger.info("Starting MongoDB save process...")
-                    await save_results_to_mongodb(completed_jobs)
-                    logger.info("MongoDB save process completed")
-                else:
-                    logger.info("No completed jobs with vulnerabilities found")
-            
-            return results_data
-            
+            response = await client.post(f"{nvd_service_url}/api/v1/consumer/start")
+            return response.json()
     except Exception as e:
-        logger.error("Error in MongoDB-enhanced NVD results endpoint: %s", str(e))
+        logger.error("Error proxying to NVD service (consumer/start): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+@router.post("/nvd/consumer/stop")
+async def proxy_nvd_consumer_stop():
+    """Proxy to NVD microservice to stop the consumer"""
+    try:
+        nvd_service_url = os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(f"{nvd_service_url}/api/v1/consumer/stop")
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to NVD service (consumer/stop): %s", str(e))
+        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+@router.post("/nvd/queue/consumer/start")
+async def proxy_nvd_queue_consumer_start():
+    """Alias para iniciar el consumidor de la cola NVD (compatibilidad frontend)"""
+    try:
+        nvd_service_url = os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(f"{nvd_service_url}/api/v1/consumer/start")
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to NVD service (queue/consumer/start): %s", str(e))
+        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+@router.post("/nvd/queue/consumer/stop")
+async def proxy_nvd_queue_consumer_stop():
+    """Alias para detener el consumidor de la cola NVD (compatibilidad frontend)"""
+    try:
+        nvd_service_url = os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(f"{nvd_service_url}/api/v1/consumer/stop")
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to NVD service (queue/consumer/stop): %s", str(e))
+        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+@router.get("/proxy/{service_name}/{path:path}")
+async def proxy_to_microservice(service_name: str, path: str):
+    """Proxy requests to microservices (fallback for Kong)"""
+    services = {
+        "ml": os.getenv("ML_SERVICE_URL", "http://ml-prediction-service:8001"),
+        "nvd": os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
+    }
+    
+    if service_name not in services:
+        raise HTTPException(status_code=404, detail=f"Service {service_name} not found")
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(f"{services[service_name]}/api/v1/{path}")
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to %s: %s", service_name, str(e))
+        raise HTTPException(status_code=503, detail=f"Service {service_name} unavailable") from e
+
+@router.get("/nvd/results/mongodb")
+async def get_nvd_results_from_mongodb():
+    """Obtener todos los resultados guardados en MongoDB cveScanner.jobs"""
+    try:
+        from ..database.mongodb_connection import MongoDBConnection
+        
+        # Conectar a MongoDB
+        mongodb = MongoDBConnection()
+        await mongodb.connect()
+        
+        # Consultar todos los trabajos guardados
+        cursor = mongodb.db.jobs.find({}).sort("processed_at", -1)
+        results = []
+        
+        async for doc in cursor:
+            # Convertir ObjectId a string para serialización JSON
+            doc["_id"] = str(doc["_id"])
+            
+            # Convertir datetime a timestamp para compatibilidad
+            if "processed_at" in doc and isinstance(doc["processed_at"], datetime):
+                doc["processed_at"] = doc["processed_at"].timestamp()
+            
+            results.append(doc)
+        
+        await mongodb.disconnect()
+        
+        return {
+            "success": True,
+            "total_jobs": len(results),
+            "source": "mongodb_cveScanner_jobs",
+            "jobs": results
+        }
+        
+    except Exception as e:
+        logger.error(f"Error consultando MongoDB: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "total_jobs": 0,
+            "jobs": []
+        }

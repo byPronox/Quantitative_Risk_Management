@@ -10,12 +10,25 @@ from typing import Dict, Any, Optional
 import aio_pika
 from aio_pika import connect_robust, ExchangeType, Message
 import httpx
+from datetime import datetime
+from ..database.mongodb_connection import MongoDBConnection
 
 logger = logging.getLogger(__name__)
 
 # Simple in-memory job storage (in production, use Redis or database)
 _job_metadata_store = {}
 _job_results_store = {}  # Store completed job results
+
+# MongoDB instance for storing vulnerability results
+_mongodb_instance = None
+
+async def get_mongodb_instance():
+    """Get MongoDB instance for storing vulnerability results"""
+    global _mongodb_instance
+    if _mongodb_instance is None:
+        _mongodb_instance = MongoDBConnection()
+        await _mongodb_instance.connect()
+    return _mongodb_instance
 
 def store_job_metadata(job_id: str, metadata: Dict[str, Any]):
     """Store job metadata for later retrieval"""
@@ -25,13 +38,54 @@ def get_stored_job_metadata(job_id: str) -> Dict[str, Any]:
     """Retrieve stored job metadata"""
     return _job_metadata_store.get(job_id, {})
 
-def store_job_result(job_id: str, result: Dict[str, Any]):
-    """Store job result after processing"""
+async def store_job_result(job_id: str, result: Dict[str, Any]):
+    """Store job result after processing in both memory and MongoDB"""
+    # Store in memory for backward compatibility
     _job_results_store[job_id] = result
+    
+    # Store in MongoDB for persistence
+    try:
+        mongodb = await get_mongodb_instance()
+        
+        # Prepare document for MongoDB
+        vulnerability_doc = {
+            "job_id": job_id,
+            "keyword": result.get("keyword"),
+            "status": result.get("status"),
+            "timestamp": datetime.utcnow(),
+            "processed_at": datetime.fromtimestamp(result.get("timestamp", 0)),
+            "total_results": result.get("total_results", 0),
+            "vulnerabilities": result.get("vulnerabilities", []),
+            "processed_via": result.get("processed_via", "unknown"),
+            "error": result.get("error") if result.get("status") == "failed" else None
+        }
+        
+        # Insert into nvd_results collection
+        await mongodb.db.nvd_results.insert_one(vulnerability_doc)
+        logger.info(f"Stored job result {job_id} in MongoDB NVDReport database")
+        
+    except Exception as e:
+        logger.error(f"Failed to store job result {job_id} in MongoDB: {e}")
+        # Continue with in-memory storage even if MongoDB fails
 
 def get_job_result(job_id: str) -> Dict[str, Any]:
     """Retrieve job result"""
     return _job_results_store.get(job_id, {})
+
+async def get_all_job_results_from_mongodb() -> list:
+    """Retrieve all vulnerability results from MongoDB"""
+    try:
+        mongodb = await get_mongodb_instance()
+        cursor = mongodb.db.nvd_results.find({}).sort("timestamp", -1)
+        results = []
+        async for doc in cursor:
+            # Convert MongoDB document to dict and handle ObjectId
+            doc["_id"] = str(doc["_id"])
+            results.append(doc)
+        return results
+    except Exception as e:
+        logger.error(f"Failed to retrieve results from MongoDB: {e}")
+        return []
 
 def get_all_job_results() -> Dict[str, Dict[str, Any]]:
     """Retrieve all completed job results"""
@@ -273,7 +327,7 @@ class RabbitMQManager:
                 
                 # Store the result
                 if job_id:
-                    store_job_result(job_id, result)
+                    await store_job_result(job_id, result)
                 
                 logger.info(f"Job {job_id} processed successfully via Kong: {keyword}")
                 return result
@@ -290,7 +344,7 @@ class RabbitMQManager:
             # Store the error result
             job_id = job_data.get("job_id")
             if job_id:
-                store_job_result(job_id, error_result)
+                await store_job_result(job_id, error_result)
             
             logger.error(f"Failed to process job {job_data.get('job_id')} via Kong: {e}")
             return error_result

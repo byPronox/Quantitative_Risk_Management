@@ -6,6 +6,7 @@ import logging
 import httpx
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 from config.kong_config import kong_settings
 
 logger = logging.getLogger("kong_middleware")
@@ -329,4 +330,116 @@ class KongServiceRegistration:
         except Exception as e:
             logger.warning(f"Failed to configure CORS: {e}")
 
-    # ...existing code...
+class MongoDBAutoSaveMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to automatically save NVD results to MongoDB when accessing /nvd/results/all
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        # Check if this is the specific endpoint we want to intercept
+        if request.url.path == "/nvd/results/all" and request.method == "GET":
+            logger.info("Intercepting /nvd/results/all request for MongoDB auto-save")
+            
+            try:
+                # Get results from NVD service directly
+                nvd_service_url = "http://nvd-service:8002"
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.get(f"{nvd_service_url}/api/v1/results/all")
+                    if response.status_code != 200:
+                        logger.error(f"Failed to get results from NVD service: {response.status_code}")
+                        # Fall back to normal processing
+                        return await call_next(request)
+                    
+                    results_data = response.json()
+                    logger.info(f"Retrieved data from NVD service: {len(results_data.get('jobs', []))} jobs")
+                    
+                    # Automatically save to MongoDB if there are completed jobs
+                    if results_data.get("success") and results_data.get("jobs"):
+                        completed_jobs = [job for job in results_data["jobs"] 
+                                        if job.get("status") == "completed" and job.get("vulnerabilities")]
+                        if completed_jobs:
+                            logger.info(f"Auto-saving {len(completed_jobs)} completed jobs to MongoDB")
+                            await self._save_to_mongodb(completed_jobs)
+                    
+                    # Return the results as JSON response with CORS headers
+                    response = JSONResponse(content=results_data)
+                    # Add CORS headers manually
+                    response.headers["Access-Control-Allow-Origin"] = "*"
+                    response.headers["Access-Control-Allow-Credentials"] = "true"
+                    response.headers["Access-Control-Allow-Methods"] = "*"
+                    response.headers["Access-Control-Allow-Headers"] = "*"
+                    return response
+                    
+            except Exception as e:
+                logger.error(f"Error in MongoDB auto-save middleware: {e}")
+                # Fall back to normal processing if anything goes wrong
+                return await call_next(request)
+        
+        # For all other requests, proceed normally
+        return await call_next(request)
+    
+    async def _save_to_mongodb(self, jobs_data):
+        """Save jobs to MongoDB"""
+        try:
+            from database.mongodb import MongoDBConnection
+            import time
+            from datetime import datetime
+            
+            mongodb = MongoDBConnection()
+            await mongodb.connect()
+            logger.info("MongoDB connection established for auto-save")
+            
+            for job in jobs_data:
+                if job.get("status") == "completed" and job.get("vulnerabilities"):
+                    # Check if job already exists
+                    existing_job = await mongodb.db.jobs.find_one({"job_id": job.get("job_id")})
+                    if existing_job:
+                        logger.info(f"Job {job.get('job_id')} already exists in MongoDB, skipping")
+                        continue
+                    
+                    logger.info(f"Auto-saving job {job.get('job_id')} with {len(job.get('vulnerabilities', []))} vulnerabilities")
+                    
+                    # Process vulnerabilities to fix date format issues
+                    processed_vulnerabilities = []
+                    for vuln in job.get("vulnerabilities", []):
+                        processed_vuln = vuln.copy()
+                        
+                        # Fix date fields in CVE data
+                        if "cve" in processed_vuln and processed_vuln["cve"]:
+                            cve_data = processed_vuln["cve"].copy()
+                            
+                            # Convert string dates to datetime objects
+                            if "published" in cve_data and isinstance(cve_data["published"], str):
+                                try:
+                                    cve_data["published"] = datetime.fromisoformat(cve_data["published"].replace('Z', '+00:00'))
+                                except:
+                                    cve_data["published"] = datetime.now()
+                            
+                            if "lastModified" in cve_data and isinstance(cve_data["lastModified"], str):
+                                try:
+                                    cve_data["lastModified"] = datetime.fromisoformat(cve_data["lastModified"].replace('Z', '+00:00'))
+                                except:
+                                    cve_data["lastModified"] = datetime.now()
+                            
+                            processed_vuln["cve"] = cve_data
+                        
+                        processed_vulnerabilities.append(processed_vuln)
+                    
+                    job_document = {
+                        "job_id": job.get("job_id", ""),
+                        "keyword": job.get("keyword", ""),
+                        "status": job.get("status", "pending"),
+                        "total_results": int(job.get("total_results", 0)),
+                        "processed_at": float(job.get("timestamp", time.time())),
+                        "processed_via": "auto_save_middleware",
+                        "vulnerabilities": processed_vulnerabilities
+                    }
+                    
+                    await mongodb.db.jobs.insert_one(job_document)
+                    logger.info(f"Auto-saved job {job.get('job_id')} to MongoDB")
+            
+            await mongodb.disconnect()
+            logger.info("MongoDB auto-save process completed")
+            
+        except Exception as e:
+            logger.error(f"Error in MongoDB auto-save: {e}")
