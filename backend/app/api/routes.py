@@ -360,3 +360,169 @@ async def get_nvd_results_mongodb_enhanced():
     except Exception as e:
         logger.error("Error in MongoDB-enhanced NVD results endpoint: %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+@router.get("/reports/general/keywords")
+async def get_general_reports_by_keywords():
+    """Get all vulnerability data grouped by keywords from MongoDB for General Reports"""
+    try:
+        from database.mongodb import MongoDBConnection
+        from datetime import datetime
+        
+        # Connect to MongoDB
+        mongodb = MongoDBConnection()
+        await mongodb.connect()
+        
+        # Get all jobs from MongoDB and group by keyword
+        cursor = mongodb.db.jobs.find({}).sort("processed_at", -1)
+        jobs_by_keyword = {}
+        
+        async for job in cursor:
+            keyword = job.get("keyword", "Unknown")
+            if keyword not in jobs_by_keyword:
+                jobs_by_keyword[keyword] = {
+                    "keyword": keyword,
+                    "total_jobs": 0,
+                    "total_vulnerabilities": 0,
+                    "latest_analysis": None,
+                    "jobs": []
+                }
+            
+            # Convert processed_at to readable format
+            processed_at = job.get("processed_at")
+            if isinstance(processed_at, (int, float)):
+                processed_at_readable = datetime.fromtimestamp(processed_at).strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                processed_at_readable = str(processed_at)
+            
+            job_summary = {
+                "job_id": job.get("job_id"),
+                "status": job.get("status"),
+                "total_results": job.get("total_results", 0),
+                "vulnerabilities_count": len(job.get("vulnerabilities", [])),
+                "processed_at": processed_at_readable,
+                "processed_at_timestamp": processed_at
+            }
+            
+            jobs_by_keyword[keyword]["jobs"].append(job_summary)
+            jobs_by_keyword[keyword]["total_jobs"] += 1
+            jobs_by_keyword[keyword]["total_vulnerabilities"] += job_summary["vulnerabilities_count"]
+            
+            # Update latest analysis
+            if (jobs_by_keyword[keyword]["latest_analysis"] is None or 
+                processed_at > jobs_by_keyword[keyword]["latest_analysis"]):
+                jobs_by_keyword[keyword]["latest_analysis"] = processed_at_readable
+        
+        await mongodb.disconnect()
+        
+        # Convert to list and sort by latest analysis
+        keywords_list = list(jobs_by_keyword.values())
+        keywords_list.sort(key=lambda x: x["total_vulnerabilities"], reverse=True)
+        
+        return {
+            "success": True,
+            "total_keywords": len(keywords_list),
+            "keywords": keywords_list
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting general reports by keywords: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "total_keywords": 0,
+            "keywords": []
+        }
+
+@router.get("/reports/general/keyword/{keyword}")
+async def get_detailed_report_by_keyword(keyword: str):
+    """Get detailed vulnerability report for a specific keyword from MongoDB"""
+    try:
+        from database.mongodb import MongoDBConnection
+        from datetime import datetime
+        
+        # Connect to MongoDB
+        mongodb = MongoDBConnection()
+        await mongodb.connect()
+        
+        # Get all jobs for the specific keyword
+        cursor = mongodb.db.jobs.find({"keyword": keyword}).sort("processed_at", -1)
+        jobs = []
+        all_vulnerabilities = []
+        total_vulnerabilities = 0
+        
+        async for job in cursor:
+            # Convert ObjectId to string for JSON serialization
+            job["_id"] = str(job["_id"])
+            
+            # Convert processed_at to readable format
+            processed_at = job.get("processed_at")
+            if isinstance(processed_at, (int, float)):
+                job["processed_at_readable"] = datetime.fromtimestamp(processed_at).strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Add vulnerabilities to the complete list
+            vulnerabilities = job.get("vulnerabilities", [])
+            all_vulnerabilities.extend(vulnerabilities)
+            total_vulnerabilities += len(vulnerabilities)
+            
+            jobs.append(job)
+        
+        await mongodb.disconnect()
+        
+        # Analyze vulnerability severity distribution
+        severity_stats = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "Unknown": 0}
+        cve_years = {}
+        
+        for vuln in all_vulnerabilities:
+            # Count by severity
+            metrics = vuln.get("cve", {}).get("metrics", {})
+            if "cvssMetricV31" in metrics and metrics["cvssMetricV31"]:
+                severity = metrics["cvssMetricV31"][0].get("cvssData", {}).get("baseSeverity", "Unknown")
+            elif "cvssMetricV2" in metrics and metrics["cvssMetricV2"]:
+                score = metrics["cvssMetricV2"][0].get("cvssData", {}).get("baseScore", 0)
+                if score >= 9.0:
+                    severity = "Critical"
+                elif score >= 7.0:
+                    severity = "High"
+                elif score >= 4.0:
+                    severity = "Medium"
+                else:
+                    severity = "Low"
+            else:
+                severity = "Unknown"
+            
+            severity_stats[severity] = severity_stats.get(severity, 0) + 1
+            
+            # Count by year
+            published = vuln.get("cve", {}).get("published", "")
+            if published:
+                try:
+                    if isinstance(published, str):
+                        year = published[:4]
+                    else:
+                        # If it's a datetime object, extract year
+                        year = str(published.year) if hasattr(published, 'year') else str(published)[:4]
+                    cve_years[year] = cve_years.get(year, 0) + 1
+                except:
+                    # If any error, skip this entry
+                    pass
+        
+        return {
+            "success": True,
+            "keyword": keyword,
+            "total_jobs": len(jobs),
+            "total_vulnerabilities": total_vulnerabilities,
+            "severity_distribution": severity_stats,
+            "vulnerabilities_by_year": dict(sorted(cve_years.items(), reverse=True)),
+            "jobs": jobs,
+            "vulnerabilities": all_vulnerabilities
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting detailed report for keyword {keyword}: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "keyword": keyword,
+            "jobs": [],
+            "vulnerabilities": []
+        }
