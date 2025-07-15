@@ -1,3 +1,0 @@
-"""
-NVD Service Package (Refactored)
-"""
