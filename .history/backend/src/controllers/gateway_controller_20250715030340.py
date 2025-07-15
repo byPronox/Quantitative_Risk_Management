@@ -161,19 +161,6 @@ async def proxy_nvd_queue_consumer_stop():
     return await proxy_nvd_consumer_stop()
 
 
-@router.post("/nvd/queue/bulk-save")
-async def proxy_nvd_bulk_save():
-    """Proxy to NVD microservice to bulk save all completed jobs to MongoDB"""
-    try:
-        nvd_service_url = os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(f"{nvd_service_url}/api/v1/queue/bulk-save")
-            return response.json()
-    except Exception as e:
-        logger.error("Error proxying to NVD service (bulk-save): %s", str(e))
-        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
-
-
 # =============================================================================
 # REPORT MICROSERVICE PROXY ENDPOINTS  
 # =============================================================================
@@ -302,4 +289,17 @@ async def proxy_nvd_mongodb_analyze(request: Request):
             return response.json()
     except Exception as e:
         logger.error("Error proxying to NVD service (mongodb/analyze): %s", str(e))
+        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+
+@router.post("/nvd/queue/bulk-save")
+async def proxy_nvd_bulk_save():
+    """Proxy to NVD microservice for bulk saving jobs to MongoDB"""
+    try:
+        nvd_service_url = os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(f"{nvd_service_url}/api/v1/queue/bulk-save")
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to NVD service (bulk-save): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e

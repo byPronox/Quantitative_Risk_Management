@@ -59,14 +59,15 @@ async def services_status():
 
 @router.get("/nvd/results/all")
 async def proxy_nvd_results_all():
-    """Proxy to NVD microservice for retrieving all results from MongoDB"""
+    """Proxy to NVD microservice for retrieving all results (in-memory + MongoDB)"""
     try:
         nvd_service_url = os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{nvd_service_url}/api/v1/mongodb/results/all")
+            # Use the queue service endpoint that combines in-memory and MongoDB data
+            response = await client.get(f"{nvd_service_url}/api/v1/results/all")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (mongodb/results/all): %s", str(e))
+        logger.error("Error proxying to NVD service (results/all): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
@@ -161,16 +162,16 @@ async def proxy_nvd_queue_consumer_stop():
     return await proxy_nvd_consumer_stop()
 
 
-@router.post("/nvd/queue/bulk-save")
-async def proxy_nvd_bulk_save():
-    """Proxy to NVD microservice to bulk save all completed jobs to MongoDB"""
+@router.post("/nvd/queue/save_to_mongodb")
+async def proxy_nvd_save_to_mongodb():
+    """Proxy to NVD microservice to save all jobs to MongoDB"""
     try:
         nvd_service_url = os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(f"{nvd_service_url}/api/v1/queue/bulk-save")
+            response = await client.post(f"{nvd_service_url}/api/v1/queue/save_to_mongodb")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (bulk-save): %s", str(e))
+        logger.error("Error proxying to NVD service (queue/save_to_mongodb): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
