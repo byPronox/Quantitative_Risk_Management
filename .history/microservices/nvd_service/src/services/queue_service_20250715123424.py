@@ -20,8 +20,8 @@ class QueueService:
     """Service for managing RabbitMQ queues for vulnerability analysis."""
     
     def __init__(self, max_retries: int = 5, retry_delay: int = 2):
-        self.host = settings.RABBITMQ_HOST
-        self.queue_name = settings.RABBITMQ_QUEUE
+        self.host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+        self.queue_name = os.getenv("RABBITMQ_QUEUE", "nvd_searches")
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.connection = None
@@ -246,12 +246,13 @@ class QueueService:
             logger.info("=== STARTING BULK SAVE PROCESS: FETCHING JOBS FROM /nvd/results/all ENDPOINT ===")
             
             # Get all jobs from the /nvd/results/all endpoint via HTTP call
+            backend_url = os.getenv("BACKEND_URL", "http://backend:8000")
             all_jobs_from_endpoint = []
             
             try:
-                logger.info(f"=== MAKING HTTP CALL TO: {settings.BACKEND_URL}/nvd/results/all ===")
+                logger.info(f"=== MAKING HTTP CALL TO: {backend_url}/nvd/results/all ===")
                 with httpx.Client(timeout=30.0) as client:
-                    response = client.get(f"{settings.BACKEND_URL}/nvd/results/all")
+                    response = client.get(f"{backend_url}/nvd/results/all")
                     logger.info(f"=== HTTP RESPONSE STATUS: {response.status_code} ===")
                     if response.status_code == 200:
                         data = response.json()
@@ -438,9 +439,10 @@ class QueueService:
                         vulnerabilities = []
                         total_results = 0
                         try:
+                            backend_url = os.getenv("BACKEND_URL", "http://backend:8000")
                             # Llama al endpoint del backend que pasa por Kong
                             with httpx.Client(timeout=60.0) as client:
-                                response = client.get(f"{settings.BACKEND_URL}/nvd", params={"keyword": keyword})
+                                response = client.get(f"{backend_url}/nvd", params={"keyword": keyword})
                                 if response.status_code == 200:
                                     data = response.json()
                                     vulnerabilities = data.get("vulnerabilities", [])

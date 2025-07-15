@@ -18,4 +18,4 @@ ENV LANL_MODEL_PATH=/app/src/models/isolation_forest_model.pkl
 EXPOSE 8001
 
 # Run the application
-CMD ["python", "src/main.py"]
+CMD ["python", "main.py"]

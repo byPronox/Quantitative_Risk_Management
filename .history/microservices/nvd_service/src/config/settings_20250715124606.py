@@ -37,15 +37,15 @@ class Settings:
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
     # NVD API Configuration
-    NVD_API_KEY: Optional[str] = os.getenv("NVD_API_KEY")
+    NVD_API_KEY: Optional[str] = os.getenv("NVD_API_KEY", "")
     NVD_BASE_URL: str = os.getenv("NVD_BASE_URL", "https://services.nvd.nist.gov/rest/json/cves/2.0")
     
     # Kong Gateway Configuration
-    KONG_PROXY_URL: Optional[str] = os.getenv("KONG_PROXY_URL")
+    KONG_PROXY_URL: Optional[str] = os.getenv("KONG_PROXY_URL", "")
     USE_KONG_NVD: bool = os.getenv("USE_KONG_NVD", "false").lower() == "true"
     
     # MongoDB Atlas Configuration
-    MONGODB_URL: Optional[str] = os.getenv("MONGODB_URL")
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb+srv://ADMIN:ADMIN@cluster0.7ixig65.mongodb.net/")
     MONGODB_DATABASE: str = os.getenv("MONGODB_DATABASE", "cveScanner")
     
     # RabbitMQ Configuration
@@ -64,10 +64,6 @@ class Settings:
     MAX_VULNERABILITIES_PER_REQUEST: int = int(os.getenv("MAX_VULNERABILITIES_PER_REQUEST", "1000"))
     
     def __init__(self):
-        # Validate required environment variables
-        if not self.MONGODB_URL:
-            raise ValueError("MONGODB_URL environment variable is required")
-        
         # Compute derived values
         self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:5672/"
 

@@ -45,7 +45,7 @@ class Settings:
     USE_KONG_NVD: bool = os.getenv("USE_KONG_NVD", "false").lower() == "true"
     
     # MongoDB Atlas Configuration
-    MONGODB_URL: Optional[str] = os.getenv("MONGODB_URL")
+    MONGODB_URL: str = os.getenv("MONGODB_URL")
     MONGODB_DATABASE: str = os.getenv("MONGODB_DATABASE", "cveScanner")
     
     # RabbitMQ Configuration
@@ -65,8 +65,10 @@ class Settings:
     
     def __init__(self):
         # Validate required environment variables
-        if not self.MONGODB_URL:
-            raise ValueError("MONGODB_URL environment variable is required")
+        required_vars = ["MONGODB_URL"]
+        missing_vars = [var for var in required_vars if not getattr(self, var)]
+        if missing_vars:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
         
         # Compute derived values
         self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:5672/"

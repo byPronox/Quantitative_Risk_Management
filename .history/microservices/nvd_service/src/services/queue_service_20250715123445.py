@@ -438,9 +438,10 @@ class QueueService:
                         vulnerabilities = []
                         total_results = 0
                         try:
+                            backend_url = os.getenv("BACKEND_URL", "http://backend:8000")
                             # Llama al endpoint del backend que pasa por Kong
                             with httpx.Client(timeout=60.0) as client:
-                                response = client.get(f"{settings.BACKEND_URL}/nvd", params={"keyword": keyword})
+                                response = client.get(f"{backend_url}/nvd", params={"keyword": keyword})
                                 if response.status_code == 200:
                                     data = response.json()
                                     vulnerabilities = data.get("vulnerabilities", [])

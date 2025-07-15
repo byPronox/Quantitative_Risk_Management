@@ -65,8 +65,10 @@ class Settings:
     
     def __init__(self):
         # Validate required environment variables
-        if not self.MONGODB_URL:
-            raise ValueError("MONGODB_URL environment variable is required")
+        required_vars = ["MONGODB_URL"]
+        missing_vars = [var for var in required_vars if not getattr(self, var)]
+        if missing_vars:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
         
         # Compute derived values
         self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:5672/"

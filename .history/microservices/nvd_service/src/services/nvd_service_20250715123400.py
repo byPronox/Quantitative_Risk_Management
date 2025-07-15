@@ -13,10 +13,10 @@ class NVDAPIService:
     """Service for interacting with the National Vulnerability Database API."""
     
     def __init__(self):
-        self.base_url = settings.NVD_BASE_URL
-        self.api_key = settings.NVD_API_KEY
-        self.kong_proxy_url = settings.KONG_PROXY_URL
-        self.use_kong = settings.USE_KONG_NVD
+        self.base_url = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+        self.api_key = os.getenv("NVD_API_KEY", "")
+        self.kong_proxy_url = os.getenv("KONG_PROXY_URL", "")
+        self.use_kong = os.getenv("USE_KONG_NVD", "false").lower() == "true"
         
     def _get_api_config(self) -> Dict[str, Any]:
         """Get API configuration based on environment settings."""

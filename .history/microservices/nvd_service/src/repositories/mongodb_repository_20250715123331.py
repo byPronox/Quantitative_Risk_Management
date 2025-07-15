@@ -25,9 +25,10 @@ class MongoDBRepository:
         try:
             from pymongo import MongoClient
             
-            # Use MongoDB configuration from settings
-            self.client = MongoClient(settings.MONGODB_URL)
-            self.db = self.client[settings.MONGODB_DATABASE]
+            # Use the same MongoDB Atlas configuration as report service
+            mongodb_url = os.getenv("MONGODB_URL", "mongodb+srv://ADMIN:ADMIN@cluster0.7ixig65.mongodb.net/")
+            self.client = MongoClient(mongodb_url)
+            self.db = self.client.cveScanner
             
             # Test connection
             await asyncio.get_event_loop().run_in_executor(
