@@ -26,7 +26,7 @@ export default function App() {
                   to="/" 
                   className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Dashboard
+                  Machine Learning Prediction
                 </Link>
                 <Link 
                   to="/nvd" 

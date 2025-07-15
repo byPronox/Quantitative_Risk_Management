@@ -26,16 +26,21 @@
 
 /* Queue Status */
 .queue-status {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  padding: 16px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 20px;
   margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
 }
 
 .queue-status h4 {
   color: #1e40af;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Consumer Control */
@@ -946,28 +951,196 @@
   font-size: 0.8rem;
 }
 
-/* Responsive for Queue Results */
+/* Queue Status Improved */
+.queue-status {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+}
+
+.queue-status h4 {
+  color: #1e40af;
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.status-item {
+  background: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.status-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.status-item .label {
+  display: block;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.status-item .value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-align: center;
+}
+
+.status-item .value.pending {
+  color: #f59e0b;
+}
+
+.status-item .value.completed {
+  color: #10b981;
+}
+
+.status-item .value.status {
+  font-size: 1rem;
+}
+
+/* Queue Visual Progress Indicators */
+.queue-visual {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.queue-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.progress-section {
+  flex: 1;
+  text-align: center;
+}
+
+.progress-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.progress-visual {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  align-items: center;
+}
+
+.job-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.job-dot.pending {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+  animation: pulse 2s infinite;
+}
+
+.job-dot.completed {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: #10b981;
+  animation: completedPulse 0.5s ease-in-out;
+}
+
+.job-dot.empty {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  opacity: 0.3;
+}
+
+.progress-arrow {
+  font-size: 1.5rem;
+  color: #6b7280;
+  animation: moveRight 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes completedPulse {
+  0% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes moveRight {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
-  .queue-results-grid {
-    grid-template-columns: 1fr;
+  .queue-progress {
+    flex-direction: column;
+    gap: 16px;
   }
   
-  .results-summary {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+  .progress-arrow {
+    transform: rotate(90deg);
+    animation: moveDown 2s ease-in-out infinite;
   }
   
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .vuln-preview-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+  @keyframes moveDown {
+    0%, 100% {
+      transform: rotate(90deg) translateX(0);
+    }
+    50% {
+      transform: rotate(90deg) translateX(5px);
+    }
   }
 }
 
