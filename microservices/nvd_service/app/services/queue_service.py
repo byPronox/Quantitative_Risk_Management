@@ -8,7 +8,6 @@ import os
 import time
 import threading
 import asyncio
-import httpx
 from typing import List, Dict, Any, Optional
 from app.services.nvd_service import NVDService
 
@@ -241,6 +240,9 @@ class QueueService:
                 connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host))
                 channel = connection.channel()
                 channel.queue_declare(queue=self.queue_name, durable=True)
+                nvd_service = NVDService()  # Instantiate the NVDService
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
                 for method_frame, properties, body in channel.consume(self.queue_name, inactivity_timeout=1):
                     if body is None:
                         break  # No more messages
@@ -255,23 +257,16 @@ class QueueService:
                         self._job_status[job_id] = "processing"
                         self._jobs[job_id]["status"] = "processing"
                         self._processing.add(job_id)
-                        # --- FETCH REAL VULNERABILITIES VIA BACKEND/KONG ---
-                        vulnerabilities = []
-                        total_results = 0
+                        # Fetch real vulnerabilities for the keyword
                         try:
-                            backend_url = os.getenv("BACKEND_URL", "http://backend:8000")
-                            # Llama al endpoint del backend que pasa por Kong
-                            with httpx.Client(timeout=60.0) as client:
-                                response = client.get(f"{backend_url}/nvd", params={"keyword": keyword})
-                                if response.status_code == 200:
-                                    data = response.json()
-                                    vulnerabilities = data.get("vulnerabilities", [])
-                                    total_results = data.get("totalResults", 0)
-                                else:
-                                    logger.error(f"Failed to fetch vulnerabilities for {keyword}: {response.status_code} - {response.text}")
+                            result = loop.run_until_complete(nvd_service.search_vulnerabilities(keywords=keyword, results_per_page=100))
+                            vulnerabilities = result.get("vulnerabilities", [])
+                            total_results = result.get("total_results", 0)
                         except Exception as e:
                             logger.error(f"Error fetching vulnerabilities for {keyword}: {e}")
-                        # --- END FETCH ---
+                            vulnerabilities = []
+                            total_results = 0
+                        # Mark as completed with real results
                         self._job_status[job_id] = "completed"
                         self._jobs[job_id]["status"] = "completed"
                         self._processing.remove(job_id)

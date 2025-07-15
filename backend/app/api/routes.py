@@ -5,6 +5,8 @@ import os
 import logging
 import time
 from datetime import datetime
+from services.user_service import user_login, get_user_profile
+from fastapi import Body
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -526,3 +528,17 @@ async def get_detailed_report_by_keyword(keyword: str):
             "jobs": [],
             "vulnerabilities": []
         }
+
+@router.post("/user/login")
+async def login_user(data: dict = Body(...)):
+    """Login user via external microservice (Render)"""
+    username = data.get("username")
+    password = data.get("password")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
+    return await user_login(username, password)
+
+@router.get("/user/profile")
+async def user_profile(token: str):
+    """Get user profile from external microservice (Render)"""
+    return await get_user_profile(token)

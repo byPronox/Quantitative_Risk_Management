@@ -4,6 +4,7 @@ import AssetList from "./components/AssetList";
 import CombinedAnalysisForm from "./components/CombinedAnalysisForm";
 import NvdPage from "./pages/NvdPage";
 import ReportsPage from "./pages/ReportsPage";
+import LoginPage from "./pages/LoginPage";
 
 const mockAssets = [
   { id: 1, name: "Web Server" },
@@ -12,6 +13,10 @@ const mockAssets = [
 ];
 
 export default function App() {
+  const [user, setUser] = React.useState(null);
+  if (!user) {
+    return <LoginPage onLogin={setUser} />;
+  }
   return (
     <Router>
       <nav className="bg-gray-800 text-white">
