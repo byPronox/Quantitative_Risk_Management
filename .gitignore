@@ -1,5 +1,20 @@
-# Environment variables
+# Environment variables - All .env files
 .env
+.env.*
+!.env.template
+!.env.sample
+
+# Security sensitive files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+config/secrets.json
+secrets/
+.secrets
+.vault
+auth.json
 
 # Python
 __pycache__/
