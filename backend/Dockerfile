@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY ./app /app
 
+# Copy secrets file
+COPY .env.json /app/.env.json
+
 ENV PYTHONPATH=/app
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

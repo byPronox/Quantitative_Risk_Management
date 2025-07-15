@@ -1,8 +1,10 @@
-import os
+from .secrets import get_secret
 import httpx
 from fastapi import HTTPException
 
-USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "https://thoughts-avg0.onrender.com")
+USER_SERVICE_URL = get_secret("USER_SERVICE_URL")
+if not USER_SERVICE_URL:
+    raise RuntimeError("USER_SERVICE_URL must be set in .env.json or as an environment variable!")
 
 async def user_login(username: str, password: str):
     url = f"{USER_SERVICE_URL}/login"
