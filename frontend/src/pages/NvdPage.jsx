@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getAllQueueResults } from "../services/nvd";
 import AsyncSoftwareAnalysis from "../components/AsyncSoftwareAnalysis";
+import ScannerModule from "../components/ScannerModule";
 import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -189,6 +190,17 @@ export default function NvdPage() {
         marginBottom: "2rem"
       }}>
         <AsyncSoftwareAnalysis />
+      </div>
+      
+      {/* Network Scanner Section */}
+      <div style={{ 
+        background: "#ffffff",
+        padding: "2rem",
+        borderRadius: "1rem",
+        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+        marginBottom: "2rem"
+      }}>
+        <ScannerModule />
       </div>
       {/* Found Vulnerabilities Section (always visible) */}
       <div style={{ 

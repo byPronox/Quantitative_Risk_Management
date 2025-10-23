@@ -4,6 +4,7 @@ import AssetList from "./components/AssetList";
 import CombinedAnalysisForm from "./components/CombinedAnalysisForm";
 import NvdPage from "./pages/NvdPage";
 import ReportsPage from "./pages/ReportsPage";
+import ScanPage from "./pages/ScanPage";
 
 const mockAssets = [
   { id: 1, name: "Web Server" },
@@ -40,6 +41,12 @@ export default function App() {
                 >
                   Generate Reports
                 </Link>
+                <Link 
+                  to="/scan" 
+                  className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Network Scan
+                </Link>
               </div>
             </div>
           </div>
@@ -52,6 +59,7 @@ export default function App() {
         />
         <Route path="/nvd" element={<NvdPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/scan" element={<ScanPage />} />
       </Routes>
     </Router>
   );

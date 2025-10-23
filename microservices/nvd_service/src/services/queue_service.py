@@ -434,17 +434,25 @@ class QueueService:
                         self._job_status[job_id] = "processing"
                         self._jobs[job_id]["status"] = "processing"
                         self._processing.add(job_id)
-                        # --- FETCH REAL VULNERABILITIES VIA BACKEND/KONG ---
+                        # --- FETCH REAL VULNERABILITIES VIA KONG GATEWAY ---
                         vulnerabilities = []
                         total_results = 0
                         try:
-                            # Llama al endpoint del backend que pasa por Kong
+                            # Use Kong Gateway directly to NVD API
                             with httpx.Client(timeout=60.0) as client:
-                                response = client.get(f"{settings.BACKEND_URL}/nvd", params={"keyword": keyword})
+                                response = client.get(
+                                    f"{settings.KONG_PROXY_URL}/nvd/cves/2.0", 
+                                    params={
+                                        "keywordSearch": keyword,
+                                        "resultsPerPage": 50
+                                    },
+                                    headers={"apiKey": settings.NVD_API_KEY} if settings.NVD_API_KEY else {}
+                                )
                                 if response.status_code == 200:
                                     data = response.json()
                                     vulnerabilities = data.get("vulnerabilities", [])
                                     total_results = data.get("totalResults", 0)
+                                    logger.info(f"Successfully fetched {len(vulnerabilities)} vulnerabilities for {keyword}")
                                 else:
                                     logger.error(f"Failed to fetch vulnerabilities for {keyword}: {response.status_code} - {response.text}")
                         except Exception as e:
