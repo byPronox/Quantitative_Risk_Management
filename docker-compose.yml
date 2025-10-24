@@ -21,7 +21,7 @@ services:
       - KONG_CONTROL_PLANE_ID=9d98c0ba-3ac1-44fd-b497-59743e18a80a
       - KONG_TOKEN=${KONG_TOKEN:-}
       - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672/
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - RABBITMQ_QUEUE=nvd_analysis_queue
       - ML_SERVICE_URL=http://ml-prediction-service:8001
       - NVD_SERVICE_URL=http://nvd-service:8002
@@ -39,8 +39,8 @@ services:
     environment:
       - ENVIRONMENT=production
       - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=admin
-      - RABBITMQ_PASSWORD=admin123
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
       - RABBITMQ_QUEUE=ml_predictions
       - MODEL_PATH=/app/app/models
     volumes:
@@ -59,8 +59,8 @@ services:
       - NVD_API_KEY=b0f20683-6364-4314-97cc-6f85ea75df67
       - KONG_PROXY_URL=https://kong-b27b67aff4usnsp19.kongcloud.dev
       - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=admin
-      - RABBITMQ_PASSWORD=admin123
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
       - RABBITMQ_QUEUE=nvd_analysis_queue
       - MONGODB_URL=mongodb+srv://ADMIN:ADMIN@cluster0.7ixig65.mongodb.net/
       - MONGODB_DATABASE=cveScanner
@@ -115,7 +115,7 @@ services:
       - nmap-scanner-service
     restart: always
     environment:
-      - VITE_API_URL=https://kong-b27b67aff4usnspl9.kongcloud.dev
+      - VITE_API_URL=https://kong-b27b67aff4usnsp19.kongcloud.dev
       - VITE_ML_SERVICE_URL=http://ml-prediction-service:8001
       - VITE_NVD_SERVICE_URL=http://nvd-service:8002
       - VITE_REPORT_SERVICE_URL=http://report-service:8003
@@ -142,8 +142,8 @@ services:
       - "15672:15672"
     restart: always
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 

@@ -46,42 +46,55 @@ async def get_nmap_service_client():
         timeout=httpx.Timeout(300.0)  # 5 minutes timeout
     )
 
-@router.post("/nmap/scan", response_model=ScanResponse)
-async def scan_target(request: ScanRequest):
+@router.post("/nmap/scan")
+async def scan_target(request: Dict[str, Any]):
     """
     Scan a target IP or hostname using nmap
     
     Executes: nmap -sV --script vuln [IP] -oX scan_result.xml
     """
-    logger.info(f"Received scan request for target: {request.ip}")
+    logger.info(f"Received scan request: {request}")
+    
+    # Extract IP from different possible formats
+    ip = None
+    if isinstance(request, dict):
+        ip = request.get("ip") or request.get("target") or request.get("host")
+    elif hasattr(request, 'ip'):
+        ip = request.ip
+    
+    if not ip:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "Missing IP parameter", "details": "IP address or hostname is required"}
+        )
     
     try:
         async with await get_nmap_service_client() as client:
             response = await client.post(
                 "/api/v1/scan",
-                json={"ip": request.ip}
+                json={"ip": ip}
             )
             
             if response.status_code == 200:
                 result = response.json()
-                logger.info(f"Scan completed successfully for {request.ip}")
-                return ScanResponse(**result)
+                logger.info(f"Scan completed successfully for {ip}")
+                return result
             else:
                 error_data = response.json()
-                logger.error(f"Scan failed for {request.ip}: {error_data}")
+                logger.error(f"Scan failed for {ip}: {error_data}")
                 raise HTTPException(
                     status_code=response.status_code,
                     detail=error_data
                 )
                 
     except httpx.TimeoutException:
-        logger.error(f"Scan timeout for {request.ip}")
+        logger.error(f"Scan timeout for {ip}")
         raise HTTPException(
             status_code=408,
             detail={
                 "error": "Scan timeout",
                 "details": "Nmap scan exceeded 5 minute timeout",
-                "target": request.ip
+                "target": ip
             }
         )
     except httpx.ConnectError:
@@ -102,6 +115,17 @@ async def scan_target(request: ScanRequest):
                 "details": str(e)
             }
         )
+
+@router.get("/nmap/history")
+async def get_scan_history():
+    """Get scan history (placeholder endpoint)"""
+    logger.info("Getting scan history...")
+    return {
+        "success": True,
+        "data": [],
+        "message": "No scan history available yet",
+        "timestamp": "2025-10-24T17:00:00Z"
+    }
 
 @router.get("/nmap/test")
 async def test_nmap_service():

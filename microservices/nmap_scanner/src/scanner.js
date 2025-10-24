@@ -172,9 +172,10 @@ export const scanIP = (target) => {
     const timestamp = Date.now();
     const xmlFilePath = path.join(TEMP_DIR, `scan_result_${timestamp}.xml`);
     
-    // Exact nmap command as specified
-    const nmapCommand = `nmap -sV --script vuln ${target} -oX ${xmlFilePath}`;
-    console.log(`Executing command: ${nmapCommand}`);
+    // Simplified nmap command for vulnerability scanning
+    // Focus on service detection and vulnerability scanning only
+    const nmapCommand = `nmap -sV --script vuln --script-timeout=30s --max-retries=2 ${target} -oX ${xmlFilePath}`;
+    console.log(`Executing vulnerability scan command: ${nmapCommand}`);
     
     // Execute nmap with timeout
     const childProcess = exec(nmapCommand, { 

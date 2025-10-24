@@ -4,18 +4,10 @@ import '../styles/ScanPage.css';
 
 export default function ScanPage() {
   const [target, setTarget] = useState('');
-  const [scanType, setScanType] = useState('basic');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResults, setScanResults] = useState(null);
   const [scanHistory, setScanHistory] = useState([]);
   const [error, setError] = useState(null);
-
-  const scanTypes = [
-    { value: 'basic', label: 'Basic Scan', description: 'Quick port scan' },
-    { value: 'vulnerability', label: 'Vulnerability Scan', description: 'Deep vulnerability detection' },
-    { value: 'service', label: 'Service Detection', description: 'Service and version detection' },
-    { value: 'os', label: 'OS Detection', description: 'Operating system detection' }
-  ];
 
   useEffect(() => {
     loadScanHistory();
@@ -42,8 +34,7 @@ export default function ScanPage() {
 
     try {
       const response = await backendApi.post('/nmap/scan', {
-        target: target.trim(),
-        scan_type: scanType
+        ip: target.trim()
       });
 
       setScanResults(response.data);
@@ -52,7 +43,6 @@ export default function ScanPage() {
       const newScan = {
         id: Date.now(),
         target: target.trim(),
-        scan_type: scanType,
         status: 'completed',
         timestamp: new Date().toISOString(),
         results: response.data
@@ -115,21 +105,6 @@ export default function ScanPage() {
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="scanType">Scan Type:</label>
-            <select
-              id="scanType"
-              value={scanType}
-              onChange={(e) => setScanType(e.target.value)}
-              className="scan-type-select"
-            >
-              {scanTypes.map(type => (
-                <option key={type.value} value={type.value}>
-                  {type.label} - {type.description}
-                </option>
-              ))}
-            </select>
-          </div>
 
           <button
             onClick={startScan}
@@ -233,7 +208,7 @@ export default function ScanPage() {
               <div key={scan.id} className="history-item">
                 <div className="history-header">
                   <span className="scan-target">{scan.target}</span>
-                  <span className="scan-type">{scan.scan_type}</span>
+                  <span className="scan-type">Vulnerability Scan</span>
                   <span className="scan-time">
                     {new Date(scan.timestamp).toLocaleString()}
                   </span>

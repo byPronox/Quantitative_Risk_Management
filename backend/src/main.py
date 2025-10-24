@@ -22,6 +22,7 @@ from controllers.nvd_unified_controller import router as nvd_unified_router
 from controllers.ml_proxy_controller import router as ml_proxy_router
 from controllers.gateway_controller import router as gateway_router
 from controllers.nmap_controller import router as nmap_router
+from controllers.enhanced_risk_controller import router as enhanced_risk_router
 from middleware.error_handler import ErrorHandlerMiddleware
 from middleware.logging_middleware import LoggingMiddleware
 
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
     app.include_router(ml_proxy_router, prefix=f"/api/{settings.API_VERSION}", tags=["ML Predictions"])
     app.include_router(gateway_router, prefix=f"/api/{settings.API_VERSION}", tags=["Gateway"])
     app.include_router(nmap_router, prefix=f"/api/{settings.API_VERSION}", tags=["Nmap Scanner"])
+    app.include_router(enhanced_risk_router, prefix=f"/api/{settings.API_VERSION}", tags=["Enhanced Risk Analysis"])
     
     # Compatibility routes (without API prefix for existing frontend)
     app.include_router(risk_router, tags=["Compatibility"])
@@ -71,6 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(nvd_unified_router, tags=["NVD Compatibility"])
     app.include_router(gateway_router, tags=["Gateway Compatibility"])
     app.include_router(nmap_router, tags=["Nmap Compatibility"])
+    app.include_router(enhanced_risk_router, tags=["Enhanced Risk Compatibility"])
     
     @app.on_event("startup")
     async def startup_event():
