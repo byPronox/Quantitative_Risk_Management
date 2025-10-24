@@ -34,7 +34,7 @@ const api = axios.create({
 // Separate API instance for backend endpoints (queue management)
 const backendApi = axios.create({
   baseURL: getBaseURL(true), // Use backend URL
-  timeout: 15000,
+  timeout: 900000, // 15 minutos en milisegundos
   headers: {
     'Content-Type': 'application/json',
     'X-Client': 'quantitative-risk-frontend'

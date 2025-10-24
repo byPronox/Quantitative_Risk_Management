@@ -104,8 +104,7 @@ export default function ScanPage() {
               className="target-input"
             />
           </div>
-
-
+          {/* Scan Type eliminado: solo escaneo completo */}
           <button
             onClick={startScan}
             disabled={isScanning || !target.trim()}

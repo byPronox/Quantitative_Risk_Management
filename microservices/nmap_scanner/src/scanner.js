@@ -9,7 +9,7 @@ import { parseStringPromise } from 'xml2js';
  */
 
 // Configuration
-const SCAN_TIMEOUT = 5 * 60 * 1000; // 5 minutes timeout
+const SCAN_TIMEOUT = 15 * 60 * 1000; // 15 minutos timeout
 const TEMP_DIR = '/app/temp';
 
 /**
@@ -67,8 +67,19 @@ const processXMLOutput = async (xmlFilePath, target) => {
     
     // Extract host data
     const nmaprun = result.nmaprun;
+    // If no host data, return a valid empty scan result instead of error
     if (!nmaprun || !nmaprun.host || !nmaprun.host[0]) {
-      throw new Error('No host data found in XML');
+      console.warn('No host data found in XML, returning empty scan result');
+      return {
+        ip: target,
+        os: 'Unknown',
+        status: 'down',
+        services: [],
+        vulnerabilities: [],
+        timestamp: new Date().toISOString(),
+        scanDuration: nmaprun?.$?.scanner || 'unknown',
+        message: 'Host seems down or unreachable. No data found.'
+      };
     }
     
     const host = nmaprun.host[0];
@@ -173,8 +184,8 @@ export const scanIP = (target) => {
     const xmlFilePath = path.join(TEMP_DIR, `scan_result_${timestamp}.xml`);
     
     // Simplified nmap command for vulnerability scanning
-    // Focus on service detection and vulnerability scanning only
-    const nmapCommand = `nmap -sV --script vuln --script-timeout=30s --max-retries=2 ${target} -oX ${xmlFilePath}`;
+    // Always use -Pn to skip ping and scan even if host does not reply
+    const nmapCommand = `nmap -Pn -sV --script vuln --script-timeout=120s --max-retries=5 ${target} -oX ${xmlFilePath}`;
     console.log(`Executing vulnerability scan command: ${nmapCommand}`);
     
     // Execute nmap with timeout

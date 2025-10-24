@@ -43,7 +43,7 @@ async def get_nmap_service_client():
     """Get HTTP client for nmap service"""
     return httpx.AsyncClient(
         base_url=nmap_service_url,
-        timeout=httpx.Timeout(300.0)  # 5 minutes timeout
+        timeout=httpx.Timeout(900.0)  # 15 minutes timeout
     )
 
 @router.post("/nmap/scan")
@@ -93,7 +93,7 @@ async def scan_target(request: Dict[str, Any]):
             status_code=408,
             detail={
                 "error": "Scan timeout",
-                "details": "Nmap scan exceeded 5 minute timeout",
+                "details": "Nmap scan exceeded 15 minute timeout",
                 "target": ip
             }
         )

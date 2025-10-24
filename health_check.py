@@ -78,31 +78,33 @@ class HealthChecker:
             if not db_url:
                 self.log_result("PostgreSQL", "ERROR", "DATABASE_URL no configurado")
                 return
-            
-            # Parsear URL de conexión
+
+            # Si estamos dentro de Docker, usar host 'db'. Si estamos fuera, usar 'localhost'.
+            # Forzar host a 'db' para Docker Compose network
             parsed = urlparse(db_url)
+            host = 'db'  # Docker Compose service name
             conn = psycopg2.connect(
-                host=parsed.hostname,
+                host=host,
                 port=parsed.port,
                 database=parsed.path[1:],
                 user=parsed.username,
                 password=parsed.password
             )
-            
+
             cursor = conn.cursor()
             cursor.execute("SELECT version();")
             version = cursor.fetchone()[0]
-            
+
             cursor.close()
             conn.close()
-            
+
             self.log_result("PostgreSQL", "OK", f"Conexión exitosa - {version}")
-            
+
         except psycopg2.OperationalError as e:
             self.log_result("PostgreSQL", "ERROR", f"Error de conexión: {str(e)}")
         except Exception as e:
             self.log_result("PostgreSQL", "ERROR", f"Error inesperado: {str(e)}")
-    
+
     def check_rabbitmq(self):
         """Verifica conexión a RabbitMQ"""
         try:
@@ -110,25 +112,26 @@ class HealthChecker:
             if not rabbitmq_url:
                 self.log_result("RabbitMQ", "ERROR", "RABBITMQ_URL no configurado")
                 return
-            
-            # Parsear URL de RabbitMQ
+
+            # Forzar host a 'rabbitmq' para Docker Compose network
             parsed = urlparse(rabbitmq_url)
+            host = 'rabbitmq'  # Docker Compose service name
             connection = pika.BlockingConnection(
                 pika.ConnectionParameters(
-                    host=parsed.hostname,
+                    host=host,
                     port=parsed.port,
                     virtual_host=parsed.path[1:] if parsed.path else '/',
                     credentials=pika.PlainCredentials(parsed.username, parsed.password)
                 )
             )
-            
+
             channel = connection.channel()
             channel.queue_declare(queue=os.getenv('RABBITMQ_QUEUE', 'nvd_analysis_queue'), passive=True)
-            
+
             connection.close()
-            
+
             self.log_result("RabbitMQ", "OK", "Conexión y cola verificadas exitosamente")
-            
+
         except pika.exceptions.AMQPConnectionError as e:
             self.log_result("RabbitMQ", "ERROR", f"Error de conexión AMQP: {str(e)}")
         except Exception as e:
@@ -173,10 +176,10 @@ class HealthChecker:
     def check_microservices(self):
         """Verifica que los microservicios estén funcionando"""
         services = [
-            ("ML Prediction Service", "http://localhost:8001/health"),
-            ("NVD Service", "http://localhost:8002/health"),
-            ("Report Service", "http://localhost:8003/health"),
-            ("Nmap Scanner Service", "http://localhost:8004/health")
+            ("ML Prediction Service", "http://ml-prediction-service:8001/health"),
+            ("NVD Service", "http://nvd-service:8002/health"),
+            ("Report Service", "http://report-service:8003/health"),
+            ("Nmap Scanner Service", "http://nmap-scanner-service:8004/api/v1/health")
         ]
         
         for service_name, url in services:
