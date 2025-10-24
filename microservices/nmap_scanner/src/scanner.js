@@ -132,8 +132,31 @@ const processXMLOutput = async (xmlFilePath, target) => {
     if (host.hostscript && host.hostscript[0] && host.hostscript[0].script) {
       const scripts = host.hostscript[0].script;
       scripts.forEach(script => {
+        // Mapeo mejorado para los scripts más comunes
+        let severity = 'Unknown';
+        let title = script.$.id || 'Unknown Vulnerability';
+        let description = script.$.output || '';
+        let cve = null;
+        // Ejemplo: Slowloris
+        if (title.toLowerCase().includes('slowloris')) {
+          severity = 'High';
+          title = 'Slowloris DOS attack';
+          description = script.$.output || 'Slowloris tries to keep many connections to the target web server open and hold them open as long as possible.';
+          // Buscar CVE en el output
+          const cveMatch = description.match(/CVE-\d{4}-\d{4,7}/);
+          if (cveMatch) cve = cveMatch[0];
+        }
+        // Buscar CVE genérico en el output
+        if (!cve) {
+          const cveMatch = description.match(/CVE-\d{4}-\d{4,7}/);
+          if (cveMatch) cve = cveMatch[0];
+        }
         vulnerabilities.push({
           id: script.$.id || 'unknown',
+          severity,
+          title,
+          description,
+          cve,
           output: script.$.output || '',
           table: script.table || null
         });
