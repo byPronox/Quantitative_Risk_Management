@@ -1,6 +1,7 @@
 import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { parseStringPromise } from 'xml2js';
 
 /**
@@ -8,9 +9,12 @@ import { parseStringPromise } from 'xml2js';
  * Implements exact nmap command: nmap -sV --script vuln [IP] -oX scan_result.xml
  */
 
-// Configuration
+ // Configuration
 const SCAN_TIMEOUT = 15 * 60 * 1000; // 15 minutos timeout
-const TEMP_DIR = '/app/temp';
+// Use environment override if provided. On Windows tests we create a local temp dir to avoid needing root.
+// In containers (Linux) default to /app/temp where Dockerfile should set permissions.
+const DEFAULT_TEMP_DIR = process.env.TEMP_DIR || (process.platform === 'win32' ? path.join(process.cwd(), 'temp') : '/app/temp');
+const TEMP_DIR = DEFAULT_TEMP_DIR;
 
 /**
  * Validates IP address format
@@ -98,6 +102,7 @@ const processXMLOutput = async (xmlFilePath, target) => {
     
     // Extract ports and services
     const services = [];
+    const portsList = [];
     if (host.ports && host.ports[0] && host.ports[0].port) {
       const ports = host.ports[0].port;
       console.log(`Found ${ports.length} ports`);
@@ -120,6 +125,18 @@ const processXMLOutput = async (xmlFilePath, target) => {
           };
           
           services.push(service);
+
+          // Format entry expected by the frontend
+          const portEntry = {
+            port: service.port,
+            state: service.state,
+            service: service.name,
+            protocol: service.protocol,
+            product: service.product,
+            version: service.version
+          };
+          portsList.push(portEntry);
+
           console.log(`Port ${index + 1}: ${service.port}/${service.protocol} - ${service.name} (${service.product} ${service.version})`);
         } catch (portError) {
           console.warn(`Error processing port ${index}:`, portError.message);
@@ -127,46 +144,145 @@ const processXMLOutput = async (xmlFilePath, target) => {
       });
     }
     
-    // Extract vulnerability scripts if present
+    // Extract vulnerability scripts from host and ports, normalizing to frontend schema
     const vulnerabilities = [];
+
+    // Helper: safely extract textual output from script nodes (many nmap scripts put text in different places)
+    const extractScriptOutput = (script) => {
+      // Prefer attribute output
+      if (script && script.$ && typeof script.$.output === 'string' && script.$.output.trim() !== '') {
+        return script.$.output.trim();
+      }
+      // Some scripts embed output as an 'output' element
+      if (script && script.output && Array.isArray(script.output)) {
+        try {
+          return script.output.map(o => (typeof o === 'string' ? o : JSON.stringify(o))).join('\n').trim();
+        } catch (e) {
+          return String(script.output);
+        }
+      }
+      // Some scripts use 'table' or nested elems - serialize them
+      if (script && script.table) {
+        try {
+          return JSON.stringify(script.table);
+        } catch (e) {
+          return String(script.table);
+        }
+      }
+      // Fallback: stringify whole script node
+      try {
+        return JSON.stringify(script);
+      } catch (e) {
+        return '';
+      }
+    };
+
+    // Helper: normalize a single script object into the expected vulnerability shape
+    const normalizeScript = (script, context = {}) => {
+      const id = script && script.$ && script.$.id ? script.$.id : 'unknown';
+      const rawOutput = extractScriptOutput(script) || '';
+      let severity = 'Unknown';
+      let title = id || 'Unknown Vulnerability';
+      let description = rawOutput || '';
+      let cve = null;
+
+      const lowerId = String(id).toLowerCase();
+      const lowerOutput = String(rawOutput).toLowerCase();
+
+      // Heuristics for common scripts
+      if (lowerId.includes('slowloris') || lowerOutput.includes('slowloris')) {
+        severity = 'High';
+        title = 'Slowloris DOS attack';
+        description = description || 'Slowloris keeps many connections to the target web server open, potentially causing denial of service.';
+      }
+
+      // Example: open redirect / other textual heuristics can be added here
+      if (lowerOutput.includes('vulnerable') && severity === 'Unknown') {
+        severity = 'Medium';
+      }
+
+      // Try to extract a CVE if present
+      const cveMatch = description.match(/CVE-\d{4}-\d{4,7}/i);
+      if (cveMatch && cveMatch.length > 0) cve = cveMatch[0].toUpperCase();
+
+      // Attempt to extract a short title from the first line of output if title is generic
+      if ((title === id || title.toLowerCase().includes('unknown')) && description) {
+        const firstLine = description.split('\n').find(l => l.trim().length > 0);
+        if (firstLine && firstLine.length < 120) {
+          title = firstLine.trim().slice(0, 120);
+        }
+      }
+
+      return {
+        id,
+        severity,
+        title,
+        description,
+        cve,
+        output: rawOutput,
+        table: script.table || null,
+        // context info helps the frontend show which port/host produced this
+        context: {
+          type: context.type || 'host',
+          port: context.port || null
+        }
+      };
+    };
+
+    // 1) Host-level scripts (hostscript)
     if (host.hostscript && host.hostscript[0] && host.hostscript[0].script) {
       const scripts = host.hostscript[0].script;
       scripts.forEach(script => {
-        // Mapeo mejorado para los scripts más comunes
-        let severity = 'Unknown';
-        let title = script.$.id || 'Unknown Vulnerability';
-        let description = script.$.output || '';
-        let cve = null;
-        // Ejemplo: Slowloris
-        if (title.toLowerCase().includes('slowloris')) {
-          severity = 'High';
-          title = 'Slowloris DOS attack';
-          description = script.$.output || 'Slowloris tries to keep many connections to the target web server open and hold them open as long as possible.';
-          // Buscar CVE en el output
-          const cveMatch = description.match(/CVE-\d{4}-\d{4,7}/);
-          if (cveMatch) cve = cveMatch[0];
+        try {
+          const vuln = normalizeScript(script, { type: 'host' });
+          vulnerabilities.push(vuln);
+        } catch (e) {
+          console.warn('Failed to normalize host script:', e.message);
         }
-        // Buscar CVE genérico en el output
-        if (!cve) {
-          const cveMatch = description.match(/CVE-\d{4}-\d{4,7}/);
-          if (cveMatch) cve = cveMatch[0];
+      });
+    }
+
+    // 2) Port-level scripts (each port may have script entries)
+    if (host.ports && host.ports[0] && host.ports[0].port) {
+      const ports = host.ports[0].port;
+      ports.forEach(port => {
+        const portAttr = port && port.$ ? port.$ : {};
+        const portId = portAttr.portid || null;
+
+        // nmap xml sometimes nests scripts under port.script[0].script or directly as port.script
+        const portScripts = [];
+        if (port.script && Array.isArray(port.script)) {
+          // port.script may be array of script objects
+          port.script.forEach(s => portScripts.push(s));
         }
-        vulnerabilities.push({
-          id: script.$.id || 'unknown',
-          severity,
-          title,
-          description,
-          cve,
-          output: script.$.output || '',
-          table: script.table || null
-        });
+        if (port.scripts && Array.isArray(port.scripts)) {
+          port.scripts.forEach(s => portScripts.push(s));
+        }
+        // Another structure: port.script[0].script
+        if (port.script && port.script[0] && port.script[0].script && Array.isArray(port.script[0].script)) {
+          port.script[0].script.forEach(s => portScripts.push(s));
+        }
+
+        // If xml2js already gave 'script' as array of objects, handle those
+        if (Array.isArray(portScripts) && portScripts.length > 0) {
+          portScripts.forEach(scriptNode => {
+            try {
+              const vuln = normalizeScript(scriptNode, { type: 'port', port: portId });
+              vulnerabilities.push(vuln);
+            } catch (e) {
+              console.warn(`Failed to normalize script for port ${portId}:`, e.message);
+            }
+          });
+        }
       });
     }
     
     const scanResult = {
       ip: target,
+      host: target,
       os: os,
       status: hostStatus,
+      ports: portsList,
       services: services,
       vulnerabilities: vulnerabilities,
       timestamp: new Date().toISOString(),
@@ -202,13 +318,23 @@ export const scanIP = (target) => {
       return;
     }
     
-    // Generate unique filename for this scan
+    // Ensure temp directory exists (create if missing) before generating file path
+    try {
+      fs.mkdirSync(TEMP_DIR, { recursive: true });
+      // On some environments the path may still be inaccessible; we warn but continue to let nmap fail with a clear error.
+    } catch (e) {
+      console.warn(`Could not create TEMP_DIR ${TEMP_DIR}:`, e.message);
+    }
+
+    // Generate unique filename for this scan (use resolved absolute path)
     const timestamp = Date.now();
-    const xmlFilePath = path.join(TEMP_DIR, `scan_result_${timestamp}.xml`);
+    const xmlFilePath = path.resolve(TEMP_DIR, `scan_result_${timestamp}.xml`);
+    console.log(`Resolved XML file path: ${xmlFilePath}`);
     
     // Simplified nmap command for vulnerability scanning
     // Always use -Pn to skip ping and scan even if host does not reply
-    const nmapCommand = `nmap -Pn -sV --script vuln --script-timeout=120s --max-retries=5 ${target} -oX ${xmlFilePath}`;
+    const quotedXml = `"${xmlFilePath}"`;
+    const nmapCommand = `nmap -Pn -sV --script vuln --script-timeout=120s --max-retries=5 ${target} -oX ${quotedXml}`;
     console.log(`Executing vulnerability scan command: ${nmapCommand}`);
     
     // Execute nmap with timeout

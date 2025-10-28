@@ -115,7 +115,9 @@ services:
       - nmap-scanner-service
     restart: always
     environment:
-      - VITE_API_URL=https://kong-b27b67aff4usnsp19.kongcloud.dev
+      # Use local backend by default in Compose (so frontend in container talks to backend service)
+      - VITE_API_URL=http://backend:8000
+      - VITE_BACKEND_URL=http://backend:8000
       - VITE_ML_SERVICE_URL=http://ml-prediction-service:8001
       - VITE_NVD_SERVICE_URL=http://nvd-service:8002
       - VITE_REPORT_SERVICE_URL=http://report-service:8003

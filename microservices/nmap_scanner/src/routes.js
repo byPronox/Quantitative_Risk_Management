@@ -55,7 +55,7 @@ router.post('/scan', scanLimiter, async (req, res) => {
     
     res.json({
       success: true,
-      data: scanResult,
+      ...scanResult,
       scanDuration: `${duration}ms`,
       timestamp: new Date().toISOString()
     });
