@@ -93,18 +93,18 @@ export default function ScannerModule() {
           </div>
 
 
-          <button
+<button
             onClick={startScan}
             disabled={isScanning || !target.trim()}
             className={`scan-button ${isScanning ? 'scanning' : ''}`}
           >
             {isScanning ? (
               <>
-                <div className="spinner"></div>
-                Scanning...
+                <div className="spinner" style={{ marginRight: '8px' }}></div>
+                Escaneando... (puede tardar varios minutos)
               </>
             ) : (
-              '🚀 Start Scan'
+              '🚀 Iniciar escaneo'
             )}
           </button>
         </div>

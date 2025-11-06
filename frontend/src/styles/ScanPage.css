@@ -9,9 +9,10 @@
   text-align: center;
   margin-bottom: 30px;
   padding: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4a90e2 0%, #9013fe 100%);
   color: white;
   border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .scan-header h1 {
@@ -72,7 +73,7 @@
 }
 
 .scan-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4a90e2 0%, #9013fe 100%);
   color: white;
   border: none;
   padding: 15px 30px;
@@ -85,11 +86,12 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .scan-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8px 15px rgba(74, 144, 226, 0.3);
 }
 
 .scan-button:disabled {
@@ -99,7 +101,7 @@
 }
 
 .scan-button.scanning {
-  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  background: linear-gradient(135deg, #f5a623 0%, #f8e71c 100%);
 }
 
 .spinner {
@@ -117,15 +119,16 @@
 }
 
 .error-message {
-  background: #fee;
-  border: 1px solid #fcc;
-  color: #c33;
+  background: #ffefef;
+  border: 1px solid #ffcccc;
+  color: #d9534f;
   padding: 15px;
   border-radius: 8px;
   margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .error-icon {

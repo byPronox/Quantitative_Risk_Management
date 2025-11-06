@@ -95,6 +95,7 @@ services:
       - PORT=8004
       - HOST=0.0.0.0
       - ALLOWED_ORIGINS=*
+      - NVD_SERVICE_URL=http://nvd-service:8002
     volumes:
       - nmap_temp:/app/temp
     privileged: true  # Required for nmap network scanning
