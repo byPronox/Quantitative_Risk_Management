@@ -176,10 +176,10 @@ class HealthChecker:
     def check_microservices(self):
         """Verifica que los microservicios estén funcionando"""
         services = [
-            ("ML Prediction Service", "http://ml-prediction-service:8001/health"),
-            ("NVD Service", "http://nvd-service:8002/health"),
-            ("Report Service", "http://report-service:8003/health"),
-            ("Nmap Scanner Service", "http://nmap-scanner-service:8004/api/v1/health")
+            ("ML Prediction Service", os.getenv("ML_SERVICE_URL", "http://ml-prediction-service:8001") + "/health"),
+            ("NVD Service", os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002") + "/health"),
+            ("Report Service", os.getenv("REPORT_SERVICE_URL", "http://report-service:8003") + "/health"),
+            ("Nmap Scanner Service", os.getenv("NMAP_SERVICE_URL", "http://nmap-scanner-service:8004") + "/api/v1/health")
         ]
         
         for service_name, url in services:

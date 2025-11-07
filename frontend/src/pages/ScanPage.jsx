@@ -236,6 +236,28 @@ export default function ScanPage() {
   Este motor de análisis de riesgos está diseñado para proporcionar una evaluación comprensible y detallada de las vulnerabilidades
   potenciales en su red. Utiliza una combinación de información técnica, como el Sistema de Puntuación de Vulnerabilidad Común (CVSS),
   la exposición del servicio y el contexto operativo para generar un puntaje de riesgo por hallazgo. Aquí se explica cómo se calcula:
+
+  <h3>¿Qué es CVSS?</h3>
+  <p>El Sistema de Puntuación de Vulnerabilidad Común (CVSS) es un estándar abierto para evaluar la gravedad de las vulnerabilidades de seguridad. 
+  Proporciona un puntaje numérico que refleja la gravedad de una vulnerabilidad, basado en varios factores como la facilidad de explotación y el impacto potencial.</p>
+
+  <h3>Componentes del Puntaje CVSS</h3>
+  <ul>
+    <li><strong>Puntaje Base:</strong> Refleja las características intrínsecas de una vulnerabilidad que son constantes a través del tiempo y los entornos de usuario. 
+    Incluye métricas como el vector de ataque, la complejidad del ataque, y el impacto.</li>
+    <li><strong>Puntaje Temporal:</strong> Considera factores que cambian con el tiempo, como la disponibilidad de un parche o la existencia de código de explotación.</li>
+    <li><strong>Puntaje Ambiental:</strong> Ajusta el puntaje base y temporal según el entorno específico del usuario, considerando factores como la prevalencia de activos afectados.</li>
+  </ul>
+
+  <h3>Normalización y Clasificación de Riesgo</h3>
+  <p>El puntaje total se normaliza en una escala de 0 a 100 y se categoriza en las siguientes clasificaciones de riesgo:</p>
+  <ul>
+    <li><strong>Muy baja (0-10):</strong> Riesgo insignificante, generalmente no requiere acción inmediata.</li>
+    <li><strong>Baja (10.1-30):</strong> Riesgo bajo, monitoreo recomendado.</li>
+    <li><strong>Media (30.1-60):</strong> Riesgo moderado, se recomienda mitigar.</li>
+    <li><strong>Alta (60.1-85):</strong> Riesgo alto, se requiere acción urgente.</li>
+    <li><strong>Muy alta (85.1-100):</strong> Riesgo crítico, se requiere acción inmediata.</li>
+  </ul>
 </p>
         <ul>
 <li><strong>Componente CVSS (60%):</strong> Utiliza la puntuación base CVSSv3, que varía de 0.0 a 10.0, escalada a un rango de 0 a 60. Esta puntuación refleja la gravedad de la vulnerabilidad.</li>
@@ -280,6 +302,7 @@ export default function ScanPage() {
             onChange={(e) => setTarget(e.target.value)}
             placeholder="e.g., 192.168.1.1, example.com"
             style={{ flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d7e0' }}
+            aria-label="Target IP or domain"
           />
           <button
             onClick={startScan}
@@ -292,6 +315,7 @@ export default function ScanPage() {
               border: 'none',
               cursor: isScanning ? 'default' : 'pointer'
             }}
+            aria-label="Start network scan"
           >
             {isScanning ? 'Escaneando... (puede tardar varios minutos)' : '🚀 Iniciar escaneo'}
           </button>
@@ -299,6 +323,7 @@ export default function ScanPage() {
             onClick={exportCSV}
             disabled={!scanResults}
             style={{ padding: '8px 12px', borderRadius: 6, background: '#17a2b8', color: '#fff', border: 'none', cursor: 'pointer' }}
+            aria-label="Export scan results to CSV"
           >
             ⤓ Exportar CSV
           </button>
@@ -396,7 +421,7 @@ export default function ScanPage() {
                           </div>
 
                           <div style={{ marginTop: 8 }}>
-                            <strong>Remediación sugerida (personalizada):</strong>
+                            <strong>Remediación sugerida:</strong>
                             <ul style={{ marginTop: 6 }}>
                               {buildPersonalizedRemediation(vuln).map((r, i) => <li key={i}>{r}</li>)}
                             </ul>

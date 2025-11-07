@@ -20,32 +20,32 @@ export default function App() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-xl font-bold">Risk Management System</h1>
+                <h1 className="text-xl font-bold">Sistema De Riesgos</h1>
               </div>
               <div className="ml-10 flex items-baseline space-x-4">
                 <Link 
                   to="/" 
                   className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Machine Learning Prediction
+                  Predicción de Machine Learning
                 </Link>
                 <Link 
                   to="/nvd" 
                   className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  NVD Vulnerabilities
+                  Vulnerablidades NVD 
                 </Link>
                 <Link 
                   to="/reports" 
                   className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Generate Reports
+                  Reportes
                 </Link>
                 <Link 
                   to="/scan" 
                   className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Network Scan
+                  Scaneo IP
                 </Link>
               </div>
             </div>

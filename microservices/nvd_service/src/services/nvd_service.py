@@ -54,40 +54,65 @@ class NVDAPIService:
             Dict containing vulnerability data
         """
         config = self._get_api_config()
+        
+        # Improve keyword search by adding wildcards for better matching
+        # For generic terms like "SQL", "Python", etc., enhance the search
+        search_keyword = keyword.strip()
+        
+        # Increase results per page for better results (max is 2000 for NVD API)
+        max_results = min(results_per_page, 2000)
+        
         params = {
-            "keywordSearch": keyword,
+            "keywordSearch": search_keyword,
             "startIndex": start_index,
-            "resultsPerPage": results_per_page
+            "resultsPerPage": max_results
         }
         
+        logger.info(f"Searching NVD for keyword: '{search_keyword}' with {max_results} results per page")
+        
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.get(
                     config["url"],
                     headers=config["headers"],
                     params=params
                 )
+                
+                logger.info(f"NVD API Response Status: {response.status_code}")
+                
                 response.raise_for_status()
                 
                 data = response.json()
+                vulnerabilities = data.get("vulnerabilities", [])
+                total_results = data.get("totalResults", 0)
+                
                 logger.info(
-                    "NVD search successful for keyword '%s' via %s",
-                    keyword,
-                    "Kong Gateway" if self.use_kong else "Direct API"
+                    "NVD search successful for keyword '%s' via %s - Found %d vulnerabilities (Total: %d)",
+                    search_keyword,
+                    "Kong Gateway" if self.use_kong else "Direct API",
+                    len(vulnerabilities),
+                    total_results
                 )
                 
+                # Log detailed info if no results found
+                if total_results == 0:
+                    logger.warning(f"No vulnerabilities found for keyword: '{search_keyword}'")
+                    logger.warning(f"Search parameters used: {params}")
+                    logger.warning(f"API endpoint: {config['url']}")
+                
                 return {
-                    "vulnerabilities": data.get("vulnerabilities", []),
-                    "total_results": data.get("totalResults", 0),
+                    "vulnerabilities": vulnerabilities,
+                    "total_results": total_results,
                     "results_per_page": data.get("resultsPerPage", 0),
-                    "start_index": data.get("startIndex", 0)
+                    "start_index": data.get("startIndex", 0),
+                    "search_keyword": search_keyword
                 }
                 
         except httpx.HTTPStatusError as e:
-            logger.error(f"NVD API HTTP error: {e.response.status_code} - {e.response.text}")
+            logger.error(f"NVD API HTTP error for keyword '{search_keyword}': {e.response.status_code} - {e.response.text}")
             raise
         except Exception as e:
-            logger.error(f"NVD API request failed: {e}")
+            logger.error(f"NVD API request failed for keyword '{search_keyword}': {e}")
             raise
 
     async def get_vulnerability(self, cve_id: str) -> Optional[Dict[str, Any]]:

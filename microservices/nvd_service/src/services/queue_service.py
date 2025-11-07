@@ -439,24 +439,40 @@ class QueueService:
                         total_results = 0
                         try:
                             # Use Kong Gateway directly to NVD API
+                            # Increase resultsPerPage to get more results (max is 2000 for NVD API)
+                            results_per_page = 100  # Increased from 50 to 100 for better coverage
+                            
+                            logger.info(f"Fetching vulnerabilities for keyword: '{keyword}' with {results_per_page} results per page")
+                            
                             with httpx.Client(timeout=60.0) as client:
                                 response = client.get(
                                     f"{settings.KONG_PROXY_URL}/nvd/cves/2.0", 
                                     params={
                                         "keywordSearch": keyword,
-                                        "resultsPerPage": 50
+                                        "resultsPerPage": results_per_page
                                     },
                                     headers={"apiKey": settings.NVD_API_KEY} if settings.NVD_API_KEY else {}
                                 )
+                                
+                                logger.info(f"NVD API Response Status for '{keyword}': {response.status_code}")
+                                
                                 if response.status_code == 200:
                                     data = response.json()
                                     vulnerabilities = data.get("vulnerabilities", [])
                                     total_results = data.get("totalResults", 0)
-                                    logger.info(f"Successfully fetched {len(vulnerabilities)} vulnerabilities for {keyword}")
+                                    logger.info(f"Successfully fetched {len(vulnerabilities)} vulnerabilities for '{keyword}' (Total available: {total_results})")
+                                    
+                                    if total_results == 0 or len(vulnerabilities) == 0:
+                                        logger.warning(f"WARNING: No vulnerabilities found for keyword '{keyword}'")
+                                        logger.warning(f"Search parameters: keywordSearch={keyword}, resultsPerPage={results_per_page}")
+                                        logger.warning(f"This might indicate the keyword is too specific or no vulnerabilities exist for this term in NVD")
                                 else:
-                                    logger.error(f"Failed to fetch vulnerabilities for {keyword}: {response.status_code} - {response.text}")
+                                    logger.error(f"Failed to fetch vulnerabilities for '{keyword}': {response.status_code}")
+                                    logger.error(f"Response body: {response.text[:500]}...")  # Log first 500 chars
                         except Exception as e:
-                            logger.error(f"Error fetching vulnerabilities for {keyword}: {e}")
+                            logger.error(f"Error fetching vulnerabilities for '{keyword}': {e}")
+                            import traceback
+                            logger.error(f"Full error traceback: {traceback.format_exc()}")
                         # --- END FETCH ---
                         
                         self._job_status[job_id] = "completed"

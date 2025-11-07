@@ -21,7 +21,9 @@ import { parseStringPromise } from 'xml2js';
 const SCAN_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_TEMP_DIR = process.env.TEMP_DIR || (process.platform === 'win32' ? path.join(process.cwd(), 'temp') : '/app/temp');
 const TEMP_DIR = DEFAULT_TEMP_DIR;
-const NVD_SERVICE_URL = process.env.NVD_SERVICE_URL || 'http://localhost:8000';
+
+// La URL del servicio NVD ahora se debe pasar como una variable de entorno.
+const NVD_SERVICE_URL = process.env.NVD_SERVICE_URL;
 
 /* Utilities: validation helpers */
 export const validateIP = (ip) => {
@@ -82,6 +84,10 @@ const classifyAsset = (serviceName = '', port = '') => {
  */
 const fetchNvdForCve = async (cveId) => {
   if (!cveId) return null;
+  if (!NVD_SERVICE_URL) {
+    console.warn('NVD_SERVICE_URL no está configurada. Saltando el enriquecimiento de NVD.');
+    return null;
+  }
   const url = `${NVD_SERVICE_URL.replace(/\/$/, '')}/vulnerabilities/${encodeURIComponent(cveId)}`;
   try {
     // Use global fetch (Node 18+) - if not available, environment should provide a polyfill.
@@ -162,6 +168,13 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
   const product = vuln.context?.product || vuln.product || '';
   const reasonParts = [];
   const remediation = [];
+
+  // Detailed explanation for scoring
+  reasonParts.push(`El puntaje de riesgo se calcula utilizando los siguientes componentes:`);
+  reasonParts.push(`- <strong>Componente CVSS (60%):</strong> Basado en la puntuación base CVSSv3, que refleja la gravedad inherente de la vulnerabilidad.`);
+  reasonParts.push(`- <strong>Componente de Exposición (30%):</strong> Evalúa si el puerto o servicio es público o comúnmente accesible desde el exterior.`);
+  reasonParts.push(`- <strong>Componente de Conteo (10%):</strong> Considera el número de vulnerabilidades en el mismo activo, aumentando el puntaje si hay múltiples vulnerabilidades.`);
+  reasonParts.push(`Cada componente contribuye al puntaje total, que se normaliza en una escala de 0 a 100.`);
 
   // Reason build
   reasonParts.push(`Hallazgo: "${title}".`);

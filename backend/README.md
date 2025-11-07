@@ -86,13 +86,19 @@ MONGODB_URL=mongodb+srv://ADMIN:ADMIN@cluster0.7ixig65.mongodb.net/
 MONGODB_DATABASE=quantitative_risk_management
 
 # NVD API Configuration
-NVD_API_KEY=b0f20683-6364-4314-97cc-6f85ea75df67
+NVD_API_KEY=a86c14e2-4270-46d3-ad99-5f534ef8ebf6
 USE_KONG_NVD=true
 
 # RabbitMQ Configuration
 RABBITMQ_HOST=rabbitmq
 RABBITMQ_QUEUE=nvd_analysis_queue
 RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+
+# Service URLs (for inter-service communication)
+ML_SERVICE_URL=http://ml-prediction-service:8001
+NVD_SERVICE_URL=http://nvd-service:8002
+REPORT_SERVICE_URL=http://report-service:8003
+NMAP_SERVICE_URL=http://nmap-scanner-service:8004
 ```
 
 **Nota**: Para desarrollo/distribución, usa `.env.example` que contiene plantillas sin credenciales reales.
