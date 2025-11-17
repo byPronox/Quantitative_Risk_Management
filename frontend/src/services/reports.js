@@ -34,7 +34,7 @@ export const reportService = {
       
       // Get filename from response headers or use default
       const contentDisposition = response.headers['content-disposition'];
-      let filename = 'vulnerability_report.pdf';
+      let filename = 'reporte_vulnerabilidades.pdf';
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="(.+)"/);
         if (filenameMatch) {

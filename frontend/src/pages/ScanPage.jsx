@@ -22,8 +22,7 @@ export default function ScanPage() {
     }
   };
 
-  const startScan = async () => {
-    if (!target.trim()) {
+  const startScan = async () => {    if (!target.trim()) {
       setError('Por favor introduce un objetivo para escanear');
       return;
     }
@@ -48,9 +47,8 @@ export default function ScanPage() {
         results: response.data
       };
 
-      setScanHistory(prev => [newScan, ...prev]);
-    } catch (error) {
-      setError(error.response?.data?.detail || error.response?.data?.error || 'Scan falló');
+      setScanHistory(prev => [newScan, ...prev]);    } catch (error) {
+      setError(error.response?.data?.detail || error.response?.data?.error || 'Escaneo falló');
       console.error('Scan error:', error);
     } finally {
       setIsScanning(false);
@@ -58,15 +56,13 @@ export default function ScanPage() {
   };
 
   const formatScanResults = (results) => {
-    if (!results) return null;
-
-    return {
-      host: results.host || results.ip || 'Unknown',
-      status: results.status || 'Unknown',
+    if (!results) return null;    return {
+      host: results.host || results.ip || 'Desconocido',
+      status: results.status || 'Desconocido',
       ports: results.ports || [],
       services: results.services || [],
       vulnerabilities: results.vulnerabilities || [],
-      os: results.os || 'Unknown',
+      os: results.os || 'Desconocido',
       summary: results.summary || null
     };
   };
@@ -97,12 +93,10 @@ export default function ScanPage() {
   const buildPersonalizedRemediation = (vuln) => {
     // Start with backend suggestions (already helpful)
     const base = Array.isArray(vuln.treatment?.remediation) ? [...vuln.treatment.remediation] : [];
-    const extras = [];
-
-    // If CVE present suggest applying vendor patch with link to NVD
+    const extras = [];    // If CVE present suggest applying vendor patch with link to NVD
     if (vuln.cve) {
       extras.push(`Ver detalles y parche en NVD: https://nvd.nist.gov/vuln/detail/${vuln.cve}`);
-      extras.push('Priorizar parcheo según politicas de mantenimiento (ventana urgente si riesgo Alta/Muy alta).');
+      extras.push('Priorizar parcheo según políticas de mantenimiento (ventana urgente si riesgo Alta/Muy alta).');
     }
 
     // If product or port suggest configuration/action tailored
@@ -220,7 +214,7 @@ export default function ScanPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `scan_${formatted.host || 'result'}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+    a.download = `escaneo_${formatted.host || 'resultado'}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -300,9 +294,9 @@ export default function ScanPage() {
             id="target"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            placeholder="e.g., 192.168.1.1, example.com"
+            placeholder="ej: 192.168.1.1, ejemplo.com"
             style={{ flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d7e0' }}
-            aria-label="Target IP or domain"
+            aria-label="IP o dominio objetivo"
           />
           <button
             onClick={startScan}
@@ -315,7 +309,7 @@ export default function ScanPage() {
               border: 'none',
               cursor: isScanning ? 'default' : 'pointer'
             }}
-            aria-label="Start network scan"
+            aria-label="Iniciar escaneo de red"
           >
             {isScanning ? 'Escaneando... (puede tardar varios minutos)' : '🚀 Iniciar escaneo'}
           </button>
@@ -323,7 +317,7 @@ export default function ScanPage() {
             onClick={exportCSV}
             disabled={!scanResults}
             style={{ padding: '8px 12px', borderRadius: 6, background: '#17a2b8', color: '#fff', border: 'none', cursor: 'pointer' }}
-            aria-label="Export scan results to CSV"
+            aria-label="Exportar resultados del escaneo a CSV"
           >
             ⤓ Exportar CSV
           </button>
@@ -384,7 +378,7 @@ export default function ScanPage() {
                             {vuln.risk?.category || 'N/A'}
                           </div>
                           <div style={{ background: getSeverityColor(vuln.severity), color: '#fff', padding: '6px 8px', borderRadius: 6 }}>
-                            {vuln.severity?.toUpperCase() || 'UNKNOWN'}
+                            {vuln.severity?.toUpperCase() || 'DESCONOCIDO'}
                           </div>
                         </div>
 
@@ -398,16 +392,14 @@ export default function ScanPage() {
                         </div>
                       </div>
 
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ color: '#333' }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>                        <div style={{ color: '#333' }}>
                           <strong>Descripción:</strong>
                           <div style={{ marginTop: 6, whiteSpace: 'pre-wrap', color: '#444' }}>
                             {vuln.description || 'No hay descripción detallada disponible.'}
                           </div>
                         </div>
 
-                        {/* Treatment and personalized remediation */}
-                        <div style={{ marginTop: 6, background: '#fbfcfe', padding: 10, borderRadius: 6 }}>
+                        {/* Treatment and personalized remediation */}                        <div style={{ marginTop: 6, background: '#fbfcfe', padding: 10, borderRadius: 6 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
                               <strong>Tratamiento recomendado:</strong> <span style={{ textTransform: 'capitalize' }}>{vuln.treatment?.treatment || 'N/A'}</span>

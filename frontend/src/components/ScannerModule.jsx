@@ -22,9 +22,8 @@ export default function ScannerModule() {
     }
   };
 
-  const startScan = async () => {
-    if (!target.trim()) {
-      setError('Please enter a target to scan');
+  const startScan = async () => {    if (!target.trim()) {
+      setError('Por favor introduzca un objetivo para escanear');
       return;
     }
 
@@ -49,9 +48,8 @@ export default function ScannerModule() {
       };
       
       setScanHistory(prev => [newScan, ...prev]);
-      
-    } catch (error) {
-      setError(error.response?.data?.detail || 'Scan failed');
+        } catch (error) {
+      setError(error.response?.data?.detail || 'Escaneo falló');
       console.error('Scan error:', error);
     } finally {
       setIsScanning(false);
@@ -69,25 +67,24 @@ export default function ScannerModule() {
   };
 
   return (
-    <div className="scanner-module">
-      <div className="scanner-header">
-        <h2>🔍 Network Scanner</h2>
-        <p>Scan networks and hosts for vulnerabilities using Nmap</p>
+    <div className="scanner-module">      <div className="scanner-header">
+        <h2>🔍 Escáner de Red</h2>
+        <p>Escanee redes y hosts en busca de vulnerabilidades usando Nmap</p>
       </div>
 
       {/* Scan Configuration */}
       <div className="scanner-config">
-        <h3>⚙️ Scan Configuration</h3>
+        <h3>⚙️ Configuración de Escaneo</h3>
         
         <div className="config-form">
           <div className="form-group">
-            <label htmlFor="target">Target (IP, Domain, or Network):</label>
+            <label htmlFor="target">Objetivo (IP, Dominio, o Red):</label>
             <input
               type="text"
               id="target"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              placeholder="e.g., 192.168.1.1, example.com, 192.168.1.0/24"
+              placeholder="ej: 192.168.1.1, example.com, 192.168.1.0/24"
               className="target-input"
             />
           </div>
@@ -119,19 +116,18 @@ export default function ScannerModule() {
       )}
 
       {/* Current Scan Results */}
-      {scanResults && (
-        <div className="scan-results">
-          <h3>📊 Scan Results</h3>
+      {scanResults && (        <div className="scan-results">
+          <h3>📊 Resultados del Escaneo</h3>
           <div className="results-content">
             <div className="host-info">
-              <h4>🎯 Target: {scanResults.host || 'Unknown'}</h4>
-              <p><strong>Status:</strong> {scanResults.status || 'Unknown'}</p>
-              <p><strong>OS:</strong> {scanResults.os || 'Unknown'}</p>
+              <h4>🎯 Objetivo: {scanResults.host || 'Desconocido'}</h4>
+              <p><strong>Estado:</strong> {scanResults.status || 'Desconocido'}</p>
+              <p><strong>SO:</strong> {scanResults.os || 'Desconocido'}</p>
             </div>
 
             {scanResults.ports && scanResults.ports.length > 0 && (
               <div className="ports-section">
-                <h4>🔌 Open Ports ({scanResults.ports.length})</h4>
+                <h4>🔌 Puertos Abiertos ({scanResults.ports.length})</h4>
                 <div className="ports-grid">
                   {scanResults.ports.map((port, index) => (
                     <div key={index} className="port-item">
@@ -142,11 +138,9 @@ export default function ScannerModule() {
                   ))}
                 </div>
               </div>
-            )}
-
-            {scanResults.vulnerabilities && scanResults.vulnerabilities.length > 0 && (
+            )}            {scanResults.vulnerabilities && scanResults.vulnerabilities.length > 0 && (
               <div className="vulnerabilities-section">
-                <h4>🚨 Vulnerabilities Found ({scanResults.vulnerabilities.length})</h4>
+                <h4>🚨 Vulnerabilidades Encontradas ({scanResults.vulnerabilities.length})</h4>
                 <div className="vuln-list">
                   {scanResults.vulnerabilities.map((vuln, index) => (
                     <div key={index} className="vuln-item">
@@ -155,11 +149,10 @@ export default function ScannerModule() {
                           className="severity-badge"
                           style={{ backgroundColor: getSeverityColor(vuln.severity) }}
                         >
-                          {vuln.severity?.toUpperCase() || 'UNKNOWN'}
-                        </span>
-                        <span className="vuln-title">{vuln.title || 'Unknown Vulnerability'}</span>
+                          {vuln.severity?.toUpperCase() || 'DESCONOCIDO'}
+                        </span>                        <span className="vuln-title">{vuln.title || 'Vulnerabilidad Desconocida'}</span>
                       </div>
-                      <p className="vuln-description">{vuln.description || 'No description available'}</p>
+                      <p className="vuln-description">{vuln.description || 'Descripción no disponible'}</p>
                       {vuln.cve && (
                         <p className="vuln-cve">CVE: {vuln.cve}</p>
                       )}
@@ -167,12 +160,10 @@ export default function ScannerModule() {
                   ))}
                 </div>
               </div>
-            )}
-
-            {(!scanResults.vulnerabilities || scanResults.vulnerabilities.length === 0) && (
+            )}            {(!scanResults.vulnerabilities || scanResults.vulnerabilities.length === 0) && (
               <div className="no-vulnerabilities">
                 <span className="check-icon">✅</span>
-                <p>No vulnerabilities found</p>
+                <p>No se encontraron vulnerabilidades</p>
               </div>
             )}
           </div>
@@ -180,15 +171,14 @@ export default function ScannerModule() {
       )}
 
       {/* Scan History */}
-      {scanHistory.length > 0 && (
-        <div className="scan-history">
-          <h3>📋 Recent Scans</h3>
+      {scanHistory.length > 0 && (        <div className="scan-history">
+          <h3>📋 Escaneos Recientes</h3>
           <div className="history-list">
             {scanHistory.slice(0, 5).map((scan) => (
               <div key={scan.id} className="history-item">
                 <div className="history-header">
                   <span className="scan-target">{scan.target}</span>
-                  <span className="scan-type">Vulnerability Scan</span>
+                  <span className="scan-type">Escaneo de Vulnerabilidades</span>
                   <span className="scan-time">
                     {new Date(scan.timestamp).toLocaleString()}
                   </span>

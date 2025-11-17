@@ -44,11 +44,23 @@ async def startup_event():
     try:
         logger.info("Starting NVD service...")
         # Import the already initialized queue service from controller
-        from .controllers.nvd_controller import queue_service
+        from .controllers.nvd_controller import queue_service, mongodb_service
+        # Prueba conexión a MongoDB
+        try:
+            await mongodb_service.connect()
+            logger.info("MongoDB connection test: OK")
+        except Exception as mongo_err:
+            logger.error(f"MongoDB connection failed at startup: {mongo_err}")
+        # Prueba conexión a RabbitMQ
+        try:
+            queue_service._connect()
+            logger.info("RabbitMQ connection test: OK")
+        except Exception as rabbit_err:
+            logger.error(f"RabbitMQ connection failed at startup: {rabbit_err}")
         consumer_result = queue_service.start_consumer()
-        logger.info("Queue consumer startup result: %s", consumer_result)
+        logger.info(f"Queue consumer startup result: {consumer_result}")
     except Exception as e:
-        logger.warning("Failed to start queue consumer on startup: %s", str(e))
+        logger.warning(f"Failed to start queue consumer on startup: {str(e)}")
 
 # Root endpoint
 @app.get("/")

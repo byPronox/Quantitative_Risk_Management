@@ -98,7 +98,7 @@ check_env_file() {
 # Use Kong Gateway for all API calls
 
 # Frontend Configuration -- Kong Gateway
-VITE_API_URL=https://kong-b27b67aff4usnsp19.kongcloud.dev
+VITE_API_URL=http://localhost:8000
 
 # Backend Configuration
 DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres

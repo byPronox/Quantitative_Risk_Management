@@ -33,25 +33,22 @@ export default function AssetRiskMatrix({ riskResults, riskThresholds }) {
   };
 
   const overallRiskScore = calculateOverallRisk(riskResults);
-  
-  const getRiskLevel = (score) => {
-    if (score >= riskThresholds.critical) return { level: "Critical", color: "#dc2626", bg: "#fef2f2" };
-    if (score >= riskThresholds.high) return { level: "High", color: "#d97706", bg: "#fffbeb" };
-    if (score >= riskThresholds.medium) return { level: "Medium", color: "#0891b2", bg: "#f0f9ff" };
-    if (score >= riskThresholds.low) return { level: "Low", color: "#059669", bg: "#f0fdf4" };
-    return { level: "Very Low", color: "#6b7280", bg: "#f9fafb" };
+    const getRiskLevel = (score) => {
+    if (score >= riskThresholds.critical) return { level: "Crítico", color: "#dc2626", bg: "#fef2f2" };
+    if (score >= riskThresholds.high) return { level: "Alto", color: "#d97706", bg: "#fffbeb" };
+    if (score >= riskThresholds.medium) return { level: "Medio", color: "#0891b2", bg: "#f0f9ff" };
+    if (score >= riskThresholds.low) return { level: "Bajo", color: "#059669", bg: "#f0fdf4" };
+    return { level: "Muy Bajo", color: "#6b7280", bg: "#f9fafb" };
   };
 
   const currentRisk = getRiskLevel(overallRiskScore);
 
   // Asset categorization based on keywords
-  const categorizeAssets = (results) => {
-    const categories = {
-      "Web Applications": ["react", "vue", "angular", "javascript", "nodejs", "express"],
-      "Infrastructure": ["apache", "nginx", "docker", "kubernetes", "linux", "windows"],
-      "Databases": ["mysql", "postgresql", "mongodb", "redis", "oracle"],
-      "Development Tools": ["git", "jenkins", "python", "java", "php"],
-      "Security Tools": ["openssl", "ssh", "ssl", "tls", "crypto"]
+  const categorizeAssets = (results) => {    const categories = {
+      "Aplicaciones Web": ["react", "vue", "angular", "javascript", "nodejs", "express"],
+      "Infraestructura": ["apache", "nginx", "docker", "kubernetes", "linux", "windows"],      "Bases de Datos": ["mysql", "postgresql", "mongodb", "redis", "oracle"],
+      "Herramientas de Desarrollo": ["git", "jenkins", "python", "java", "php"],
+      "Herramientas de Seguridad": ["openssl", "ssh", "ssl", "tls", "crypto"]
     };
 
     const assetTypes = {};
@@ -63,10 +60,9 @@ export default function AssetRiskMatrix({ riskResults, riskThresholds }) {
           assetTypes[category].push(result);
           categorized = true;
         }
-      });
-      if (!categorized) {
-        if (!assetTypes["Other"]) assetTypes["Other"] = [];
-        assetTypes["Other"].push(result);
+      });      if (!categorized) {
+        if (!assetTypes["Otros"]) assetTypes["Otros"] = [];
+        assetTypes["Otros"].push(result);
       }
     });
 
@@ -91,7 +87,7 @@ export default function AssetRiskMatrix({ riskResults, riskThresholds }) {
         alignItems: "center",
         gap: "0.5rem"
       }}>
-        🏢 Enterprise Asset Risk Matrix
+        🏢 Matriz de Riesgo de Activos Empresariales
       </h3>
 
       {/* Overall Risk Score */}
@@ -103,12 +99,11 @@ export default function AssetRiskMatrix({ riskResults, riskThresholds }) {
         marginBottom: "1.5rem"
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h4 style={{ color: currentRisk.color, margin: 0, fontSize: "1.1rem" }}>
-              Overall Asset Risk Score
+          <div>            <h4 style={{ color: currentRisk.color, margin: 0, fontSize: "1.1rem" }}>
+              Puntuación General de Riesgo de Activos
             </h4>
             <p style={{ color: "#6b7280", margin: "0.25rem 0 0 0", fontSize: "0.9rem" }}>
-              Aggregated risk across all monitored assets
+              Riesgo agregado en todos los activos monitoreados
             </p>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -125,16 +120,15 @@ export default function AssetRiskMatrix({ riskResults, riskThresholds }) {
               fontWeight: "600", 
               color: currentRisk.color 
             }}>
-              {currentRisk.level} Risk
+              Riesgo {currentRisk.level}
             </div>
           </div>
         </div>
       </div>
 
       {/* Asset Categories */}
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h4 style={{ color: "#374151", marginBottom: "1rem", fontSize: "1rem" }}>
-          📊 Assets by Category
+      <div style={{ marginBottom: "1.5rem" }}>        <h4 style={{ color: "#374151", marginBottom: "1rem", fontSize: "1rem" }}>
+          📊 Activos por Categoría
         </h4>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1rem" }}>
           {Object.entries(assetCategories).map(([category, assets]) => {
@@ -162,10 +156,9 @@ export default function AssetRiskMatrix({ riskResults, riskThresholds }) {
                   }}>
                     {categoryRisk.toFixed(1)}%
                   </span>
-                </div>
-                <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
-                  <div>Assets: {assets.length}</div>
-                  <div>Risk Level: {categoryRiskInfo.level}</div>
+                </div>                <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                  <div>Activos: {assets.length}</div>
+                  <div>Nivel de Riesgo: {categoryRiskInfo.level}</div>
                 </div>
                 <div style={{ marginTop: "0.5rem" }}>
                   {assets.slice(0, 3).map((asset, idx) => (
@@ -181,10 +174,9 @@ export default function AssetRiskMatrix({ riskResults, riskThresholds }) {
                     }}>
                       {asset.keyword}
                     </span>
-                  ))}
-                  {assets.length > 3 && (
+                  ))}                  {assets.length > 3 && (
                     <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
-                      +{assets.length - 3} more
+                      +{assets.length - 3} más
                     </span>
                   )}
                 </div>
@@ -195,13 +187,12 @@ export default function AssetRiskMatrix({ riskResults, riskThresholds }) {
       </div>
 
       {/* Risk Distribution Chart */}
-      <div>
-        <h4 style={{ color: "#374151", marginBottom: "1rem", fontSize: "1rem" }}>
-          📈 Risk Distribution Across Assets
+      <div>        <h4 style={{ color: "#374151", marginBottom: "1rem", fontSize: "1rem" }}>
+          📈 Distribución de Riesgo entre Activos
         </h4>
         {riskResults.map((result, idx) => {
           const maxRisk = Math.max(...Object.values(result.risk_percent || {}));
-          const maxLevel = Object.entries(result.risk_percent || {}).find(([, value]) => value === maxRisk)?.[0] || "Unknown";
+          const maxLevel = Object.entries(result.risk_percent || {}).find(([, value]) => value === maxRisk)?.[0] || "Desconocido";
           const riskInfo = getRiskLevel(maxRisk);
           
           return (
@@ -218,9 +209,8 @@ export default function AssetRiskMatrix({ riskResults, riskThresholds }) {
               <div style={{ flex: 1 }}>
                 <span style={{ fontWeight: "600", color: "#374151" }}>
                   {result.keyword}
-                </span>
-                <div style={{ fontSize: "0.85rem", color: "#6b7280", marginTop: "0.25rem" }}>
-                  Primary Risk: {maxLevel} ({maxRisk.toFixed(1)}%)
+                </span>                <div style={{ fontSize: "0.85rem", color: "#6b7280", marginTop: "0.25rem" }}>
+                  Riesgo Principal: {maxLevel} ({maxRisk.toFixed(1)}%)
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>

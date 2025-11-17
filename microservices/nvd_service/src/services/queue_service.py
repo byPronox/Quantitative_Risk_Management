@@ -37,12 +37,12 @@ class QueueService:
         
         # MongoDB service for automatic persistence
         self.mongodb_service = MongoDBService()
+        self.nvd_api_service = NVDService() # Initialize NVDService
     
     def _connect(self) -> None:
-        """Establish connection to RabbitMQ with retry logic."""
+        """Establece conexión a RabbitMQ con logging robusto."""
         if self._connected:
             return
-        
         attempts = 0
         while attempts < self.max_retries:
             try:
@@ -52,16 +52,15 @@ class QueueService:
                 self.channel = self.connection.channel()
                 self.channel.queue_declare(queue=self.queue_name, durable=True)
                 self._connected = True
-                logger.info("Queue service connected to queue: %s (RabbitMQ)", self.queue_name)
+                logger.info(f"QueueService: Conectado a RabbitMQ en {self.host}, cola: {self.queue_name}")
                 return
             except Exception as e:
                 attempts += 1
                 logger.warning(
-                    "RabbitMQ connection failed (attempt %d/%d): %s", 
-                    attempts, self.max_retries, e
+                    f"QueueService: Fallo de conexión a RabbitMQ (intento {attempts}/{self.max_retries}): {e}"
                 )
                 time.sleep(self.retry_delay)
-        
+        logger.error(f"QueueService: No se pudo conectar a RabbitMQ tras {self.max_retries} intentos.")
         raise ConnectionError(f"Could not connect to RabbitMQ after {self.max_retries} attempts.")
     
     def disconnect(self) -> None:
@@ -124,7 +123,7 @@ class QueueService:
             
             while True:
                 method_frame, _, body = self.channel.basic_get(self.queue_name)
-                if method_frame:
+                if (method_frame):
                     message = json.loads(body)
                     messages.append(message)
                     self.channel.basic_ack(method_frame.delivery_tag)
@@ -190,9 +189,12 @@ class QueueService:
             "status": status,
         }
         if status == "completed":
+            # For completed jobs, fetch the result from the in-memory store
+            # This is kept for backward compatibility with how results are displayed
+            job_data = self._job_results.get(job_id, [])
             result.update({
-                "total_results": len(self._job_results.get(job_id, [])),
-                "vulnerabilities": self._job_results.get(job_id, []),
+                "total_results": self._jobs.get(job_id, {}).get("total_results", len(job_data)),
+                "vulnerabilities": job_data,
                 "processed_via": "queue_consumer"
             })
         return result
@@ -206,7 +208,7 @@ class QueueService:
             job_copy["status"] = status
             if status == "completed":
                 job_copy["vulnerabilities"] = self._job_results.get(job_id, [])
-                job_copy["total_results"] = len(self._job_results.get(job_id, []))
+                job_copy["total_results"] = job.get("total_results", len(job_copy.get("vulnerabilities", [])))
             jobs.append(job_copy)
         return {"jobs": jobs}
 
@@ -242,174 +244,30 @@ class QueueService:
 
     def _save_all_existing_jobs_to_mongodb(self):
         """Save all existing completed jobs from /nvd/results/all endpoint to MongoDB Atlas"""
-        try:
-            logger.info("=== STARTING BULK SAVE PROCESS: FETCHING JOBS FROM /nvd/results/all ENDPOINT ===")
-            
-            # Get all jobs from the /nvd/results/all endpoint via HTTP call
-            all_jobs_from_endpoint = []
-            
-            try:
-                logger.info(f"=== MAKING HTTP CALL TO: {settings.BACKEND_URL}/nvd/results/all ===")
-                with httpx.Client(timeout=30.0) as client:
-                    response = client.get(f"{settings.BACKEND_URL}/nvd/results/all")
-                    logger.info(f"=== HTTP RESPONSE STATUS: {response.status_code} ===")
-                    if response.status_code == 200:
-                        data = response.json()
-                        all_jobs_from_endpoint = data.get("jobs", [])
-                        logger.info(f"=== SUCCESSFULLY RETRIEVED {len(all_jobs_from_endpoint)} JOBS FROM /nvd/results/all ENDPOINT ===")
-                        # Log some details about the jobs
-                        completed_jobs = [job for job in all_jobs_from_endpoint if job.get("status") == "completed"]
-                        jobs_with_vulns = [job for job in completed_jobs if job.get("vulnerabilities")]
-                        logger.info(f"=== FOUND {len(completed_jobs)} COMPLETED JOBS, {len(jobs_with_vulns)} WITH VULNERABILITIES ===")
-                    else:
-                        logger.error(f"=== FAILED TO FETCH JOBS FROM /nvd/results/all: {response.status_code} - {response.text} ===")
-                        return
-            except Exception as e:
-                logger.error(f"=== ERROR FETCHING JOBS FROM /nvd/results/all ENDPOINT: {e} ===")
-                import traceback
-                logger.error(f"Full HTTP error traceback: {traceback.format_exc()}")
-                return
-            
-            # Get existing jobs from MongoDB to avoid duplicates
-            existing_job_ids = set()
-            def get_mongodb_jobs():
-                try:
-                    import asyncio
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    mongodb_results = loop.run_until_complete(
-                        self.mongodb_service.get_all_jobs()
-                    )
-                    loop.close()
-                    # mongodb_results should be a dict with 'jobs' key
-                    if isinstance(mongodb_results, dict):
-                        return mongodb_results.get("jobs", [])
-                    else:
-                        return mongodb_results if isinstance(mongodb_results, list) else []
-                except Exception as e:
-                    logger.error(f"Failed to get existing MongoDB jobs: {e}")
-                    return []
-            
-            mongodb_jobs = get_mongodb_jobs()
-            logger.info(f"Found {len(mongodb_jobs)} existing jobs in MongoDB")
-            for job in mongodb_jobs:
-                existing_job_ids.add(job.get("job_id"))
-            
-            # Process all completed jobs from the endpoint
-            jobs_to_save = []
-            logger.info("Processing jobs from endpoint to determine which ones to save...")
-            for job in all_jobs_from_endpoint:
-                job_id = job.get("job_id")
-                status = job.get("status")
-                has_vulns = job.get("vulnerabilities")
-                already_exists = job_id in existing_job_ids
-                
-                logger.debug(f"Job {job_id}: status={status}, has_vulns={bool(has_vulns)}, already_exists={already_exists}")
-                
-                if (status == "completed" and 
-                    has_vulns and 
-                    job_id not in existing_job_ids):
-                    
-                    # Clean and transform vulnerabilities data to match MongoDB schema
-                    cleaned_vulnerabilities = []
-                    for vuln in job.get("vulnerabilities", []):
-                        cleaned_vuln = vuln.copy()
-                        
-                        # Fix CVE tags format if it exists
-                        if "cve" in cleaned_vuln and "cveTags" in cleaned_vuln["cve"]:
-                            cve_tags = cleaned_vuln["cve"]["cveTags"]
-                            if isinstance(cve_tags, list):
-                                # Convert list of objects to list of strings
-                                cleaned_tags = []
-                                for tag in cve_tags:
-                                    if isinstance(tag, dict):
-                                        # Extract tags from the object if it's a dict
-                                        if "tags" in tag and isinstance(tag["tags"], list):
-                                            cleaned_tags.extend([str(t) for t in tag["tags"]])
-                                        else:
-                                            cleaned_tags.append(str(tag))
-                                    else:
-                                        cleaned_tags.append(str(tag))
-                                cleaned_vuln["cve"]["cveTags"] = cleaned_tags
-                            elif isinstance(cve_tags, dict):
-                                # If it's a single dict, extract tags
-                                if "tags" in cve_tags and isinstance(cve_tags["tags"], list):
-                                    cleaned_vuln["cve"]["cveTags"] = [str(t) for t in cve_tags["tags"]]
-                                else:
-                                    cleaned_vuln["cve"]["cveTags"] = [str(cve_tags)]
-                        
-                        cleaned_vulnerabilities.append(cleaned_vuln)
-                    
-                    job_for_mongodb = {
-                        "job_id": job.get("job_id"),
-                        "keyword": job.get("keyword"),
-                        "status": "completed",
-                        "total_results": job.get("total_results", len(cleaned_vulnerabilities)),
-                        "timestamp": job.get("timestamp", job.get("created_at", time.time())),
-                        "processed_via": "bulk_save_from_results_all_endpoint",
-                        "vulnerabilities": cleaned_vulnerabilities
-                    }
-                    jobs_to_save.append(job_for_mongodb)
-                    logger.info(f"Added job {job_id} to save queue (keyword: {job.get('keyword')}, {len(cleaned_vulnerabilities)} vulns)")
-            
-            logger.info(f"Total jobs to save to MongoDB: {len(jobs_to_save)}")
-            
-            if jobs_to_save:
-                logger.info(f"Starting bulk save of {len(jobs_to_save)} jobs to MongoDB...")
-                # Save all jobs to MongoDB asynchronously
-                def bulk_save_to_mongodb():
-                    try:
-                        logger.info("Executing MongoDB bulk save operation...")
-                        import asyncio
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        result = loop.run_until_complete(
-                            self.mongodb_service.save_job_results(jobs_to_save)
-                        )
-                        loop.close()
-                        logger.info(f"Bulk saved {len(jobs_to_save)} jobs from /nvd/results/all to MongoDB successfully. Result: {result}")
-                    except Exception as mongo_error:
-                        logger.error(f"Failed to bulk save jobs from /nvd/results/all to MongoDB: {mongo_error}")
-                        import traceback
-                        logger.error(f"Full error traceback: {traceback.format_exc()}")
-                
-                # Save in background thread
-                mongodb_thread = threading.Thread(target=bulk_save_to_mongodb, daemon=True)
-                mongodb_thread.start()
-                
-                logger.info(f"Queued {len(jobs_to_save)} jobs from /nvd/results/all endpoint for bulk save to MongoDB")
-            else:
-                logger.info("No new jobs found from /nvd/results/all to save to MongoDB (all jobs already exist or no completed jobs with vulnerabilities found)")
-                
-        except Exception as e:
-            logger.error(f"Error fetching and saving jobs from /nvd/results/all: {e}")
+        # This function is deprecated in favor of auto-saving jobs as they are processed.
+        # The logic was complex and prone to state issues.
+        # Keeping the method signature for now to avoid breaking other parts, but it does nothing.
+        logger.info("DEPRECATED: _save_all_existing_jobs_to_mongodb is no longer used.")
+        pass
 
     def start_consumer(self):
-        """Start a persistent RabbitMQ consumer in a background thread"""
+        """Inicia el consumer de RabbitMQ y loguea el estado."""
         logger.info("=== START_CONSUMER CALLED ===")
         if self._consumer_thread is not None and self._consumer_thread.is_alive():
             logger.info("Consumer already running, returning...")
             return {"message": "Consumer is already running", "status": "running"}
         
         logger.info("=== INITIATING NEW CONSUMER START ===")
-        # Start bulk save process in background thread to avoid blocking the response
-        def background_bulk_save():
-            try:
-                logger.info("=== BACKGROUND BULK SAVE THREAD STARTED ===")
-                # Wait a bit to ensure the response is sent first
-                time.sleep(1)
-                logger.info("=== STARTING BULK SAVE PROCESS ===")
-                self._save_all_existing_jobs_to_mongodb()
-                logger.info("=== BULK SAVE PROCESS COMPLETED ===")
-            except Exception as e:
-                logger.error(f"=== ERROR IN BACKGROUND BULK SAVE THREAD: {e} ===")
-                import traceback
-                logger.error(f"Full bulk save error traceback: {traceback.format_exc()}")
         
-        logger.info("=== STARTING BACKGROUND BULK SAVE THREAD ===")
-        bulk_save_thread = threading.Thread(target=background_bulk_save, daemon=True)
-        bulk_save_thread.start()
-        logger.info("=== BULK SAVE THREAD STARTED ===")
+        try:
+            # Prueba conexión antes de iniciar
+            self._connect()
+        except Exception as e:
+            logger.error(f"QueueService: No se pudo iniciar el consumer por error de conexión: {e}")
+            return {"message": "Consumer failed to start", "status": "error", "error": str(e)}
+        
+        # The complex bulk-save logic is removed. The consumer will now save each job as it completes.
+        # This makes the process stateless and more reliable.
         
         # Start a real RabbitMQ consumer in a background thread, with its own connection/channel
         def consume():
@@ -438,47 +296,39 @@ class QueueService:
                         vulnerabilities = []
                         total_results = 0
                         try:
-                            # Use Kong Gateway directly to NVD API
-                            # Increase resultsPerPage to get more results (max is 2000 for NVD API)
-                            results_per_page = 100  # Increased from 50 to 100 for better coverage
+                            # Use the NVDService to fetch vulnerabilities, which handles Kong/direct API logic
+                            # Since this callback is in a synchronous thread, we need to run the async NVDService call in an event loop.
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
                             
-                            logger.info(f"Fetching vulnerabilities for keyword: '{keyword}' with {results_per_page} results per page")
-                            
-                            with httpx.Client(timeout=60.0) as client:
-                                response = client.get(
-                                    f"{settings.KONG_PROXY_URL}/nvd/cves/2.0", 
-                                    params={
-                                        "keywordSearch": keyword,
-                                        "resultsPerPage": results_per_page
-                                    },
-                                    headers={"apiKey": settings.NVD_API_KEY} if settings.NVD_API_KEY else {}
+                            nvd_response = loop.run_until_complete(
+                                self.nvd_api_service.search_vulnerabilities(
+                                    keywords=keyword,
+                                    results_per_page=100 # Use a reasonable default or pass from job metadata
                                 )
-                                
-                                logger.info(f"NVD API Response Status for '{keyword}': {response.status_code}")
-                                
-                                if response.status_code == 200:
-                                    data = response.json()
-                                    vulnerabilities = data.get("vulnerabilities", [])
-                                    total_results = data.get("totalResults", 0)
-                                    logger.info(f"Successfully fetched {len(vulnerabilities)} vulnerabilities for '{keyword}' (Total available: {total_results})")
-                                    
-                                    if total_results == 0 or len(vulnerabilities) == 0:
-                                        logger.warning(f"WARNING: No vulnerabilities found for keyword '{keyword}'")
-                                        logger.warning(f"Search parameters: keywordSearch={keyword}, resultsPerPage={results_per_page}")
-                                        logger.warning(f"This might indicate the keyword is too specific or no vulnerabilities exist for this term in NVD")
-                                else:
-                                    logger.error(f"Failed to fetch vulnerabilities for '{keyword}': {response.status_code}")
-                                    logger.error(f"Response body: {response.text[:500]}...")  # Log first 500 chars
+                            )
+                            loop.close()
+                            
+                            vulnerabilities = nvd_response.get("vulnerabilities", [])
+                            total_results = nvd_response.get("total_results", 0)
+                            
+                            if total_results == 0 or len(vulnerabilities) == 0:
+                                logger.warning(f"WARNING: No vulnerabilities found for keyword '{keyword}'")
+                                logger.warning(f"Search parameters: keywordSearch={keyword}, resultsPerPage={100}") # Use the actual results_per_page used
+                                logger.warning(f"This might indicate the keyword is too specific or no vulnerabilities exist for this term in NVD")
                         except Exception as e:
                             logger.error(f"Error fetching vulnerabilities for '{keyword}': {e}")
                             import traceback
                             logger.error(f"Full error traceback: {traceback.format_exc()}")
                         # --- END FETCH ---
                         
+                        # Update in-memory status for short-term checks, but the source of truth is now MongoDB
                         self._job_status[job_id] = "completed"
                         self._jobs[job_id]["status"] = "completed"
-                        self._processing.remove(job_id)
+                        if job_id in self._processing:
+                            self._processing.remove(job_id)
                         self._completed.add(job_id)
+                        # We no longer store full results in memory.
                         self._job_results[job_id] = vulnerabilities
                         self._jobs[job_id]["total_results"] = total_results
                         self._jobs[job_id]["vulnerabilities"] = vulnerabilities
@@ -528,23 +378,9 @@ class QueueService:
                                 "vulnerabilities": cleaned_vulnerabilities
                             }
                             
-                            # Save to MongoDB asynchronously in a new thread
-                            def save_to_mongodb():
-                                try:
-                                    import asyncio
-                                    loop = asyncio.new_event_loop()
-                                    asyncio.set_event_loop(loop)
-                                    loop.run_until_complete(
-                                        self.mongodb_service.save_job_results([job_for_mongodb])
-                                    )
-                                    loop.close()
-                                    logger.info(f"Job {job_id} automatically saved to MongoDB")
-                                except Exception as mongo_error:
-                                    logger.error(f"Failed to auto-save job {job_id} to MongoDB: {mongo_error}")
-                            
-                            # Save in background thread to not block queue processing
-                            mongodb_thread = threading.Thread(target=save_to_mongodb, daemon=True)
-                            mongodb_thread.start()
+                            # Save to MongoDB in a background thread to avoid blocking the consumer
+                            save_thread = threading.Thread(target=self._save_job_to_mongodb_sync, args=([job_for_mongodb],))
+                            save_thread.start()
                             
                         except Exception as auto_save_error:
                             logger.error(f"Error setting up auto-save to MongoDB for job {job_id}: {auto_save_error}")
@@ -575,6 +411,19 @@ class QueueService:
         self._consumer_thread.start()
         
         return {"message": "Consumer started", "status": "started"}
+
+    def _save_job_to_mongodb_sync(self, jobs_data: List[Dict[str, Any]]):
+        """Synchronous helper to save jobs to MongoDB, designed to be run in a thread."""
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(
+                self.mongodb_service.save_job_results(jobs_data) # Pass the job(s) as a list
+            )
+            loop.close()
+            logger.info(f"Successfully saved {len(jobs_data)} job(s) to MongoDB.")
+        except Exception as e:
+            logger.error(f"Failed to save job to MongoDB in background thread: {e}")
 
     def stop_consumer(self):
         # No-op for simulation

@@ -1,9 +1,8 @@
 import React from "react";
 
 export default function AssetList({ assets, selectedId, onSelect }) {
-  return (
-    <aside className="asset-list">
-      <h2>Assets</h2>
+  return (    <aside className="asset-list">
+      <h2>Activos</h2>
       <ul>
         {assets.map(asset => (
           <li
@@ -11,7 +10,7 @@ export default function AssetList({ assets, selectedId, onSelect }) {
             className={selectedId === asset.id ? "selected" : ""}
             onClick={() => onSelect(asset.id)}
             tabIndex={0}
-            aria-label={`Select asset ${asset.name}`}
+            aria-label={`Seleccionar activo ${asset.name}`}
             onKeyDown={e => (e.key === "Enter" ? onSelect(asset.id) : null)}
           >
             <span style={{display: 'flex', alignItems: 'center', gap: '0.7em'}}>

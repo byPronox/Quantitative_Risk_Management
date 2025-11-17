@@ -1,32 +1,15 @@
 services:
-  # Legacy backend service (for backward compatibility during migration)
   backend:
     build: ./backend
     volumes:
-      - ./backend/app:/app
+      - ./backend/src:/app/src
     ports:
       - "8000:8000"
     depends_on:
       - db
       - rabbitmq
-      - ml-prediction-service
-      - nvd-service
-      - nmap-scanner-service
     restart: always
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
-      - NVD_API_KEY=b0f20683-6364-4314-97cc-6f85ea75df67
-      - KONG_PROXY_URL=https://kong-b27b67aff4usnsp19.kongcloud.dev
-      - KONG_ADMIN_API=https://us.api.konghq.com/v2/control-planes/9d98c0ba-3ac1-44fd-b497-59743e18a80a
-      - KONG_CONTROL_PLANE_ID=9d98c0ba-3ac1-44fd-b497-59743e18a80a
-      - KONG_TOKEN=${KONG_TOKEN:-}
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - RABBITMQ_QUEUE=nvd_analysis_queue
-      - ML_SERVICE_URL=http://ml-prediction-service:8001
-      - NVD_SERVICE_URL=http://nvd-service:8002
-      - MONGODB_URL=mongodb+srv://ADMIN:ADMIN@cluster0.7ixig65.mongodb.net/
-      - MONGODB_DATABASE=cveScanner
+    env_file: .env
 
   # ML Prediction Microservice
   ml-prediction-service:
@@ -36,13 +19,7 @@ services:
     depends_on:
       - rabbitmq
     restart: always
-    environment:
-      - ENVIRONMENT=production
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASSWORD=guest
-      - RABBITMQ_QUEUE=ml_predictions
-      - MODEL_PATH=/app/app/models
+    env_file: .env
     volumes:
       - ./microservices/ml_prediction_service/app/models:/app/app/models
 
@@ -54,17 +31,7 @@ services:
     depends_on:
       - rabbitmq
     restart: always
-    environment:
-      - ENVIRONMENT=production
-      - NVD_API_KEY=b0f20683-6364-4314-97cc-6f85ea75df67
-      - KONG_PROXY_URL=https://kong-b27b67aff4usnsp19.kongcloud.dev
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASSWORD=guest
-      - RABBITMQ_QUEUE=nvd_analysis_queue
-      - MONGODB_URL=mongodb+srv://ADMIN:ADMIN@cluster0.7ixig65.mongodb.net/
-      - MONGODB_DATABASE=cveScanner
-      - BACKEND_URL=http://backend:8000
+    env_file: .env
 
   # Report Generation Microservice
   report-service:
@@ -74,13 +41,7 @@ services:
     depends_on:
       - rabbitmq
     restart: always
-    environment:
-      - ENVIRONMENT=production
-      - MONGODB_URL=mongodb+srv://ADMIN:ADMIN@cluster0.7ixig65.mongodb.net/
-      - MONGODB_DATABASE=cveScanner
-      - BACKEND_SERVICE_URL=http://backend:8000
-      - NVD_SERVICE_URL=http://nvd-service:8002
-      - REPORTS_TEMP_DIR=/tmp/reports
+    env_file: .env
     volumes:
       - report_data:/tmp/reports
 
@@ -90,12 +51,7 @@ services:
     ports:
       - "8004:8004"
     restart: always
-    environment:
-      - NODE_ENV=production
-      - PORT=8004
-      - HOST=0.0.0.0
-      - ALLOWED_ORIGINS=*
-      - NVD_SERVICE_URL=http://nvd-service:8002
+    env_file: .env
     volumes:
       - nmap_temp:/app/temp
     privileged: true  # Required for nmap network scanning
@@ -115,14 +71,7 @@ services:
       - report-service
       - nmap-scanner-service
     restart: always
-    environment:
-      # Use local backend by default in Compose (so frontend in container talks to backend service)
-      - VITE_API_URL=http://backend:8000
-      - VITE_BACKEND_URL=http://backend:8000
-      - VITE_ML_SERVICE_URL=http://ml-prediction-service:8001
-      - VITE_NVD_SERVICE_URL=http://nvd-service:8002
-      - VITE_REPORT_SERVICE_URL=http://report-service:8003
-      - VITE_NMAP_SERVICE_URL=http://nmap-scanner-service:8004
+    env_file: .env
 
   # Database
   db:

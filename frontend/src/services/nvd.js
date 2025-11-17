@@ -156,8 +156,8 @@ export async function getConsumerStatus() {
     return {
       running: isRunning,
       description: isRunning 
-        ? "Consumer is processing jobs via Kong Gateway"
-        : "Consumer is stopped. Start it to process queued jobs."
+        ? "El consumidor está procesando trabajos via Kong Gateway"
+        : "El consumidor está detenido. Inícielo para procesar trabajos en cola."
     };
   } catch (error) {
     console.error('Error getting consumer status:', error);
@@ -172,8 +172,8 @@ export async function getConsumerStatus() {
 export async function getAllQueueResults() {
   try {
     const response = await backendApi.get('/nvd/results/all');
-    // Return the jobs array directly, or empty array if none found
-    return response.data.jobs || [];
+    // Return the full response object from the backend
+    return response.data;
   } catch (error) {
     console.error('Error fetching all queue results:', error);
     return [];

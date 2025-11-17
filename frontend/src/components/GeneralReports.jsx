@@ -127,10 +127,10 @@ const GeneralReports = () => {
       }
 
       // Download the PDF
-      pdf.save(`${selectedKeyword}_Vulnerability_Report.pdf`);
+      pdf.save(`${selectedKeyword}_Reporte_Vulnerabilidades.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Error generating PDF. Please try again.');
+      alert('Error al generar PDF. Por favor intente de nuevo.');
     }
   };
 
@@ -144,12 +144,11 @@ const GeneralReports = () => {
     }
   };
 
-  if (loading) {
-    return (
+  if (loading) {    return (
       <div className="general-reports">
         <div className="loading">
           <div className="spinner"></div>
-          <p>Loading General Reports...</p>
+          <p>Cargando Reportes Generales...</p>
         </div>
       </div>
     );
@@ -157,32 +156,30 @@ const GeneralReports = () => {
 
   if (selectedKeyword && detailedReport) {
     return (
-      <div className="general-reports">
-        <div className="report-header">
+      <div className="general-reports">        <div className="report-header">
           <button className="back-button" onClick={goBackToSummary}>
-            ← Back to Summary
+            ← Volver al Resumen
           </button>
-          <h2>Detailed Report: {selectedKeyword}</h2>
+          <h2>Reporte Detallado: {selectedKeyword}</h2>
           <button className="download-button" onClick={downloadReportAsPDF}>
-            📄 Download Report
+            📄 Descargar Reporte
           </button>
         </div>
 
         {loadingDetails ? (
           <div className="loading">
             <div className="spinner"></div>
-            <p>Loading detailed report...</p>
+            <p>Cargando reporte detallado...</p>
           </div>
         ) : (
           <div className="detailed-report" id="detailed-report-content">
-            {/* Summary Cards */}
-            <div className="summary-cards">
+            {/* Summary Cards */}            <div className="summary-cards">
               <div className="summary-card">
-                <h3>Total Analyses</h3>
+                <h3>Total de Análisis</h3>
                 <p className="metric">{detailedReport.total_jobs}</p>
               </div>
               <div className="summary-card">
-                <h3>Total Vulnerabilities</h3>
+                <h3>Total de Vulnerabilidades</h3>
                 <p className="metric">{detailedReport.total_vulnerabilities}</p>
               </div>
               <div className="summary-card">
@@ -193,7 +190,7 @@ const GeneralReports = () => {
 
             {/* Severity Distribution */}
             <div className="section">
-              <h3>Severity Distribution</h3>
+              <h3>Distribución de Severidad</h3>
               <div className="severity-chart">
                 {Object.entries(detailedReport.severity_distribution).map(([severity, count]) => (
                   count > 0 && (
@@ -211,11 +208,9 @@ const GeneralReports = () => {
                   )
                 ))}
               </div>
-            </div>
-
-            {/* Vulnerabilities by Year */}
+            </div>            {/* Vulnerabilities by Year */}
             <div className="section">
-              <h3>Vulnerabilities by Year</h3>
+              <h3>Vulnerabilidades por Año</h3>
               <div className="year-distribution">
                 {Object.entries(detailedReport.vulnerabilities_by_year).slice(0, 10).map(([year, count]) => (
                   <div key={year} className="year-item">
@@ -232,41 +227,38 @@ const GeneralReports = () => {
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Recent Vulnerabilities */}
+            </div>            {/* Recent Vulnerabilities */}
             <div className="section">
-              <h3>Recent Vulnerabilities (Top 10)</h3>
+              <h3>Vulnerabilidades Recientes (Top 10)</h3>
               <div className="vulnerabilities-table">
                 <table>
                   <thead>
                     <tr>
-                      <th>CVE ID</th>
-                      <th>Severity</th>
-                      <th>Score</th>
-                      <th>Published</th>
-                      <th>Description</th>
+                      <th>ID CVE</th>
+                      <th>Severidad</th>
+                      <th>Puntuación</th>
+                      <th>Publicado</th>
+                      <th>Descripción</th>
                     </tr>
                   </thead>
                   <tbody>
                     {detailedReport.vulnerabilities.slice(0, 10).map((vuln, index) => {
                       const cve = vuln.cve || {};
                       const metrics = cve.metrics || {};
-                      let severity = 'Unknown';
+                      let severity = 'Desconocido';
                       let score = 'N/A';
-                      
-                      if (metrics.cvssMetricV31 && metrics.cvssMetricV31.length > 0) {
-                        severity = metrics.cvssMetricV31[0].cvssData?.baseSeverity || 'Unknown';
+                        if (metrics.cvssMetricV31 && metrics.cvssMetricV31.length > 0) {
+                        severity = metrics.cvssMetricV31[0].cvssData?.baseSeverity || 'Desconocido';
                         score = metrics.cvssMetricV31[0].cvssData?.baseScore || 'N/A';
                       } else if (metrics.cvssMetricV2 && metrics.cvssMetricV2.length > 0) {
                         score = metrics.cvssMetricV2[0].cvssData?.baseScore || 'N/A';
-                        if (score >= 9.0) severity = 'Critical';
-                        else if (score >= 7.0) severity = 'High';
-                        else if (score >= 4.0) severity = 'Medium';
-                        else severity = 'Low';
+                        if (score >= 9.0) severity = 'Crítico';
+                        else if (score >= 7.0) severity = 'Alto';
+                        else if (score >= 4.0) severity = 'Medio';
+                        else severity = 'Bajo';
                       }
 
-                      const description = cve.descriptions?.find(d => d.lang === 'en')?.value || 'No description available';
+                      const description = cve.descriptions?.find(d => d.lang === 'en')?.value || 'Descripción no disponible';
                       
                       return (
                         <tr key={index}>
@@ -288,20 +280,18 @@ const GeneralReports = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
-
-            {/* Analysis History */}
+            </div>            {/* Analysis History */}
             <div className="section">
-              <h3>Analysis History</h3>
+              <h3>Historial de Análisis</h3>
               <div className="jobs-history">
                 {detailedReport.jobs.map((job, index) => (
                   <div key={index} className="job-item">
                     <div className="job-header">
-                      <span className="job-id">Job: {job.job_id}</span>
+                      <span className="job-id">Trabajo: {job.job_id}</span>
                       <span className="job-date">{job.processed_at_readable}</span>
                     </div>
                     <div className="job-stats">
-                      <span>Results: {job.total_results}</span>
+                      <span>Resultados: {job.total_results}</span>
                       <span>Vulnerabilities: {job.vulnerabilities_count}</span>
                       <span className={`status ${job.status}`}>{job.status}</span>
                     </div>
@@ -316,10 +306,9 @@ const GeneralReports = () => {
   }
 
   return (
-    <div className="general-reports">
-      <div className="header">
-        <h2>General Reports</h2>
-        <p>Click on any software keyword to view detailed vulnerability analysis</p>
+    <div className="general-reports">      <div className="header">
+        <h2>Reportes Generales</h2>
+        <p>Haga clic en cualquier software para ver el análisis detallado de vulnerabilidades</p>
       </div>
 
       {/* Search Filter */}
@@ -327,7 +316,7 @@ const GeneralReports = () => {
         <div className="search-container">
           <input
             type="text"
-            placeholder="Search for keywords (e.g., Python, Node, Java...)"
+            placeholder="Buscar palabras clave (ej: Python, Node, Java...)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -336,7 +325,7 @@ const GeneralReports = () => {
         </div>
         {searchTerm && (
           <div className="search-results-info">
-            Showing {filteredKeywords.length} result(s) for "{searchTerm}"
+            Mostrando {filteredKeywords.length} resultado(s) para "{searchTerm}"
           </div>
         )}
       </div>
@@ -347,23 +336,22 @@ const GeneralReports = () => {
             key={index} 
             className="keyword-card"
             onClick={() => fetchDetailedReport(keywordData.keyword)}
-          >
-            <div className="keyword-header">
+          >            <div className="keyword-header">
               <h3>{keywordData.keyword}</h3>
-              <span className="vulnerability-count">{keywordData.total_vulnerabilities} vulnerabilities</span>
+              <span className="vulnerability-count">{keywordData.total_vulnerabilities} vulnerabilidades</span>
             </div>
             <div className="keyword-stats">
               <div className="stat">
-                <span className="label">Total Analyses:</span>
+                <span className="label">Total de Análisis:</span>
                 <span className="value">{keywordData.total_jobs}</span>
               </div>
               <div className="stat">
-                <span className="label">Latest Analysis:</span>
+                <span className="label">Último Análisis:</span>
                 <span className="value">{keywordData.latest_analysis}</span>
               </div>
             </div>
             <div className="jobs-preview">
-              <h4>Recent Jobs:</h4>
+              <h4>Trabajos Recientes:</h4>
               {keywordData.jobs.slice(0, 3).map((job, jobIndex) => (
                 <div key={jobIndex} className="job-preview">
                   <span className="job-id">{job.job_id}</span>
@@ -371,24 +359,22 @@ const GeneralReports = () => {
                 </div>
               ))}
               {keywordData.jobs.length > 3 && (
-                <div className="more-jobs">+{keywordData.jobs.length - 3} more...</div>
+                <div className="more-jobs">+{keywordData.jobs.length - 3} más...</div>
               )}
             </div>
           </div>
         ))}
-      </div>
-
-      {filteredKeywords.length === 0 && searchTerm && (
+      </div>      {filteredKeywords.length === 0 && searchTerm && (
         <div className="no-results">
-          <p>No keywords found matching "{searchTerm}"</p>
-          <p>Try searching for: Python, Java, Node, Apache, etc.</p>
+          <p>No se encontraron palabras clave que coincidan con "{searchTerm}"</p>
+          <p>Intente buscar: Python, Java, Node, Apache, etc.</p>
         </div>
       )}
 
       {keywords.length === 0 && (
         <div className="no-data">
-          <p>No vulnerability analysis data found in MongoDB.</p>
-          <p>Run some vulnerability analyses first to see reports here.</p>
+          <p>No se encontraron datos de análisis de vulnerabilidades en MongoDB.</p>
+          <p>Ejecute algunos análisis de vulnerabilidades primero para ver reportes aquí.</p>
         </div>
       )}
     </div>

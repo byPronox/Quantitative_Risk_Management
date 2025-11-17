@@ -120,7 +120,7 @@ const RiskAnalysisDashboard = () => {
               </div>
               <div className="risk-details">
                 <p><strong>Objetivo:</strong> {scanResults.target}</p>
-                <p><strong>Timestamp:</strong> {new Date(scanResults.scan_timestamp).toLocaleString()}</p>
+                <p><strong>Fecha y Hora:</strong> {new Date(scanResults.scan_timestamp).toLocaleString()}</p>
                 <p><strong>Servicios Analizados:</strong> {scanResults.services_analysis.length}</p>
                 <p><strong>Vulnerabilidades Encontradas:</strong> {scanResults.vulnerabilities_analysis.length}</p>
               </div>

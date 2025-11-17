@@ -1,113 +1,113 @@
-# ⚠️ Quantitative Risk Management System
+# ⚠️ Sistema de Gestión de Riesgos Cuantitativo
 
-A full-stack, microservices-based application for **quantitative risk assessment and mitigation**, powered by **Machine Learning** and **Dynamic Programming**. This system predicts potential risks, evaluates their impact, and recommends optimal mitigation strategies using intelligent algorithms and data-driven insights.
+Una aplicación full-stack basada en microservicios para **evaluación y mitigación cuantitativa de riesgos**, potenciada por **Aprendizaje Automático** y **Programación Dinámica**. Este sistema predice riesgos potenciales, evalúa su impacto y recomienda estrategias de mitigación óptimas utilizando algoritmos inteligentes e insights basados en datos.
 
-![Quantitative Risk Management System Demo](docs/images/demo.png)
+![Demostración del Sistema de Gestión de Riesgos Cuantitativo](docs/images/demo.png)
 
-*Screenshot: NVD Vulnerability Management System with comprehensive risk analysis dashboard, featuring tabbed interface for vulnerability search, risk assessment configuration, and enterprise-level asset categorization.*
-
----
-
-## ✨ Features
-
-- 🎯 **Advanced Risk Prediction** using trained ML models (CICIDS, LANL)
-- 🧠 **Dynamic Programming Engine** for optimal decision-making
-- 📊 **Interactive Dashboard** built with React + Tailwind CSS
-- 🔄 **RESTful APIs** powered by FastAPI (Python)
-- 🐳 **Fully Containerized** with Docker & Docker Compose
-- 📁 **PostgreSQL Database** integration
-- 📈 **Data Visualization** with Chart.js and custom SVG components
-- 🛡️ **NVD Integration** with the National Vulnerability Database (NVD) API
-- 🏛️ **Microservices Architecture** with API Gateway
-- 🔍 **Comprehensive Vulnerability Search** with keyword-based filtering
-- 📋 **Queue Management System** with RabbitMQ for asynchronous processing
-- 🎛️ **Risk Assessment Configuration** with customizable thresholds
-- 🏢 **Enterprise Asset Categorization** (Web Apps, Infrastructure, Databases, etc.)
-- 📊 **Business Impact Analysis** with weighted scoring algorithms
-- 📈 **Analysis History Tracking** for audit and compliance
-- 🎨 **Modern Responsive UI** with tabbed interface and real-time updates
+*Captura de pantalla: Sistema de Gestión de Vulnerabilidades NVD con dashboard integral de análisis de riesgos, que incluye interfaz con pestañas para búsqueda de vulnerabilidades, configuración de evaluación de riesgos y categorización de activos a nivel empresarial.*
 
 ---
 
-## 🧱 Tech Stack
+## ✨ Características
 
-| Layer        | Technology         |
+- 🎯 **Predicción Avanzada de Riesgos** utilizando modelos de ML entrenados (CICIDS, LANL)
+- 🧠 **Motor de Programación Dinámica** para toma de decisiones óptima
+- 📊 **Dashboard Interactivo** construido con React + Tailwind CSS
+- 🔄 **APIs RESTful** potenciadas por FastAPI (Python)
+- 🐳 **Completamente Contenerizado** con Docker & Docker Compose
+- 📁 **Integración con Base de Datos PostgreSQL**
+- 📈 **Visualización de Datos** con Chart.js y componentes SVG personalizados
+- 🛡️ **Integración NVD** con la API de la Base de Datos Nacional de Vulnerabilidades (NVD)
+- 🏛️ **Arquitectura de Microservicios** con API Gateway
+- 🔍 **Búsqueda Integral de Vulnerabilidades** con filtrado basado en palabras clave
+- 📋 **Sistema de Gestión de Cola** con RabbitMQ para procesamiento asíncrono
+- 🎛️ **Configuración de Evaluación de Riesgos** con umbrales personalizables
+- 🏢 **Categorización de Activos Empresariales** (Aplicaciones Web, Infraestructura, Bases de Datos, etc.)
+- 📊 **Análisis de Impacto Empresarial** con algoritmos de puntuación ponderada
+- 📈 **Seguimiento del Historial de Análisis** para auditoría y cumplimiento
+- 🎨 **Interfaz Moderna y Responsiva** con interfaz de pestañas y actualizaciones en tiempo real
+
+---
+
+## 🧱 Stack Tecnológico
+
+| Capa         | Tecnología         |
 |-------------|--------------------|
 | Frontend    | React, Tailwind CSS, Axios, Chart.js |
-| Backend     | FastAPI (Python), Scikit-learn, Dynamic Programming logic |
+| Backend     | FastAPI (Python), Scikit-learn, Lógica de Programación Dinámica |
 | API Gateway | FastAPI (Python), httpx |
-| Database    | PostgreSQL         |
+| Base de Datos | PostgreSQL         |
 | DevOps      | Docker, Docker Compose |
-| Others      | REST API, Pydantic, Vite (or CRA) |
+| Otros       | REST API, Pydantic, Vite (o CRA) |
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Arquitectura
 
-- **API Gateway** (FastAPI): Central entry point, routes requests to backend microservices.
-- **Backend Microservice** (FastAPI): Handles ML predictions, DP logic, and database operations.
-- **Frontend** (React): User interface for risk analysis and visualization.
-- **Database** (PostgreSQL): Stores risk analysis results and user data.
+- **API Gateway** (FastAPI): Punto de entrada central, enruta solicitudes a microservicios backend.
+- **Microservicio Backend** (FastAPI): Maneja predicciones de ML, lógica de PD y operaciones de base de datos.
+- **Frontend** (React): Interfaz de usuario para análisis y visualización de riesgos.
+- **Base de Datos** (PostgreSQL): Almacena resultados de análisis de riesgos y datos de usuario.
 
-All services are containerized and orchestrated with Docker Compose.
-
----
-
-## 🛡️ NVD Vulnerability Management System
-
-Our enhanced NVD integration provides comprehensive vulnerability assessment and enterprise risk management:
-
-### 🔍 **Search & Discovery**
-- Real-time vulnerability search using NVD API
-- Keyword-based filtering for specific technologies
-- Detailed CVE information with publication dates and descriptions
-
-### 📊 **Risk Analysis Dashboard** 
-- **Tabbed Interface**: Search, Analysis, and History views
-- **Risk Assessment Configuration**: Customizable thresholds (Critical: 80%, High: 60%, Medium: 40%, Low: 20%, Very Low: 10%)
-- **Queue Management**: Add specific vulnerabilities to analysis queue
-- **Enterprise Metrics**: Comprehensive business impact analysis
-
-### 🏢 **Enterprise Asset Categorization**
-- **Web Applications**: React, Vue, Angular, JavaScript, Node.js
-- **Infrastructure**: Apache, Nginx, Docker, Kubernetes, Linux, Windows  
-- **Databases**: MySQL, PostgreSQL, MongoDB, Redis, Oracle
-- **Development Tools**: Git, Jenkins, Python, Java, PHP, Ruby
-- **Security Tools**: OpenSSL, SSH, SSL/TLS, Crypto, Vault
-
-### 📈 **Business Impact Analysis**
-- Weighted scoring algorithms based on asset criticality
-- Automated risk level classification (Critical, High, Medium, Low, Very Low)
-- Enterprise-wide risk aggregation and reporting
-- Actionable recommendations based on risk assessment
-
-### 🔄 **Queue-Based Processing**
-- RabbitMQ integration for asynchronous vulnerability processing
-- Selective analysis - only analyze explicitly queued items
-- Real-time queue status monitoring
-- Bulk analysis capabilities
+Todos los servicios están contenerizados y orquestados con Docker Compose.
 
 ---
 
-## 📂 Project Structure
+## 🛡️ Sistema de Gestión de Vulnerabilidades NVD
+
+Nuestra integración mejorada de NVD proporciona evaluación integral de vulnerabilidades y gestión de riesgos empresariales:
+
+### 🔍 **Búsqueda y Descubrimiento**
+- Búsqueda de vulnerabilidades en tiempo real usando la API de NVD
+- Filtrado basado en palabras clave para tecnologías específicas
+- Información detallada de CVE con fechas de publicación y descripciones
+
+### 📊 **Dashboard de Análisis de Riesgos** 
+- **Interfaz con Pestañas**: Vistas de Búsqueda, Análisis e Historial
+- **Configuración de Evaluación de Riesgos**: Umbrales personalizables (Crítico: 80%, Alto: 60%, Medio: 40%, Bajo: 20%, Muy Bajo: 10%)
+- **Gestión de Cola**: Agregar vulnerabilidades específicas a la cola de análisis
+- **Métricas Empresariales**: Análisis integral del impacto empresarial
+
+### 🏢 **Categorización de Activos Empresariales**
+- **Aplicaciones Web**: React, Vue, Angular, JavaScript, Node.js
+- **Infraestructura**: Apache, Nginx, Docker, Kubernetes, Linux, Windows  
+- **Bases de Datos**: MySQL, PostgreSQL, MongoDB, Redis, Oracle
+- **Herramientas de Desarrollo**: Git, Jenkins, Python, Java, PHP, Ruby
+- **Herramientas de Seguridad**: OpenSSL, SSH, SSL/TLS, Crypto, Vault
+
+### 📈 **Análisis de Impacto Empresarial**
+- Algoritmos de puntuación ponderada basados en la criticidad de activos
+- Clasificación automática del nivel de riesgo (Crítico, Alto, Medio, Bajo, Muy Bajo)
+- Agregación y reporte de riesgos a nivel empresarial
+- Recomendaciones accionables basadas en la evaluación de riesgos
+
+### 🔄 **Procesamiento Basado en Colas**
+- Integración con RabbitMQ para procesamiento asíncrono de vulnerabilidades
+- Análisis selectivo - solo analizar elementos explícitamente encolados
+- Monitoreo del estado de cola en tiempo real
+- Capacidades de análisis masivo
+
+---
+
+## 📂 Estructura del Proyecto
 
 ```
 Quantitative_Risk_Management/
 ├── backend/
 │   └── app/
-│       ├── api/          # Routes & Schemas (FastAPI)
-│       ├── ml/           # ML models & helpers
-│       ├── dp/           # Dynamic programming engine
-│       ├── database/     # CRUD & ORM models
-│       └── main.py       # FastAPI entry point
+│       ├── api/          # Rutas y Esquemas (FastAPI)
+│       ├── ml/           # Modelos de ML y helpers
+│       ├── dp/           # Motor de programación dinámica
+│       ├── database/     # Modelos CRUD y ORM
+│       └── main.py       # Punto de entrada FastAPI
 ├── frontend/
 │   └── src/
-│       ├── components/   # Reusable UI
-│       ├── pages/        # Views
-│       ├── services/     # API calls
+│       ├── components/   # UI Reutilizable
+│       ├── pages/        # Vistas
+│       ├── services/     # Llamadas API
 │       └── App.jsx
 ├── api_gateway/
-│   └── api_gateway.py    # FastAPI API Gateway for microservices
+│   └── api_gateway.py    # API Gateway FastAPI para microservicios
 │   └── Dockerfile
 ├── docker-compose.yml
 └── README.md
@@ -115,118 +115,118 @@ Quantitative_Risk_Management/
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Comenzando
 
-### 1. Clone the repository
+### 1. Clonar el repositorio
 
 ```bash
 git clone https://github.com/your-username/quantitative_risk_managment.git
 cd quantitative_risk_managment
 ```
 
-### 2. Run with Docker
+### 2. Ejecutar con Docker
 
 ```bash
 docker-compose up --build
 ```
 
-This will start:
-- `frontend` on [http://localhost:5173](http://localhost:5173)
-- `gateway` (API Gateway) on [http://localhost:8080](http://localhost:8080)
-- `backend` on [http://localhost:8000](http://localhost:8000)
-- `PostgreSQL` on port 5432
+Esto iniciará:
+- `frontend` en [http://localhost:5173](http://localhost:5173)
+- `gateway` (API Gateway) en [http://localhost:8080](http://localhost:8080)
+- `backend` en [http://localhost:8000](http://localhost:8000)
+- `PostgreSQL` en el puerto 5432
 
 ---
 
-## 🧠 How It Works
+## 🧠 Cómo Funciona
 
-1. The **API Gateway** (FastAPI) receives all requests from the frontend and routes them to the appropriate backend microservice (risk prediction, NVD, etc.).
-2. The **Backend** (FastAPI) exposes endpoints for ML predictions (CICIDS, LANL), dynamic programming, and database operations.
-3. The **ML engine** predicts the probability and severity of a risk based on input features.
-4. The **DP optimizer** calculates the best mitigation strategy under constraints like budget and impact.
-5. Results are visualized and stored in the database.
-6. Users interact with predictions and optimizations via the React dashboard.
-
----
-
-## 🏛️ Design Patterns Used
-
-- **Factory Method:** Used in `ml/engine.py` (`PredictionFactory`) to instantiate the correct prediction strategy (CICIDS, LANL) based on input.
-- **Strategy:** Abstract base class `PredictionStrategy` allows interchangeable prediction logic for different models.
-- **Singleton:** Each model strategy (`CICIDSPredictionStrategy`, `LANLPredictionStrategy`) is loaded only once per process, ensuring efficient resource use.
+1. El **API Gateway** (FastAPI) recibe todas las solicitudes del frontend y las enruta al microservicio backend apropiado (predicción de riesgos, NVD, etc.).
+2. El **Backend** (FastAPI) expone endpoints para predicciones de ML (CICIDS, LANL), programación dinámica y operaciones de base de datos.
+3. El **motor de ML** predice la probabilidad y severidad de un riesgo basado en características de entrada.
+4. El **optimizador de PD** calcula la mejor estrategia de mitigación bajo restricciones como presupuesto e impacto.
+5. Los resultados se visualizan y almacenan en la base de datos.
+6. Los usuarios interactúan con predicciones y optimizaciones a través del dashboard de React.
 
 ---
 
-## ⚙️ Configuration Management
+## 🏛️ Patrones de Diseño Utilizados
 
-- All secrets and configuration (database URL, API keys, model paths, queue settings) are managed via environment variables and `backend/app/config.py`.
-- No secrets or credentials are hardcoded in the codebase.
-
----
-
-## 🩺 Observability & Health Checks
-
-- Logging is enabled throughout the backend for model loading, errors, and queue operations.
-- All prediction endpoints include error handling and log failures.
-- `/health` endpoint is available for health checks.
+- **Factory Method:** Utilizado en `ml/engine.py` (`PredictionFactory`) para instanciar la estrategia de predicción correcta (CICIDS, LANL) basada en la entrada.
+- **Strategy:** La clase base abstracta `PredictionStrategy` permite lógica de predicción intercambiable para diferentes modelos.
+- **Singleton:** Cada estrategia de modelo (`CICIDSPredictionStrategy`, `LANLPredictionStrategy`) se carga solo una vez por proceso, asegurando uso eficiente de recursos.
 
 ---
 
-## 📨 Message Queue Integration
+## ⚙️ Gestión de Configuración
 
-- The backend integrates a message queue (stub in `backend/app/queue.py`) for asynchronous processing (e.g., logging predictions, batch tasks).
-- Ready for Azure Service Bus or a local alternative (see `QUEUE_CONNECTION_STRING` and `QUEUE_NAME` in config).
-- Example: Combined prediction results are sent to the queue for async processing.
-
----
-
-## 🔒 Security & Best Practices
-
-- All code, comments, and documentation are in English.
-- Modular, testable, and extensible backend using dependency injection and design patterns.
-- No sensitive data in source code or Docker images.
+- Todos los secretos y configuraciones (URL de base de datos, claves API, rutas de modelos, configuraciones de cola) se gestionan a través de variables de entorno y `backend/app/config.py`.
+- No hay secretos o credenciales hardcodeados en el código base.
 
 ---
 
-## 🌐 National Vulnerability Database (NVD) API Integration
+## 🩺 Observabilidad y Verificaciones de Salud
 
-This project integrates with the [National Vulnerability Database (NVD)](https://nvd.nist.gov/) API, provided by the U.S. National Institute of Standards and Technology (NIST).
-
-> The NVD is the U.S. government repository of standards-based vulnerability management data, enabling automation of vulnerability management, security measurement, and compliance.  
-> The NVD includes databases of security checklist references, software flaws, product names, and impact metrics, and enriches CVEs with additional metadata such as CVSS scores, CWE, and CPE applicability statements.
-
-- **API Documentation:** [NVD API](https://nvd.nist.gov/developers/vulnerabilities)
-- **Legal Disclaimer:** The NVD is a product of the NIST Computer Security Division, Information Technology Laboratory. The NVD does not actively perform vulnerability testing, relying on vendors, third-party security researchers, and vulnerability coordinators to provide information.
-- **Credits:**  
-  - National Vulnerability Database (NVD), Information Technology Laboratory, NIST  
-  - [NVD Legal Disclaimer](https://nvd.nist.gov/general/disclaimer)
+- El logging está habilitado en todo el backend para carga de modelos, errores y operaciones de cola.
+- Todos los endpoints de predicción incluyen manejo de errores y registro de fallos.
+- El endpoint `/health` está disponible para verificaciones de salud.
 
 ---
 
-## 🛣️ API Gateway Endpoints
+## 📨 Integración de Cola de Mensajes
 
-All frontend requests are routed through the API Gateway. Main endpoints:
+- El backend integra una cola de mensajes (stub en `backend/app/queue.py`) para procesamiento asíncrono (ej., logging de predicciones, tareas por lotes).
+- Listo para Azure Service Bus o una alternativa local (ver `QUEUE_CONNECTION_STRING` y `QUEUE_NAME` en config).
+- Ejemplo: Los resultados de predicción combinados se envían a la cola para procesamiento asíncrono.
 
-| Method | Endpoint                    | Description                           |
+---
+
+## 🔒 Seguridad y Mejores Prácticas
+
+- Todo el código, comentarios y documentación técnica están en inglés para compatibilidad internacional.
+- Backend modular, testeable y extensible usando inyección de dependencias y patrones de diseño.
+- No hay datos sensibles en el código fuente o imágenes Docker.
+
+---
+
+## 🌐 Integración con la API de la Base de Datos Nacional de Vulnerabilidades (NVD)
+
+Este proyecto se integra con la API de la [Base de Datos Nacional de Vulnerabilidades (NVD)](https://nvd.nist.gov/), proporcionada por el Instituto Nacional de Estándares y Tecnología de EE.UU. (NIST).
+
+> La NVD es el repositorio del gobierno de EE.UU. de datos de gestión de vulnerabilidades basados en estándares, que permite la automatización de la gestión de vulnerabilidades, medición de seguridad y cumplimiento.  
+> La NVD incluye bases de datos de referencias de listas de verificación de seguridad, fallas de software, nombres de productos y métricas de impacto, y enriquece los CVE con metadatos adicionales como puntuaciones CVSS, CWE y declaraciones de aplicabilidad CPE.
+
+- **Documentación de la API:** [API de NVD](https://nvd.nist.gov/developers/vulnerabilities)
+- **Descargo Legal:** La NVD es un producto de la División de Seguridad Informática de NIST, Laboratorio de Tecnología de la Información. La NVD no realiza activamente pruebas de vulnerabilidades, dependiendo de proveedores, investigadores de seguridad de terceros y coordinadores de vulnerabilidades para proporcionar información.
+- **Créditos:**  
+  - Base de Datos Nacional de Vulnerabilidades (NVD), Laboratorio de Tecnología de la Información, NIST  
+  - [Descargo Legal de NVD](https://nvd.nist.gov/general/disclaimer)
+
+---
+
+## 🛣️ Endpoints del API Gateway
+
+Todas las solicitudes del frontend se enrutan a través del API Gateway. Endpoints principales:
+
+| Método | Endpoint                    | Descripción                           |
 |--------|-----------------------------|---------------------------------------|
-| POST   | /predict/cicids/            | Predict risk using CICIDS model       |
-| POST   | /predict/lanl/              | Predict risk using LANL model         |
-| POST   | /predict/combined/          | Combined risk prediction              |
-| GET    | /nvd                        | Search NVD vulnerabilities            |
-| POST   | /nvd/add_to_queue          | Add keyword to analysis queue         |
-| POST   | /nvd/analyze_risk          | Analyze queued vulnerabilities        |
-| POST   | /nvd/enterprise_metrics    | Get enterprise risk metrics           |
-| GET    | /nvd/queue_status          | Get current queue status              |
-| POST   | /nvd/clear_queue           | Clear analysis queue                  |
-| GET    | /health                     | Health check                          |
+| POST   | /predict/cicids/            | Predecir riesgo usando modelo CICIDS  |
+| POST   | /predict/lanl/              | Predecir riesgo usando modelo LANL    |
+| POST   | /predict/combined/          | Predicción de riesgo combinada        |
+| GET    | /nvd                        | Buscar vulnerabilidades NVD          |
+| POST   | /nvd/add_to_queue          | Agregar palabra clave a cola de análisis |
+| POST   | /nvd/analyze_risk          | Analizar vulnerabilidades en cola    |
+| POST   | /nvd/enterprise_metrics    | Obtener métricas de riesgo empresarial |
+| GET    | /nvd/queue_status          | Obtener estado actual de cola         |
+| POST   | /nvd/clear_queue           | Limpiar cola de análisis              |
+| GET    | /health                     | Verificación de salud                 |
 
 ---
 
-## 🌐 API Gateway & CORS
+## 🌐 API Gateway y CORS
 
-- The API Gateway (FastAPI) is the single entry point for all frontend API calls.
-- CORS is enabled to allow requests from the frontend (see `main.py` in `api_gateway`).
-- Set your frontend API base URL to the gateway:
+- El API Gateway (FastAPI) es el único punto de entrada para todas las llamadas API del frontend.
+- CORS está habilitado para permitir solicitudes desde el frontend (ver `main.py` en `api_gateway`).
+- Configura la URL base de la API de tu frontend al gateway:
   
   ```env
   VITE_API_URL=http://localhost:8080
@@ -234,123 +234,121 @@ All frontend requests are routed through the API Gateway. Main endpoints:
 
 ---
 
-## 🧠 Model Files & Configuration
+## 🧠 Archivos de Modelos y Configuración
 
-- Trained model files must be present in `backend/app/ml/`:
-  - `rf_cicids2017_model.pkl`
-  - `isolation_forest_model.pkl`
-- The backend expects these files at `/app/ml/` inside the Docker container.
-- You can override the paths with environment variables `CICIDS_MODEL_PATH` and `LANL_MODEL_PATH` if needed.
+- Los archivos de modelos entrenados deben estar presentes en `backend/app/ml/`:
+    - `isolation_forest_model.pkl`
+- El backend espera estos archivos en `/app/ml/` dentro del contenedor Docker.
+- Puedes sobrescribir las rutas con variables de entorno `CICIDS_MODEL_PATH` y `LANL_MODEL_PATH` si es necesario.
 
 ---
 
-## ⚙️ Environment Variables Example
+## ⚙️ Ejemplo de Variables de Entorno
 
 ```env
-# .env for frontend
+# .env para frontend
 VITE_API_URL=http://localhost:8080
 
-# docker-compose.yml for backend/gateway
+# docker-compose.yml para backend/gateway
 DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
-NVD_API_KEY=your-nvd-api-key
+NVD_API_KEY=tu-clave-api-nvd
 CICIDS_MODEL_PATH=/app/ml/rf_cicids2017_model.pkl
 LANL_MODEL_PATH=/app/ml/isolation_forest_model.pkl
 ```
 
 ---
 
-## 🛠️ Troubleshooting
+## 🛠️ Solución de Problemas
 
-- **CORS/Preflight errors:** Ensure CORS middleware is enabled in the API Gateway (`main.py`).
-- **Model file not found:** Make sure model files exist in `backend/app/ml/` and are copied into the Docker image.
-- **Import errors:** Remove any local files that shadow standard library modules (e.g., `queue.py`).
-- **Frontend 404 on /nvd:** Do not visit `/nvd` directly in the browser; use the app navigation.
+- **Errores CORS/Preflight:** Asegúrate de que el middleware CORS esté habilitado en el API Gateway (`main.py`).
+- **Archivo de modelo no encontrado:** Asegúrate de que los archivos de modelos existan en `backend/app/ml/` y estén copiados en la imagen Docker.
+- **Errores de importación:** Elimina cualquier archivo local que haga sombra a módulos de la biblioteca estándar (ej., `queue.py`).
+- **404 del Frontend en /nvd:** No visites `/nvd` directamente en el navegador; usa la navegación de la aplicación.
 
 ---
 
-## 🔄 Development & Hot Reload
+## 🔄 Desarrollo y Recarga en Caliente
 
-- For local development, you can run each service separately and use `docker-compose` for orchestration.
-- Rebuild containers after changing dependencies or model paths:
+- Para desarrollo local, puedes ejecutar cada servicio por separado y usar `docker-compose` para orquestación.
+- Reconstruye contenedores después de cambiar dependencias o rutas de modelos:
   
   ```sh
-  docker-compose build
-  docker-compose up -d
+  docker compose up -d --build
   ```
 
 ---
 
-## 🆕 Recent Improvements (2025)
+## 🆕 Mejoras Recientes (2025)
 
-### 🛡️ **Enhanced NVD Vulnerability Management**
-- **Tabbed Interface**: Complete redesign with Search, Analysis, and History tabs
-- **Enterprise Asset Risk Matrix**: Comprehensive risk assessment with business impact analysis
-- **Selective Queue Processing**: Only analyze vulnerabilities explicitly added to queue
-- **Risk Threshold Configuration**: Customizable risk appetite settings (Critical, High, Medium, Low, Very Low)
-- **Analysis History**: Track and audit all risk assessments for compliance
+### 🛡️ **Gestión Mejorada de Vulnerabilidades NVD**
+- **Interfaz con Pestañas**: Rediseño completo con pestañas de Búsqueda, Análisis e Historial
+- **Matriz de Riesgo de Activos Empresariales**: Evaluación integral de riesgos con análisis de impacto empresarial
+- **Procesamiento Selectivo de Cola**: Solo analizar vulnerabilidades explícitamente agregadas a la cola
+- **Configuración de Umbrales de Riesgo**: Configuraciones personalizables de apetito de riesgo (Crítico, Alto, Medio, Bajo, Muy Bajo)
+- **Historial de Análisis**: Rastrear y auditar todas las evaluaciones de riesgo para cumplimiento
 
-### 🏢 **Enterprise-Level Features**
-- **Asset Categorization**: Automatic classification of assets by type (Web Apps, Infrastructure, Databases, Dev Tools, Security)
-- **Business Impact Scoring**: Weighted algorithms for calculating enterprise-wide risk exposure
-- **Automated Recommendations**: AI-driven suggestions based on risk assessment results
-- **Comprehensive Reporting**: Enterprise metrics with drill-down capabilities
+### 🏢 **Características de Nivel Empresarial**
+- **Categorización de Activos**: Clasificación automática de activos por tipo (Aplicaciones Web, Infraestructura, Bases de Datos, Herramientas de Desarrollo, Seguridad)
+- **Puntuación de Impacto Empresarial**: Algoritmos ponderados para calcular la exposición al riesgo a nivel empresarial
+- **Recomendaciones Automatizadas**: Sugerencias impulsadas por IA basadas en los resultados de evaluación de riesgos
+- **Reportes Integrales**: Métricas empresariales con capacidades de análisis detallado
 
-### 🎨 **Modern UI/UX Enhancements**
-- **Responsive Design**: Full-screen layout that adapts to all screen sizes
-- **Centered Layout**: Professional appearance with optimal content distribution
-- **Interactive Components**: Custom SVG pie charts and real-time data visualization
-- **Improved Navigation**: Intuitive tabbed interface with clear visual hierarchy
+### 🎨 **Mejoras Modernas de UI/UX**
+- **Diseño Responsivo**: Layout de pantalla completa que se adapta a todos los tamaños de pantalla
+- **Diseño Centrado**: Apariencia profesional con distribución óptima de contenido
+- **Componentes Interactivos**: Gráficos circulares SVG personalizados y visualización de datos en tiempo real
+- **Navegación Mejorada**: Interfaz intuitiva con pestañas y jerarquía visual clara
 
-### 🔄 **Backend Architecture Improvements**
-- **RabbitMQ Integration**: Real message queue for NVD vulnerability searches with reliable async processing
-- **Robust Dockerization**: All services (backend, gateway, frontend, RabbitMQ, PostgreSQL) fully containerized
-- **API Gateway Enhancement**: Complete endpoint coverage with dependency injection and service abstraction
-- **Queue Management**: Lazy connection with retry logic, preventing crashes when RabbitMQ is not ready
+### 🔄 **Mejoras de Arquitectura Backend**
+- **Integración con RabbitMQ**: Cola de mensajes real para búsquedas de vulnerabilidades NVD con procesamiento asíncrono confiable
+- **Dockerización Robusta**: Todos los servicios (backend, gateway, frontend, RabbitMQ, PostgreSQL) completamente contenerizados
+- **Mejora del API Gateway**: Cobertura completa de endpoints con inyección de dependencias y abstracción de servicios
+- **Gestión de Cola**: Conexión lazy con lógica de reintentos, previniendo fallas cuando RabbitMQ no está listo
 
-### 🐳 **DevOps & Infrastructure**
-- **Docker Optimization**: Improved Dockerfiles with proper PYTHONPATH and dependency management
-- **CORS Configuration**: Seamless frontend-backend communication through API gateway
-- **Error Handling**: Enhanced error handling for queue connections and API routing
-- **Health Monitoring**: Comprehensive logging and health check endpoints
+### 🐳 **DevOps e Infraestructura**
+- **Optimización de Docker**: Dockerfiles mejorados con gestión adecuada de PYTHONPATH y dependencias
+- **Configuración CORS**: Comunicación fluida frontend-backend a través del API gateway
+- **Manejo de Errores**: Manejo mejorado de errores para conexiones de cola y enrutamiento de API
+- **Monitoreo de Salud**: Logging integral y endpoints de verificación de salud
 
-### 🔧 **Technical Debt Resolution**
-- **Import Standardization**: All backend imports standardized to avoid Docker ModuleNotFoundError
-- **State Synchronization**: Frontend state properly synced with backend queue operations
-- **Code Quality**: Improved error handling, logging, and code organization
-- **Security**: No hardcoded credentials, all configuration via environment variables
+### 🔧 **Resolución de Deuda Técnica**
+- **Estandarización de Importaciones**: Todas las importaciones del backend estandarizadas para evitar ModuleNotFoundError de Docker
+- **Sincronización de Estado**: Estado del frontend sincronizado apropiadamente con operaciones de cola del backend
+- **Calidad de Código**: Manejo mejorado de errores, logging y organización de código
+- **Seguridad**: Sin credenciales hardcodeadas, toda la configuración vía variables de entorno
 
 ---
 
-## 👨‍💻 Author
+## 👨‍💻 Autor
 
 **Stefan Jativa** — [@byPronox](https://github.com/byPronox)  
-*Machine Learning Enthusiast | Software Engineer*
+*Entusiasta de Machine Learning | Ingeniero de Software*
 
 ---
 
-## 📄 License
+## 📄 Licencia
 
-MIT License © 2025 Stefan Jativa
+Licencia MIT © 2025 Stefan Jativa
 
 ---
 
-## 📚 References & Credits
+## 📚 Referencias y Créditos
 
-### LANL Authentication Dataset
+### Dataset de Autenticación de LANL
 
-- **Source:** [Los Alamos National Laboratory Authentication Data](https://csr.lanl.gov/data/auth/)
-- **License:** CC0 — To the extent possible under law, Los Alamos National Laboratory has waived all copyright and related or neighboring rights to User-Computer Authentication Associations in Time. This work is published from: United States.
-- **Citing:**
+- **Fuente:** [Datos de Autenticación del Laboratorio Nacional de Los Álamos](https://csr.lanl.gov/data/auth/)
+- **Licencia:** CC0 — En la medida de lo posible bajo la ley, el Laboratorio Nacional de Los Álamos ha renunciado a todos los derechos de autor y derechos relacionados o vecinos a las Asociaciones de Autenticación Usuario-Computadora en el Tiempo. Este trabajo se publica desde: Estados Unidos.
+- **Citas:**
   - A. Hagberg, A. Kent, N. Lemons, and J. Neil, “Credential hopping in authentication graphs,” in 2014 International Conference on Signal-Image Technology Internet-Based Systems (SITIS). IEEE Computer Society, Nov. 2014.
   - A. D. Kent, “User-computer authentication associations in time,” Los Alamos National Laboratory, http://dx.doi.org/10.11578/1160076, 2014.
 
-### CICIDS2017 Dataset
+### Dataset CICIDS2017
 
-- **Source:** [CICIDS2017 Intrusion Detection Evaluation Dataset](https://www.unb.ca/cic/datasets/ids-2017.html)
-- **License:** The CICIDS2017 dataset is publicly available for research purposes.
-- **Citing:**
+- **Fuente:** [Dataset de Evaluación de Detección de Intrusos CICIDS2017](https://www.unb.ca/cic/datasets/ids-2017.html)
+- **Licencia:** El dataset CICIDS2017 está disponible públicamente para propósitos de investigación.
+- **Citas:**
   - Iman Sharafaldin, Arash Habibi Lashkari, and Ali A. Ghorbani, “Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization”, 4th International Conference on Information Systems Security and Privacy (ICISSP), Portugal, January 2018.
 
 ---
 
-*All dataset assets and samples used in this project are credited to their respective authors and institutions as referenced above.*
+*Todos los activos de datasets y muestras utilizados en este proyecto están acreditados a sus respectivos autores e instituciones según se referencia arriba.*

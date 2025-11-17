@@ -23,7 +23,7 @@ class NVDAPIService:
         if self.kong_proxy_url and self.use_kong:
             # Use Kong Gateway as proxy
             return {
-                "url": f"{self.kong_proxy_url}/nvd/cves/2.0",
+                "url": f"{self.kong_proxy_url}/nvd/v2/cves",
                 "headers": {
                     "apiKey": self.api_key,
                     "X-Kong-Client": "nvd-service"

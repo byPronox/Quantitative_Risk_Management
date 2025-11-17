@@ -22,13 +22,12 @@ function NvdDashboard({ allQueueResults, loading }) {
   const totalVulnerabilities = allQueueResults.reduce((sum, job) => sum + (job.vulnerabilities ? job.vulnerabilities.length : 0), 0);
 
   // Prepare chart data: vulnerabilities per job
-  const chartLabels = allQueueResults.map(j => j.keyword || `Job ${j.job_id}`);
+  const chartLabels = allQueueResults.map(j => j.keyword || `Trabajo ${j.job_id}`);
   const chartData = allQueueResults.map(j => (j.vulnerabilities ? j.vulnerabilities.length : 0));
   const barData = {
-    labels: chartLabels,
-    datasets: [
+    labels: chartLabels,    datasets: [
       {
-        label: "Vulnerabilities per Job",
+        label: "Vulnerabilidades por Trabajo",
         data: chartData,
         backgroundColor: "#2563eb",
         borderRadius: 8,
@@ -42,13 +41,12 @@ function NvdDashboard({ allQueueResults, loading }) {
       legend: { display: false },
       tooltip: { enabled: true }
     },
-    scales: {
-      x: {
-        title: { display: true, text: "Job" },
+    scales: {      x: {
+        title: { display: true, text: "Trabajo" },
         ticks: { color: "#64748b" }
       },
       y: {
-        title: { display: true, text: "Vulnerabilities" },
+        title: { display: true, text: "Vulnerabilidades" },
         beginAtZero: true,
         ticks: { color: "#64748b", precision: 0 }
       }
@@ -71,9 +69,8 @@ function NvdDashboard({ allQueueResults, loading }) {
           textAlign: "center",
           boxShadow: "0 2px 4px rgba(0,0,0,0.04)"
         }}>
-          <div style={{ fontSize: "2rem" }}>📦</div>
-          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#1e40af" }}>{loading ? "..." : totalJobs}</div>
-          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Total Jobs</div>
+          <div style={{ fontSize: "2rem" }}>📦</div>          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#1e40af" }}>{loading ? "..." : totalJobs}</div>
+          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Total de Trabajos</div>
         </div>
         <div style={{
           background: "#f1f5f9",
@@ -85,7 +82,7 @@ function NvdDashboard({ allQueueResults, loading }) {
         }}>
           <div style={{ fontSize: "2rem" }}>✅</div>
           <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#16a34a" }}>{loading ? "..." : completedJobs}</div>
-          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Completed</div>
+          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Completados</div>
         </div>
         <div style={{
           background: "#f1f5f9",
@@ -97,7 +94,7 @@ function NvdDashboard({ allQueueResults, loading }) {
         }}>
           <div style={{ fontSize: "2rem" }}>⏳</div>
           <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#f59e42" }}>{loading ? "..." : inProgressJobs}</div>
-          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>In Progress</div>
+          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>En Progreso</div>
         </div>
         <div style={{
           background: "#f1f5f9",
@@ -109,7 +106,7 @@ function NvdDashboard({ allQueueResults, loading }) {
         }}>
           <div style={{ fontSize: "2rem" }}>🚨</div>
           <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#dc2626" }}>{loading ? "..." : totalVulnerabilities}</div>
-          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Vulnerabilities Found</div>
+          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Vulnerabilidades Encontradas</div>
         </div>
       </div>
       <div style={{
@@ -119,11 +116,10 @@ function NvdDashboard({ allQueueResults, loading }) {
         padding: "2rem",
         maxWidth: "900px",
         margin: "0 auto"
-      }}>
-        <h3 style={{ color: "#1e40af", fontWeight: 600, marginBottom: "1.5rem" }}>Vulnerabilities per Job</h3>
+      }}>        <h3 style={{ color: "#1e40af", fontWeight: 600, marginBottom: "1.5rem" }}>Vulnerabilidades por Trabajo</h3>
         {chartLabels.length === 0 ? (
           <div style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
-            No jobs to display.
+            No hay trabajos para mostrar.
           </div>
         ) : (
           <Bar data={barData} options={barOptions} height={260} />
@@ -143,9 +139,15 @@ export default function NvdPage() {
     setError("");
     try {
       const results = await getAllQueueResults();
-      setAllQueueResults(results);
+      // This is the fix: check for a successful response and extract the 'jobs' array
+      if (results && results.success && Array.isArray(results.jobs)) {
+        setAllQueueResults(results.jobs);
+      } else {
+        // If the call fails or the format is wrong, ensure it's an empty array
+        setAllQueueResults(Array.isArray(results) ? results : []);
+      }
     } catch (error) {
-      setError("Failed to load queue results");
+      setError("Error al cargar resultados de cola");
     } finally {
       setLoadingAllResults(false);
     }
@@ -168,9 +170,8 @@ export default function NvdPage() {
           fontSize: "2.5rem", 
           fontWeight: "700", 
           color: "#1e40af", 
-          marginBottom: "0.5rem" 
-        }}>
-          🛡️ NVD Vulnerability Management System
+          marginBottom: "0.5rem"        }}>
+          🛡️ Sistema de Gestión de Vulnerabilidades NVD
         </h1>
         <p style={{ 
           fontSize: "1.1rem", 
@@ -178,7 +179,7 @@ export default function NvdPage() {
           maxWidth: "600px", 
           margin: "0 auto" 
         }}>
-          Comprehensive vulnerability assessment and risk analysis platform
+          Plataforma integral de evaluación de vulnerabilidades y análisis de riesgos
         </p>
       </div>
       {/* Async Analysis Section */}
@@ -190,17 +191,6 @@ export default function NvdPage() {
         marginBottom: "2rem"
       }}>
         <AsyncSoftwareAnalysis />
-      </div>
-      
-      {/* Network Scanner Section */}
-      <div style={{ 
-        background: "#ffffff",
-        padding: "2rem",
-        borderRadius: "1rem",
-        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-        marginBottom: "2rem"
-      }}>
-        <ScannerModule />
       </div>
       {/* Found Vulnerabilities Section (always visible) */}
       <div style={{ 
@@ -220,8 +210,7 @@ export default function NvdPage() {
             color: "#1e40af", 
             margin: 0,
             fontWeight: "600"
-          }}>
-            🔍 Found Vulnerabilities from Queue Analysis
+          }}>            🔍 Vulnerabilidades Encontradas del Análisis de Cola
           </h2>
           <button
             onClick={loadAllQueueResults}
@@ -237,7 +226,7 @@ export default function NvdPage() {
               fontSize: "0.9rem"
             }}
           >
-            {loadingAllResults ? "🔄 Loading..." : "🔄 Refresh Results"}
+            {loadingAllResults ? "🔄 Cargando..." : "🔄 Actualizar Resultados"}
           </button>
         </div>
         {error && (
@@ -248,8 +237,7 @@ export default function NvdPage() {
             borderRadius: "0.5rem",
             border: "1px solid #fecaca",
             marginBottom: "1rem"
-          }}>
-            <strong>Error:</strong> {error}
+          }}>            <strong>Error:</strong> {error}
           </div>
         )}
         {loadingAllResults ? (
@@ -262,7 +250,7 @@ export default function NvdPage() {
           }}>
             <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🔄</div>
             <p style={{ color: "#64748b", fontSize: "1.1rem" }}>
-              Loading vulnerability results...
+              Cargando resultados de vulnerabilidades...
             </p>
           </div>
         ) : allQueueResults.length === 0 ? (
@@ -275,10 +263,10 @@ export default function NvdPage() {
           }}>
             <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📋</div>
             <h3 style={{ color: "#374151", marginBottom: "0.5rem" }}>
-              No Vulnerability Results Found
+              No se Encontraron Resultados de Vulnerabilidades
             </h3>
             <p style={{ color: "#64748b", fontSize: "1rem", maxWidth: "500px", margin: "0 auto" }}>
-              Run some software analysis using the Async Analysis section to see vulnerability results here.
+              Ejecuta algún análisis de software usando la sección de Análisis Asíncrono para ver los resultados aquí.
             </p>
           </div>
         ) : (
@@ -306,7 +294,7 @@ export default function NvdPage() {
                     fontSize: "1.25rem",
                     fontWeight: "600"
                   }}>
-                    📦 {job.keyword || `Job ${job.job_id}`}
+                    📦 {job.keyword || `Trabajo ${job.job_id}`}
                   </h3>
                   <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
                     <span style={{
@@ -318,7 +306,7 @@ export default function NvdPage() {
                       fontWeight: "600",
                       textTransform: "uppercase"
                     }}>
-                      {job.status || "Unknown"}
+                      {job.status || "Desconocido"}
                     </span>
                     <span style={{
                       color: "#64748b",
@@ -328,13 +316,12 @@ export default function NvdPage() {
                     </span>
                   </div>
                 </div>
-                {job.processed_at && (
-                  <p style={{
+                {job.processed_at && (                  <p style={{
                     color: "#64748b",
                     fontSize: "0.9rem",
                     margin: "0 0 1rem 0"
                   }}>
-                    🕒 Processed: {new Date(job.processed_at).toLocaleString()}
+                    🕒 Procesado: {new Date(job.processed_at).toLocaleString()}
                   </p>
                 )}
                 {job.vulnerabilities && job.vulnerabilities.length > 0 ? (
@@ -344,7 +331,7 @@ export default function NvdPage() {
                       marginBottom: "1rem",
                       fontSize: "1.1rem"
                     }}>
-                      🚨 Vulnerabilities Found ({job.total_results || job.vulnerabilities.length})
+                      🚨 Vulnerabilidades Encontradas ({job.total_results || job.vulnerabilities.length})
                     </h4>
                     <div style={{
                       display: "grid",
@@ -377,7 +364,7 @@ export default function NvdPage() {
                               fontWeight: "600",
                               lineHeight: "1.2"
                             }}>
-                              {vuln.cve?.id || "Unknown CVE"}
+                              {vuln.cve?.id || "CVE Desconocido"}
                             </h5>
                           </div>
                           {vuln.cve?.descriptions?.[0]?.value && (
@@ -400,10 +387,9 @@ export default function NvdPage() {
                             gap: "0.5rem",
                             fontSize: "0.8rem",
                             color: "#64748b"
-                          }}>
-                            {vuln.cve?.published && (
+                          }}>                            {vuln.cve?.published && (
                               <div>
-                                <strong>Published:</strong><br />
+                                <strong>Publicado:</strong><br />
                                 {new Date(vuln.cve.published).toLocaleDateString()}
                               </div>
                             )}
@@ -412,8 +398,7 @@ export default function NvdPage() {
                       ))}
                     </div>
                   </div>
-                ) : (
-                  <div style={{
+                ) : (                  <div style={{
                     background: "#ffffff",
                     border: "1px solid #d1d5db",
                     borderRadius: "0.75rem",
@@ -422,7 +407,7 @@ export default function NvdPage() {
                   }}>
                     <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>✅</div>
                     <p style={{ color: "#10b981", fontWeight: "600", margin: 0 }}>
-                      No vulnerabilities found for this software
+                      No se encontraron vulnerabilidades para este software
                     </p>
                   </div>
                 )}

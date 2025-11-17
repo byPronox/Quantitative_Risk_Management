@@ -28,6 +28,19 @@ export default function AsyncSoftwareAnalysis() {
   const [progress, setProgress] = useState(0);
   const [newResultsCount, setNewResultsCount] = useState(0);
   const [allQueueResults, setAllQueueResults] = useState([]); // All completed jobs from queue
+  const [consumerButtonLoading, setConsumerButtonLoading] = useState(false);
+
+  // Function to load all jobs (pending, processing, completed)
+  const loadAllQueueJobs = async () => {
+    try {
+      const response = await backendApi.get('/nvd/queue/jobs');
+      if (response.data && response.data.jobs) {
+        setAllQueueResults(response.data.jobs);
+      }
+    } catch (error) {
+      console.error('Error loading all queue jobs:', error);
+    }
+  };
 
   // Poll queue status and consumer status every 5 seconds
   useEffect(() => {
@@ -66,6 +79,7 @@ export default function AsyncSoftwareAnalysis() {
   // Load all queue results on component mount
   useEffect(() => {
     loadAllQueueResults();
+    loadAllQueueJobs();
   }, []);
 
   // Update queue completed count when allQueueResults changes
@@ -99,18 +113,12 @@ export default function AsyncSoftwareAnalysis() {
   const loadAllQueueResults = async () => {
     try {
       const allResults = await getAllQueueResults();
-      if (allResults.success) {
-        setAllQueueResults(allResults.jobs);
-        
-        // Update queue status immediately with completed count
-        if (allResults.jobs.length > 0 && consumerStatus?.running) {
-          setQueueStatus(prevStatus => ({
-            ...prevStatus,
-            completed_jobs: allResults.jobs.length,
-            pending_jobs: Math.max(0, (prevStatus?.pending_jobs || 0)),
-            queue_health: 'healthy'
-          }));
-        }
+      // This is the fix: check for a successful response and extract the 'jobs' array
+      if (allResults && allResults.success) {
+        setAllQueueResults(allResults.jobs || []);
+      } else {
+        // If the call fails or the format is wrong, ensure it's an empty array
+        setAllQueueResults(Array.isArray(allResults) ? allResults : []);
       }
     } catch (error) {
       console.error('Error loading all queue results:', error);
@@ -118,6 +126,7 @@ export default function AsyncSoftwareAnalysis() {
   };
 
   const handleStartConsumer = async () => {
+    setConsumerButtonLoading(true);
     try {
       const result = await startConsumer();
       console.log('Consumer started:', result);
@@ -148,9 +157,10 @@ export default function AsyncSoftwareAnalysis() {
       setTimeout(async () => {
         await loadAllQueueResults();
       }, 7000);
-      
-    } catch (error) {
-      alert('Error starting consumer: ' + error.message);
+        } catch (error) {
+      alert('Error iniciando el consumidor: ' + error.message);
+    } finally {
+      setConsumerButtonLoading(false);
     }
   };
 
@@ -160,17 +170,15 @@ export default function AsyncSoftwareAnalysis() {
       console.log('Consumer stopped:', result);
       // Refresh status immediately
       const consumerData = await getConsumerStatus();
-      setConsumerStatus(consumerData);
-    } catch (error) {
-      alert('Error stopping consumer: ' + error.message);
+      setConsumerStatus(consumerData);    } catch (error) {
+      alert('Error deteniendo el consumidor: ' + error.message);
     }
   };
 
   const startAnalysis = async () => {
     const validSoftware = softwareList.filter(software => software.trim() !== '');
-    
-    if (validSoftware.length === 0) {
-      alert('Please add at least one software to analyze.');
+      if (validSoftware.length === 0) {
+      alert('Por favor agregue al menos un software para analizar.');
       return;
     }
 
@@ -209,17 +217,6 @@ export default function AsyncSoftwareAnalysis() {
         keyword: software
       })));
 
-      // Simulate jobs moving from pending to completed after analysis starts
-      setTimeout(() => {
-        // Update queue status to show jobs moving from pending to completed
-        setQueueStatus(prevStatus => ({
-          ...prevStatus,
-          pending_jobs: Math.max((prevStatus?.pending_jobs || validSoftware.length) - validSoftware.length, 0),
-          completed_jobs: (prevStatus?.completed_jobs || 0) + validSoftware.length,
-          queue_health: 'healthy'
-        }));
-      }, 2000); // Move jobs after 2 seconds
-
       // Stop the loading after 4 seconds regardless
       setTimeout(() => {
         setIsAnalyzing(false);
@@ -230,9 +227,8 @@ export default function AsyncSoftwareAnalysis() {
     } catch (error) {
       console.error('Error starting analysis:', error);
       setIsAnalyzing(false);
-      setProgress(0);
-      clearInterval(progressInterval);
-      alert('Error starting analysis: ' + error.message);
+      setProgress(0);      clearInterval(progressInterval);
+      alert('Error iniciando el análisis: ' + error.message);
     }
   };
 
@@ -281,22 +277,20 @@ export default function AsyncSoftwareAnalysis() {
   };
 
   return (
-    <div className="async-software-analysis">
-      <div className="analysis-header">
-        <h2>🔍 Asynchronous Software Analysis</h2>
-        <p>Analyze multiple software using Kong Gateway + RabbitMQ for asynchronous processing</p>
+    <div className="async-software-analysis">      <div className="analysis-header">
+        <h2>🔍 Análisis Asíncrono de Software</h2>
+        <p>Analice múltiples software usando Kong Gateway + RabbitMQ para procesamiento asíncrono</p>
       </div>
 
       {/* Software Input - MOVED TO TOP */}
       <div className="software-input-section">
-        <h3>📦 Software List to Analyze</h3>
+        <h3>📦 Lista de Software a Analizar</h3>
         {softwareList.map((software, index) => (
-          <div key={index} className="software-input-row">
-            <input
+          <div key={index} className="software-input-row">            <input
               type="text"
               value={software}
               onChange={(e) => updateSoftware(index, e.target.value)}
-              placeholder={`Software ${index + 1} (e.g: Apache, MySQL, Node.js)`}
+              placeholder={`Software ${index + 1} (ej: Apache, MySQL, Node.js)`}
               className="software-input"
             />
             {softwareList.length > 1 && (
@@ -310,15 +304,14 @@ export default function AsyncSoftwareAnalysis() {
             )}
           </div>
         ))}
-        
-        <button onClick={addSoftwareInput} className="add-software-btn" type="button">
-          ➕ Add Software
+          <button onClick={addSoftwareInput} className="add-software-btn" type="button">
+          ➕ Agregar Software
         </button>
       </div>
 
       {/* Analysis Parameters */}
       <div className="analysis-params">
-        <h3>⚙️ Analysis Parameters</h3>
+        <h3>⚙️ Parámetros de Análisis</h3>
         <div className="params-grid">
           <div className="param-group">
             <label>
@@ -329,10 +322,9 @@ export default function AsyncSoftwareAnalysis() {
                   const categories = e.target.checked 
                     ? [...analysisParams.includeCategories, 'critical']
                     : analysisParams.includeCategories.filter(c => c !== 'critical');
-                  setAnalysisParams({...analysisParams, includeCategories: categories});
-                }}
+                  setAnalysisParams({...analysisParams, includeCategories: categories});                }}
               />
-              Critical Vulnerabilities
+              Vulnerabilidades Críticas
             </label>
           </div>
           <div className="param-group">
@@ -347,12 +339,12 @@ export default function AsyncSoftwareAnalysis() {
                   setAnalysisParams({...analysisParams, includeCategories: categories});
                 }}
               />
-              High Vulnerabilities
+              Vulnerabilidades Altas
             </label>
           </div>
           <div className="param-group">
             <label>
-              Maximum results:
+              Máximo de resultados:
               <input
                 type="number"
                 value={analysisParams.maxResults}
@@ -374,44 +366,41 @@ export default function AsyncSoftwareAnalysis() {
           onClick={startAnalysis} 
           disabled={isAnalyzing}
           className={`analyze-btn ${isAnalyzing ? 'analyzing' : ''}`}
-        >
-          {isAnalyzing ? (
+        >          {isAnalyzing ? (
             <>
               <div className="spinner"></div>
-              Analyzing... ({Math.round(progress)}%)
+              Analizando... ({Math.round(progress)}%)
             </>
           ) : (
-            <>🚀 Start Asynchronous Analysis</>
+            <>🚀 Iniciar Análisis Asíncrono</>
           )}
         </button>
       </div>
 
       {/* Queue Status */}
-      {queueStatus && (
-        <div className="queue-status">
-          <h4>📊 RabbitMQ Queue Status</h4>
+      {queueStatus && (        <div className="queue-status">
+          <h4>📊 Estado de la Cola RabbitMQ</h4>
           <div className="status-grid">
             <div className="status-item">
-              <span className="label">Pending:</span>
+              <span className="label">Pendientes:</span>
               <span className="value pending">{queueStatus.pending_jobs || 0}</span>
             </div>
             <div className="status-item">
-              <span className="label">Completed:</span>
+              <span className="label">Completados:</span>
               <span className="value completed">{allQueueResults.length || queueStatus.completed_jobs || 0}</span>
             </div>
             <div className="status-item">
-              <span className="label">Status:</span>
+              <span className="label">Estado:</span>
               <span className={`value status healthy`}>
-                Healthy
+                Saludable
               </span>
             </div>
           </div>
           
           {/* Visual Progress Indicators */}
-          <div className="queue-visual">
-            <div className="queue-progress">
+          <div className="queue-visual">            <div className="queue-progress">
               <div className="progress-section">
-                <div className="progress-label">Jobs in Queue</div>
+                <div className="progress-label">Trabajos en Cola</div>
                 <div className="progress-visual">
                   {Array.from({length: Math.max(queueStatus.pending_jobs || 0, 1)}).map((_, i) => (
                     <div key={i} className={`job-dot ${i < (queueStatus.pending_jobs || 0) ? 'pending' : 'empty'}`}>
@@ -423,7 +412,7 @@ export default function AsyncSoftwareAnalysis() {
               <div className="progress-arrow"></div>
               
               <div className="progress-section">
-                <div className="progress-label">Completed Jobs</div>
+                <div className="progress-label">Trabajos Completados</div>
                 <div className="progress-visual">
                   {Array.from({length: Math.max(allQueueResults.length || queueStatus.completed_jobs || 0, 1)}).map((_, i) => (
                     <div key={i} className={`job-dot ${i < (allQueueResults.length || queueStatus.completed_jobs || 0) ? 'completed' : 'empty'}`}>
@@ -437,24 +426,31 @@ export default function AsyncSoftwareAnalysis() {
       )}
 
       {/* Consumer Control */}
-      {consumerStatus && (
-        <div className="consumer-control">
-          <h4>🤖 RabbitMQ Consumer Control</h4>
+      {consumerStatus && (        <div className="consumer-control">
+          <h4>🤖 Control del Consumidor RabbitMQ</h4>
           <div className="consumer-status">
             <div className="status-info">
-              <span className="label">Consumer Status:</span>
+              <span className="label">Estado del Consumidor:</span>
               <span className={`value ${consumerStatus.running ? 'running' : 'stopped'}`}>
-                {consumerStatus.running ? '🟢 Running' : '🔴 Stopped'}
+                {consumerStatus.running ? '🟢 Ejecutándose' : '🔴 Detenido'}
               </span>
             </div>
             <div className="consumer-actions">
               {!consumerStatus.running ? (
-                <button onClick={handleStartConsumer} className="start-consumer-btn">
-                  ▶️ Start Consumer
+                <button 
+                  onClick={handleStartConsumer} 
+                  className="start-consumer-btn"
+                  disabled={consumerButtonLoading}
+                >
+                  {consumerButtonLoading ? (
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  ) : (
+                    'Iniciar Consumidor'
+                  )}
                 </button>
               ) : (
                 <button onClick={handleStopConsumer} className="stop-consumer-btn">
-                  ⏹️ Stop Consumer
+                  ⏹️ Detener Consumidor
                 </button>
               )}
             </div>
@@ -463,21 +459,19 @@ export default function AsyncSoftwareAnalysis() {
                 ⚠️ {consumerStatus.error}
               </div>
             )}
-          </div>
-          <div className="consumer-info">
-            <p>💡 <strong>Tip:</strong> The consumer must be running to automatically process queue jobs.</p>
+          </div>          <div className="consumer-info">
+            <p>💡 <strong>Consejo:</strong> El consumidor debe estar ejecutándose para procesar automáticamente los trabajos de la cola.</p>
           </div>
         </div>
       )}
 
       {/* All Queue Results - Found Vulnerabilities from Queue Analysis */}
-      {consumerStatus && consumerStatus.running && (
-        <div className="all-queue-results">
+      {consumerStatus && consumerStatus.running && (          <div className="all-queue-results">
           <div className="results-header">
-            <h4>🔍 Found Vulnerabilities from Queue Analysis</h4>
+            <h4>🔍 Vulnerabilidades Encontradas del Análisis de Cola</h4>
             <div className="results-summary">
               <button onClick={loadAllQueueResults} className="refresh-results-btn">
-                🔄 Refresh Results
+                🔄 Actualizar Resultados
               </button>
             </div>
           </div>
@@ -485,19 +479,18 @@ export default function AsyncSoftwareAnalysis() {
           {allQueueResults.length === 0 ? (
             <div className="no-results-message">
               <div className="no-results-content">
-                <h5>📋 No Vulnerability Results Found</h5>
-                <p>Run some software analysis using the Async Analysis section to see vulnerability results here.</p>
-                
-                <div className="summary-stats">
+                <h5>📋 No se Encontraron Resultados de Vulnerabilidades</h5>
+                <p>Ejecute algún análisis de software usando la sección de Análisis Asíncrono para ver los resultados de vulnerabilidades aquí.</p>
+                  <div className="summary-stats">
                   <div className="stat-card">
                     <div className="stat-icon">📦</div>
                     <div className="stat-number">0</div>
-                    <div className="stat-label">Total Jobs</div>
+                    <div className="stat-label">Total de Trabajos</div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-icon">✅</div>
                     <div className="stat-number">0</div>
-                    <div className="stat-label">Completed</div>
+                    <div className="stat-label">Completados</div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-icon">⏳</div>
@@ -505,47 +498,45 @@ export default function AsyncSoftwareAnalysis() {
                     <div className="stat-label">In Progress</div>
                   </div>
                   <div className="stat-card">
-                    <div className="stat-icon">🚨</div>
-                    <div className="stat-number">0</div>
-                    <div className="stat-label">Vulnerabilities Found</div>
+                    <div className="stat-icon">🚨</div>                    <div className="stat-number">0</div>
+                    <div className="stat-label">Vulnerabilidades Encontradas</div>
                   </div>
                 </div>
                 
                 <div className="vulnerabilities-per-job">
-                  <h6>Vulnerabilities per Job</h6>
-                  <p>No jobs to display.</p>
+                  <h6>Vulnerabilidades por Trabajo</h6>
+                  <p>No hay trabajos para mostrar.</p>
                 </div>
               </div>
             </div>
           ) : (
-            <>
-              <div className="summary-stats">
+            <>              <div className="summary-stats">
                 <div className="stat-card">
                   <div className="stat-icon">📦</div>
                   <div className="stat-number">{allQueueResults.length}</div>
-                  <div className="stat-label">Total Jobs</div>
+                  <div className="stat-label">Total de Trabajos</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">✅</div>
                   <div className="stat-number">{allQueueResults.length}</div>
-                  <div className="stat-label">Completed</div>
+                  <div className="stat-label">Completados</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">⏳</div>
                   <div className="stat-number">0</div>
-                  <div className="stat-label">In Progress</div>
+                  <div className="stat-label">En Progreso</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-icon">🚨</div>
                   <div className="stat-number">
                     {allQueueResults.reduce((total, job) => total + (job.total_results || 0), 0)}
                   </div>
-                  <div className="stat-label">Vulnerabilities Found</div>
+                  <div className="stat-label">Vulnerabilidades Encontradas</div>
                 </div>
               </div>
               
               <div className="vulnerabilities-per-job">
-                <h6>Vulnerabilities per Job</h6>
+                <h6>Vulnerabilidades por Trabajo</h6>
                 <div className="queue-results-grid">
                   {allQueueResults.map((job, index) => {
                     const totalVulnerabilities = job.total_results || 0;
@@ -553,7 +544,7 @@ export default function AsyncSoftwareAnalysis() {
                     
                     // Calculate severity counts
                     const severityCounts = vulnerabilities.reduce((counts, vuln) => {
-                      const severity = vuln.cve?.metrics?.cvssMetricV2?.[0]?.baseSeverity || 'UNKNOWN';
+                      const severity = vuln.cve?.metrics?.cvssMetricV2?.[0]?.baseSeverity || 'DESCONOCIDO';
                       counts[severity] = (counts[severity] || 0) + 1;
                       return counts;
                     }, {});
@@ -569,42 +560,38 @@ export default function AsyncSoftwareAnalysis() {
                                 ⏰ {job.processed_at ? new Date(job.processed_at * 1000).toLocaleString() : 'Recently'}
                               </span>
                             </div>
-                          </div>
-                          <div className="results-count">
-                            <span className="total-count">{totalVulnerabilities} vulnerabilities</span>
+                          </div>                          <div className="results-count">
+                            <span className="total-count">{totalVulnerabilities} vulnerabilidades</span>
                           </div>
                         </div>
 
                         <div className="severity-summary">
-                          <div className="severity-stats">
-                            {severityCounts.HIGH > 0 && (
+                          <div className="severity-stats">                            {severityCounts.HIGH > 0 && (
                               <span className="severity-badge high">
-                                🔴 High: {severityCounts.HIGH}
+                                🔴 Alta: {severityCounts.HIGH}
                               </span>
                             )}
                             {severityCounts.MEDIUM > 0 && (
                               <span className="severity-badge medium">
-                                🟡 Medium: {severityCounts.MEDIUM}
+                                🟡 Media: {severityCounts.MEDIUM}
                               </span>
                             )}
                             {severityCounts.LOW > 0 && (
                               <span className="severity-badge low">
-                                🟢 Low: {severityCounts.LOW}
+                                🟢 Baja: {severityCounts.LOW}
                               </span>
                             )}
                             {Object.keys(severityCounts).length === 0 && (
-                              <span className="no-vulnerabilities">✅ No vulnerabilities</span>
+                              <span className="no-vulnerabilities">✅ Sin vulnerabilidades</span>
                             )}
                           </div>
-                        </div>
-
-                        {vulnerabilities.length > 0 && (
+                        </div>                        {vulnerabilities.length > 0 && (
                           <div className="vulnerabilities-preview">
-                            <h6>🔸 Vulnerability Preview:</h6>
+                            <h6>🔸 Vista Previa de Vulnerabilidades:</h6>
                             <div className="vuln-preview-list">
                               {vulnerabilities.slice(0, 3).map((vuln, vIndex) => {
                                 const cve = vuln.cve || {};
-                                const severity = cve.metrics?.cvssMetricV2?.[0]?.baseSeverity || 'UNKNOWN';
+                                const severity = cve.metrics?.cvssMetricV2?.[0]?.baseSeverity || 'DESCONOCIDO';
                                 const score = cve.metrics?.cvssMetricV2?.[0]?.cvssData?.baseScore || 'N/A';
                                 const description = cve.descriptions?.[0]?.value || 'No description';
 
@@ -624,10 +611,9 @@ export default function AsyncSoftwareAnalysis() {
                                     </div>
                                   </div>
                                 );
-                              })}
-                              {vulnerabilities.length > 3 && (
+                              })}                              {vulnerabilities.length > 3 && (
                                 <div className="more-vulns-indicator">
-                                  <span>... and {vulnerabilities.length - 3} more vulnerabilities</span>
+                                  <span>... y {vulnerabilities.length - 3} vulnerabilidades más</span>
                                 </div>
                               )}
                             </div>
@@ -635,9 +621,8 @@ export default function AsyncSoftwareAnalysis() {
                         )}
 
                         <div className="card-footer">
-                          <div className="processed-info">
-                            <span className="processed-via">
-                              🚀 Processed via: {job.processed_via || 'queue_consumer'}
+                          <div className="processed-info">                            <span className="processed-via">
+                              🚀 Procesado via: {job.processed_via || 'queue_consumer'}
                             </span>
                           </div>
                         </div>
@@ -649,7 +634,28 @@ export default function AsyncSoftwareAnalysis() {
             </>
           )}
         </div>
-      )}
+      )}      {/* Pending Jobs Section */}
+      <div className="pending-jobs-section">
+        <h4>⏳ Trabajos Pendientes</h4>
+        <ul>
+          {allQueueResults.filter(job => job.status !== 'completed').map((job, idx) => (
+            <li key={job.job_id || idx}>
+              {job.keyword} (Estado: {job.status})
+            </li>
+          ))}
+        </ul>
+      </div>
+      {/* Completed Jobs Section */}
+      <div className="completed-jobs-section">
+        <h4>✅ Trabajos Completados</h4>
+        <ul>
+          {allQueueResults.filter(job => job.status === 'completed').map((job, idx) => (
+            <li key={job.job_id || idx}>
+              {job.keyword} (Estado: {job.status})
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

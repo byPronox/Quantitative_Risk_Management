@@ -230,6 +230,16 @@ async def stop_queue_consumer():
         logger.error(f"Failed to stop consumer: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to stop consumer: {str(e)}")
 
+@router.get("/queue/jobs")
+async def get_all_queue_jobs():
+    """Get all jobs with their status (pending, processing, completed)"""
+    try:
+        jobs = queue_service.get_all_job_results()
+        return jobs
+    except Exception as e:
+        logger.error(f"Failed to get all queue jobs: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get all queue jobs: {str(e)}")
+
 # Risk analysis endpoints
 @router.post("/risk/analyze")
 async def analyze_risk():

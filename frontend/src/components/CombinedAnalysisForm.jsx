@@ -53,19 +53,17 @@ export default function CombinedAnalysisForm({ asset }) {
         cicids,
         lanl
       });
-      setResult(res.data);
-    } catch (err) {
-      alert("Error analyzing risk.");
+      setResult(res.data);    } catch (err) {
+      alert("Error al analizar el riesgo.");
     }
     setLoading(false);
   };
 
-  return (
-    <section className="analysis-form">
-      <h2>Analyze Asset: <span style={{color:'#23272f', fontWeight:600}}>{asset.name}</span></h2>
+  return (    <section className="analysis-form">
+      <h2>Analizar Activo: <span style={{color:'#23272f', fontWeight:600}}>{asset.name}</span></h2>
       <form onSubmit={handleSubmit} autoComplete="off">
         <fieldset>
-          <legend>CICIDS Features</legend>
+          <legend>Características CICIDS</legend>
           <div className="form-grid">
             {Object.keys(cicids).map(key => (
               <label key={key}>
@@ -81,13 +79,12 @@ export default function CombinedAnalysisForm({ asset }) {
                 />
               </label>
             ))}
-          </div>
-        </fieldset>
+          </div>        </fieldset>
         <fieldset>
-          <legend>LANL Features</legend>
+          <legend>Características LANL</legend>
           <div className="form-grid">
             <label>
-              time
+              tiempo
               <input
                 type="number"
                 name="time"
@@ -99,7 +96,7 @@ export default function CombinedAnalysisForm({ asset }) {
               />
             </label>
             <label>
-              user
+              usuario
               <input
                 type="text"
                 name="user"
@@ -111,7 +108,7 @@ export default function CombinedAnalysisForm({ asset }) {
               />
             </label>
             <label>
-              computer
+              computadora
               <input
                 type="text"
                 name="computer"
@@ -125,7 +122,7 @@ export default function CombinedAnalysisForm({ asset }) {
           </div>
         </fieldset>
         <button type="submit" disabled={loading} aria-busy={loading}>
-          {loading ? "Analyzing..." : "Analyze Risk"}
+          {loading ? "Analizando..." : "Analizar Riesgo"}
         </button>
       </form>
       {result && <RiskScoreCard result={result} />}

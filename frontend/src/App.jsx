@@ -7,9 +7,9 @@ import ReportsPage from "./pages/ReportsPage";
 import ScanPage from "./pages/ScanPage";
 
 const mockAssets = [
-  { id: 1, name: "Web Server" },
-  { id: 2, name: "Database Server" },
-  { id: 3, name: "Domain Controller" }
+  { id: 1, name: "Servidor Web" },
+  { id: 2, name: "Servidor de Base de Datos" },
+  { id: 3, name: "Controlador de Dominio" }
 ];
 
 export default function App() {
@@ -22,18 +22,17 @@ export default function App() {
               <div className="flex-shrink-0">
                 <h1 className="text-xl font-bold">Sistema De Riesgos</h1>
               </div>
-              <div className="ml-10 flex items-baseline space-x-4">
-                <Link 
+              <div className="ml-10 flex items-baseline space-x-4">                <Link 
                   to="/" 
                   className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Predicción de Machine Learning
+                  Predicción ML
                 </Link>
                 <Link 
                   to="/nvd" 
                   className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Vulnerablidades NVD 
+                  Vulnerabilidades NVD
                 </Link>
                 <Link 
                   to="/reports" 
@@ -45,7 +44,7 @@ export default function App() {
                   to="/scan" 
                   className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Scaneo IP
+                  Escaneo de Red
                 </Link>
               </div>
             </div>
@@ -72,9 +71,8 @@ function Dashboard() {
 
   return (
     <div className="dashboard">
-      <AssetList assets={assets} selectedId={selectedId} onSelect={setSelectedId} />
-      <main>
-        <h1>Quantitative Risk Management</h1>
+      <AssetList assets={assets} selectedId={selectedId} onSelect={setSelectedId} />      <main>
+        <h1>Sistema de Gestión de Riesgos Cuantitativo</h1>
         <CombinedAnalysisForm asset={selectedAsset} />
       </main>
     </div>

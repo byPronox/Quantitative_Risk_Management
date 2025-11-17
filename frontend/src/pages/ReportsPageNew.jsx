@@ -43,22 +43,20 @@ const ReportsPage = () => {
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-        }
-      } else {
-        setError(result.error || 'Failed to generate report');
+        }      } else {
+        setError(result.error || 'Error al generar el reporte');
       }
     } catch (error) {
       console.error('Error generating report:', error);
-      setError('Failed to generate report');
+      setError('Error al generar el reporte');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1 style={{ textAlign: 'center', color: '#2c3e50', marginBottom: '30px' }}>
-        Reports Dashboard
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>      <h1 style={{ textAlign: 'center', color: '#2c3e50', marginBottom: '30px' }}>
+        Panel de Reportes
       </h1>
 
       {/* Tab Navigation */}
@@ -76,9 +74,8 @@ const ReportsPage = () => {
               fontSize: '1.1rem',
               fontWeight: activeTab === 'general' ? 'bold' : 'normal',
               transition: 'all 0.3s ease'
-            }}
-          >
-            General Reports
+            }}          >
+            Reportes Generales
           </button>
           <button
             onClick={() => setActiveTab('custom')}
@@ -94,7 +91,7 @@ const ReportsPage = () => {
               transition: 'all 0.3s ease'
             }}
           >
-            Custom Reports
+            Reportes Personalizados
           </button>
         </div>
       </div>
@@ -109,7 +106,7 @@ const ReportsPage = () => {
           borderRadius: '12px', 
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' 
         }}>
-          <h2 style={{ color: '#2c3e50', marginBottom: '20px' }}>Custom PDF/HTML Reports</h2>
+          <h2 style={{ color: '#2c3e50', marginBottom: '20px' }}>Reportes Personalizados PDF/HTML</h2>
           
           {error && (
             <div style={{
@@ -127,9 +124,8 @@ const ReportsPage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
             
             {/* Report Type Selection */}
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
-                Report Type:
+            <div>              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
+                Tipo de Reporte:
               </label>
               <select
                 value={selectedReportType}
@@ -142,17 +138,16 @@ const ReportsPage = () => {
                   fontSize: '1rem'
                 }}
               >
-                <option value="vulnerability_summary">Vulnerability Summary</option>
-                <option value="detailed_analysis">Detailed Analysis</option>
-                <option value="trend_analysis">Trend Analysis</option>
-                <option value="compliance_report">Compliance Report</option>
+                <option value="vulnerability_summary">Resumen de Vulnerabilidades</option>
+                <option value="detailed_analysis">Análisis Detallado</option>
+                <option value="trend_analysis">Análisis de Tendencias</option>
+                <option value="compliance_report">Reporte de Cumplimiento</option>
               </select>
             </div>
 
             {/* Format Selection */}
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
-                Format:
+            <div>              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
+                Formato:
               </label>
               <select
                 value={selectedFormat}
@@ -171,15 +166,14 @@ const ReportsPage = () => {
             </div>
 
             {/* Session Selection */}
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
-                Session (Optional):
+            <div>              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
+                Sesión (Opcional):
               </label>
               <input
                 type="text"
                 value={selectedSession}
                 onChange={(e) => setSelectedSession(e.target.value)}
-                placeholder="Enter session ID or leave empty for all data"
+                placeholder="Ingrese ID de sesión o deje vacío para todos los datos"
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -191,9 +185,8 @@ const ReportsPage = () => {
             </div>
           </div>
 
-          {/* Options */}
-          <div style={{ marginBottom: '30px' }}>
-            <h3 style={{ color: '#495057', marginBottom: '15px' }}>Report Options</h3>
+          {/* Options */}          <div style={{ marginBottom: '30px' }}>
+            <h3 style={{ color: '#495057', marginBottom: '15px' }}>Opciones del Reporte</h3>
             <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                 <input
@@ -202,7 +195,7 @@ const ReportsPage = () => {
                   onChange={(e) => setIncludeCharts(e.target.checked)}
                   style={{ transform: 'scale(1.2)' }}
                 />
-                <span>Include Charts</span>
+                <span>Incluir Gráficos</span>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                 <input
@@ -211,7 +204,7 @@ const ReportsPage = () => {
                   onChange={(e) => setIncludeRecommendations(e.target.checked)}
                   style={{ transform: 'scale(1.2)' }}
                 />
-                <span>Include Recommendations</span>
+                <span>Incluir Recomendaciones</span>
               </label>
             </div>
           </div>
@@ -230,15 +223,14 @@ const ReportsPage = () => {
               fontWeight: 'bold',
               cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'background-color 0.3s ease'
-            }}
-          >
-            {loading ? 'Generating Report...' : 'Generate Report'}
+            }}          >
+            {loading ? 'Generando Reporte...' : 'Generar Reporte'}
           </button>
 
           {/* Generated Reports List */}
           {generatedReports.length > 0 && (
             <div style={{ marginTop: '40px' }}>
-              <h3 style={{ color: '#2c3e50', marginBottom: '20px' }}>Generated Reports</h3>
+              <h3 style={{ color: '#2c3e50', marginBottom: '20px' }}>Reportes Generados</h3>
               <div style={{ display: 'grid', gap: '15px' }}>
                 {generatedReports.map((report, index) => (
                   <div key={index} style={{
@@ -250,11 +242,10 @@ const ReportsPage = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center'
                   }}>
-                    <div>
-                      <strong>{report.filename || 'Report'}</strong>
+                    <div>                      <strong>{report.filename || 'Reporte'}</strong>
                       <br />
                       <small style={{ color: '#6c757d' }}>
-                        {report.created_at ? new Date(report.created_at).toLocaleString() : 'Just now'}
+                        {report.created_at ? new Date(report.created_at).toLocaleString() : 'Recién creado'}
                       </small>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -269,9 +260,8 @@ const ReportsPage = () => {
                             borderRadius: '4px',
                             textDecoration: 'none',
                             fontSize: '0.9rem'
-                          }}
-                        >
-                          Download
+                          }}                        >
+                          Descargar
                         </a>
                       )}
                       {report.preview_url && (
@@ -288,7 +278,7 @@ const ReportsPage = () => {
                             fontSize: '0.9rem'
                           }}
                         >
-                          Preview
+                          Vista Previa
                         </a>
                       )}
                     </div>

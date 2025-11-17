@@ -19,7 +19,12 @@ class MongoDBService:
     
     async def connect(self):
         """Connect to MongoDB"""
-        await self.repository.connect()
+        try:
+            await self.repository.connect()
+            logging.info("MongoDBService: Conexión exitosa a MongoDB.")
+        except Exception as e:
+            logging.error(f"MongoDBService: Error al conectar a MongoDB: {e}")
+            raise
     
     async def disconnect(self):
         """Disconnect from MongoDB"""
@@ -27,7 +32,12 @@ class MongoDBService:
     
     async def save_job_results(self, jobs_data: List[Dict[str, Any]]):
         """Save job results to MongoDB"""
-        await self.repository.save_jobs(jobs_data)
+        try:
+            await self.repository.save_jobs(jobs_data)
+            logging.info(f"MongoDBService: Resultados guardados en MongoDB. Total: {len(jobs_data) if isinstance(jobs_data, list) else 1}")
+        except Exception as e:
+            logging.error(f"MongoDBService: Error al guardar resultados en MongoDB: {e}")
+            raise
     
     async def get_all_jobs(self) -> List[Dict[str, Any]]:
         """Get all jobs from MongoDB"""

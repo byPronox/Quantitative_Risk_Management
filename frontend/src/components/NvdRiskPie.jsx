@@ -6,7 +6,7 @@ export default function NvdRiskPie({ results }) {
   // Flatten all keywords and their risk_percent into a single array for charting
   const chartData = results.map(({ keyword, risk_percent }) => {
     // Find the highest risk level for this keyword
-    let maxLevel = "Low";
+    let maxLevel = "Bajo";
     let maxValue = 0;
     Object.entries(risk_percent).forEach(([level, value]) => {
       if (value > maxValue) {
@@ -21,14 +21,13 @@ export default function NvdRiskPie({ results }) {
       risk_percent
     };
   });
-
   // Pie chart colors for each risk level
   const colors = {
-    "Critical": "#ef4444",
-    "High": "#eab308",
-    "Medium": "#38bdf8",
-    "Low": "#22c55e",
-    "Very Low": "#a3a3a3"
+    "Crítico": "#ef4444",
+    "Alto": "#eab308",
+    "Medio": "#38bdf8",
+    "Bajo": "#22c55e",
+    "Muy Bajo": "#a3a3a3"
   };
 
   // Total for pie chart (sum of maxValue for each keyword)
@@ -62,12 +61,11 @@ export default function NvdRiskPie({ results }) {
   });
 
   return (
-    <div style={{ marginTop: 32, textAlign: "center" }}>
-      <h3 style={{ color: "#2563eb", marginBottom: 12 }}>Risk Analysis Pie Chart</h3>
+    <div style={{ marginTop: 32, textAlign: "center" }}>      <h3 style={{ color: "#2563eb", marginBottom: 12 }}>Gráfico Circular de Análisis de Riesgos</h3>
       <svg width={220} height={220} viewBox="0 0 200 200">
         {pieSlices}
         <circle cx={100} cy={100} r={60} fill="#fff" />
-        <text x={100} y={105} textAnchor="middle" fontSize={18} fontWeight={700} fill="#2563eb">Risk</text>
+        <text x={100} y={105} textAnchor="middle" fontSize={18} fontWeight={700} fill="#2563eb">Riesgo</text>
       </svg>
       <div style={{ marginTop: 18, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 16 }}>
         {chartData.map((d, i) => (
