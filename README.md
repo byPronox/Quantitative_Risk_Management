@@ -243,7 +243,7 @@ Todas las solicitudes del frontend se enrutan a través del API Gateway. Endpoin
 
 ---
 
-## ⚙️ Ejemplo de Variables de Entorno
+## ⚙️ Ejemplo de Variables de Entornoo
 
 ```env
 # .env para frontend
