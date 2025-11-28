@@ -25,7 +25,7 @@ function NvdDashboard({ allQueueResults, loading }) {
   const chartLabels = allQueueResults.map(j => j.keyword || `Trabajo ${j.job_id}`);
   const chartData = allQueueResults.map(j => (j.vulnerabilities ? j.vulnerabilities.length : 0));
   const barData = {
-    labels: chartLabels,    datasets: [
+    labels: chartLabels, datasets: [
       {
         label: "Vulnerabilidades por Trabajo",
         data: chartData,
@@ -41,7 +41,8 @@ function NvdDashboard({ allQueueResults, loading }) {
       legend: { display: false },
       tooltip: { enabled: true }
     },
-    scales: {      x: {
+    scales: {
+      x: {
         title: { display: true, text: "Trabajo" },
         ticks: { color: "#64748b" }
       },
@@ -158,32 +159,33 @@ export default function NvdPage() {
   }, []);
 
   return (
-    <div className="nvd-page" style={{ 
-      padding: "2rem", 
-      maxWidth: "1400px", 
-      margin: "0 auto", 
+    <div className="nvd-page" style={{
+      padding: "2rem",
+      maxWidth: "1400px",
+      margin: "0 auto",
       width: "100%",
       minHeight: "100vh"
     }}>
       <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-        <h1 style={{ 
-          fontSize: "2.5rem", 
-          fontWeight: "700", 
-          color: "#1e40af", 
-          marginBottom: "0.5rem"        }}>
+        <h1 style={{
+          fontSize: "2.5rem",
+          fontWeight: "700",
+          color: "#1e40af",
+          marginBottom: "0.5rem"
+        }}>
           🛡️ Sistema de Gestión de Vulnerabilidades NVD
         </h1>
-        <p style={{ 
-          fontSize: "1.1rem", 
-          color: "#64748b", 
-          maxWidth: "600px", 
-          margin: "0 auto" 
+        <p style={{
+          fontSize: "1.1rem",
+          color: "#64748b",
+          maxWidth: "600px",
+          margin: "0 auto"
         }}>
           Plataforma integral de evaluación de vulnerabilidades y análisis de riesgos
         </p>
       </div>
       {/* Async Analysis Section */}
-      <div style={{ 
+      <div style={{
         background: "#ffffff",
         padding: "2rem",
         borderRadius: "1rem",
@@ -193,21 +195,21 @@ export default function NvdPage() {
         <AsyncSoftwareAnalysis />
       </div>
       {/* Found Vulnerabilities Section (always visible) */}
-      <div style={{ 
+      <div style={{
         background: "#ffffff",
         padding: "2rem",
         borderRadius: "1rem",
         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
       }}>
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "space-between", 
-          alignItems: "center", 
-          marginBottom: "2rem" 
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2rem"
         }}>
-          <h2 style={{ 
-            fontSize: "1.75rem", 
-            color: "#1e40af", 
+          <h2 style={{
+            fontSize: "1.75rem",
+            color: "#1e40af",
             margin: 0,
             fontWeight: "600"
           }}>            🔍 Vulnerabilidades Encontradas del Análisis de Cola
@@ -241,8 +243,8 @@ export default function NvdPage() {
           </div>
         )}
         {loadingAllResults ? (
-          <div style={{ 
-            textAlign: "center", 
+          <div style={{
+            textAlign: "center",
             padding: "3rem",
             background: "#f8fafc",
             borderRadius: "1rem",
@@ -254,8 +256,8 @@ export default function NvdPage() {
             </p>
           </div>
         ) : allQueueResults.length === 0 ? (
-          <div style={{ 
-            textAlign: "center", 
+          <div style={{
+            textAlign: "center",
             padding: "3rem",
             background: "#f8fafc",
             borderRadius: "1rem",
@@ -306,7 +308,15 @@ export default function NvdPage() {
                       fontWeight: "600",
                       textTransform: "uppercase"
                     }}>
-                      {job.status || "Desconocido"}
+                      {(() => {
+                        const statusMap = {
+                          "completed": "Completado",
+                          "processing": "Procesando",
+                          "pending": "Pendiente",
+                          "failed": "Fallido"
+                        };
+                        return statusMap[job.status] || job.status || "Desconocido";
+                      })()}
                     </span>
                     <span style={{
                       color: "#64748b",
@@ -316,13 +326,13 @@ export default function NvdPage() {
                     </span>
                   </div>
                 </div>
-                {job.processed_at && (                  <p style={{
-                    color: "#64748b",
-                    fontSize: "0.9rem",
-                    margin: "0 0 1rem 0"
-                  }}>
-                    🕒 Procesado: {new Date(job.processed_at).toLocaleString()}
-                  </p>
+                {job.processed_at && (<p style={{
+                  color: "#64748b",
+                  fontSize: "0.9rem",
+                  margin: "0 0 1rem 0"
+                }}>
+                  🕒 Procesado: {new Date(job.processed_at).toLocaleString()}
+                </p>
                 )}
                 {job.vulnerabilities && job.vulnerabilities.length > 0 ? (
                   <div>
@@ -388,28 +398,28 @@ export default function NvdPage() {
                             fontSize: "0.8rem",
                             color: "#64748b"
                           }}>                            {vuln.cve?.published && (
-                              <div>
-                                <strong>Publicado:</strong><br />
-                                {new Date(vuln.cve.published).toLocaleDateString()}
-                              </div>
-                            )}
+                            <div>
+                              <strong>Publicado:</strong><br />
+                              {new Date(vuln.cve.published).toLocaleDateString()}
+                            </div>
+                          )}
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                ) : (                  <div style={{
-                    background: "#ffffff",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "0.75rem",
-                    padding: "2rem",
-                    textAlign: "center"
-                  }}>
-                    <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>✅</div>
-                    <p style={{ color: "#10b981", fontWeight: "600", margin: 0 }}>
-                      No se encontraron vulnerabilidades para este software
-                    </p>
-                  </div>
+                ) : (<div style={{
+                  background: "#ffffff",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.75rem",
+                  padding: "2rem",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>✅</div>
+                  <p style={{ color: "#10b981", fontWeight: "600", margin: 0 }}>
+                    No se encontraron vulnerabilidades para este software
+                  </p>
+                </div>
                 )}
               </div>
             ))}
