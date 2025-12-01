@@ -326,12 +326,14 @@ LANL_MODEL_PATH=/app/ml/isolation_forest_model.pkl
 
 **Stefan Jativa** — [@byPronox](https://github.com/byPronox)  
 *Entusiasta de Machine Learning | Ingeniero de Software*
+**Justin Gomezcoello** — [@JustinGomezcoello](https://github.com/JustinGomezcoello)  
+*Automatizaciones | Ingeniero de Software*s
 
 ---
 
 ## 📄 Licencia
 
-Licencia MIT © 2025 Stefan Jativa
+Licencia MIT © 2025 
 
 ---
 
