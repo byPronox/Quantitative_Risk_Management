@@ -8,15 +8,15 @@ const getBaseURL = (useBackend = false) => {
     console.log(`Using backend URL: ${backendURL}`);
     return backendURL;
   }
-  
+
   // For NVD API calls, use Kong Gateway
   const envURL = import.meta.env.VITE_API_URL;
-  
+
   if (envURL) {
     console.log(`Using configured API URL: ${envURL}`);
     return envURL;
   }
-  
+
   // Default to local backend for development
   console.log('Using default backend URL: http://localhost:8000');
   return "http://localhost:8000";
@@ -24,7 +24,7 @@ const getBaseURL = (useBackend = false) => {
 
 const api = axios.create({
   baseURL: getBaseURL(),
-  timeout: 15000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
     'X-Client': 'quantitative-risk-frontend'

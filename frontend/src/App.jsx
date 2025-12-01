@@ -15,51 +15,59 @@ const mockAssets = [
 export default function App() {
   return (
     <Router>
-      <nav className="bg-gray-800 text-white">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className="text-xl font-bold">Sistema De Riesgos</h1>
+            <div className="flex items-center gap-8">
+              <div className="flex-shrink-0 flex items-center gap-2">
+
+                <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600">
+                  Sistema De Riesgos
+                </h1>
               </div>
-              <div className="ml-10 flex items-baseline space-x-4">                <Link 
-                  to="/" 
-                  className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Predicción ML
-                </Link>
-                <Link 
-                  to="/nvd" 
-                  className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Vulnerabilidades NVD
-                </Link>
-                <Link 
-                  to="/reports" 
-                  className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Reportes
-                </Link>
-                <Link 
-                  to="/scan" 
-                  className="hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Escaneo de Red
-                </Link>
+              <div className="hidden md:block">
+                <div className="flex items-baseline space-x-2">
+                  <Link
+                    to="/"
+                    className="text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200"
+                  >
+                    Predicción ML
+                  </Link>
+                  <Link
+                    to="/nvd"
+                    className="text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200"
+                  >
+                    Vulnerabilidades NVD
+                  </Link>
+                  <Link
+                    to="/reports"
+                    className="text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200"
+                  >
+                    Reportes
+                  </Link>
+                  <Link
+                    to="/scan"
+                    className="text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200"
+                  >
+                    Escaneo de Red
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </nav>
-      <Routes>
-        <Route
-          path="/"
-          element={<Dashboard />}
-        />
-        <Route path="/nvd" element={<NvdPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/scan" element={<ScanPage />} />
-      </Routes>
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50/50">
+        <Routes>
+          <Route
+            path="/"
+            element={<Dashboard />}
+          />
+          <Route path="/nvd" element={<NvdPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/scan" element={<ScanPage />} />
+        </Routes>
+      </div>
     </Router>
   );
 }
@@ -70,9 +78,9 @@ function Dashboard() {
   const selectedAsset = assets.find(a => a.id === selectedId);
 
   return (
-    <div className="dashboard">
-      <AssetList assets={assets} selectedId={selectedId} onSelect={setSelectedId} />      <main>
-        <h1>Sistema de Gestión de Riesgos Cuantitativo</h1>
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
+      <AssetList assets={assets} selectedId={selectedId} onSelect={setSelectedId} />
+      <main className="flex-1 bg-slate-50/50">
         <CombinedAnalysisForm asset={selectedAsset} />
       </main>
     </div>

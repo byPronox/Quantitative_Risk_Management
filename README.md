@@ -275,8 +275,11 @@ LANL_MODEL_PATH=/app/ml/isolation_forest_model.pkl
   ```sh
   docker compose up -d --build
   ```
-
----
+-Cambios de frontend para que se reflejen sin volver a construir todo el proyecto
+  ```sh
+  docker compose up -d --build frontend
+  ```
+----
 
 ## 🆕 Mejoras Recientes (2025)
 
