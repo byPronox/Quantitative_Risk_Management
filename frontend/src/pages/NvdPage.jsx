@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAllQueueResults } from "../services/nvd";
+import { getAllQueueResults, startConsumer, stopConsumer, getConsumerStatus } from "../services/nvd";
 import AsyncSoftwareAnalysis from "../components/AsyncSoftwareAnalysis";
 import ScannerModule from "../components/ScannerModule";
 import { Bar } from "react-chartjs-2";
@@ -134,6 +134,8 @@ export default function NvdPage() {
   const [allQueueResults, setAllQueueResults] = useState([]);
   const [loadingAllResults, setLoadingAllResults] = useState(false);
   const [error, setError] = useState("");
+  const [consumerRunning, setConsumerRunning] = useState(false);
+  const [loadingConsumer, setLoadingConsumer] = useState(false);
 
   const loadAllQueueResults = async () => {
     setLoadingAllResults(true);
@@ -154,8 +156,39 @@ export default function NvdPage() {
     }
   };
 
+  const checkConsumerStatus = async () => {
+    try {
+      const status = await getConsumerStatus();
+      setConsumerRunning(status.running);
+    } catch (e) {
+      console.error("Error checking consumer status:", e);
+    }
+  };
+
+  const toggleConsumer = async () => {
+    setLoadingConsumer(true);
+    try {
+      if (consumerRunning) {
+        await stopConsumer();
+      } else {
+        await startConsumer();
+      }
+      // Wait a bit and check status again
+      setTimeout(checkConsumerStatus, 1000);
+      setTimeout(loadAllQueueResults, 2000); // Also refresh results
+    } catch (e) {
+      setError("Error al cambiar estado del consumidor: " + e.message);
+    } finally {
+      setLoadingConsumer(false);
+    }
+  };
+
   useEffect(() => {
     loadAllQueueResults();
+    checkConsumerStatus();
+    // Poll consumer status every 10 seconds
+    const interval = setInterval(checkConsumerStatus, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -229,6 +262,54 @@ export default function NvdPage() {
             }}
           >
             {loadingAllResults ? "🔄 Cargando..." : "🔄 Actualizar Resultados"}
+          </button>
+          <style>
+            {`
+              @keyframes pulse-ring {
+                0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+                70% { box-shadow: 0 0 0 10px rgba(22, 163, 74, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+              }
+              @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+          <button
+            onClick={toggleConsumer}
+            disabled={loadingConsumer}
+            style={{
+              background: consumerRunning ? "#dc2626" : "#16a34a",
+              color: "white",
+              border: "none",
+              padding: "0.75rem 1.5rem",
+              borderRadius: "0.5rem",
+              fontWeight: "600",
+              cursor: loadingConsumer ? "not-allowed" : "pointer",
+              fontSize: "0.9rem",
+              marginLeft: "1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              animation: consumerRunning ? "pulse-ring 2s infinite" : "none",
+              transition: "all 0.3s ease",
+              opacity: loadingConsumer ? 0.8 : 1
+            }}
+          >
+            {loadingConsumer ? (
+              <>
+                <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⏳</span>
+                <span>Procesando...</span>
+              </>
+            ) : consumerRunning ? (
+              <>
+                <span style={{ display: "inline-block", animation: "spin 2s linear infinite" }}>⚙️</span>
+                <span>Consumidor Activo (Procesando...)</span>
+              </>
+            ) : (
+              <>▶️ Iniciar Consumidor de Cola</>
+            )}
           </button>
         </div>
         {error && (

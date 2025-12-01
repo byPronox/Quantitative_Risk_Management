@@ -41,11 +41,19 @@ class QueueService:
     
     def _connect(self) -> None:
         """Establece conexión a RabbitMQ con logging robusto."""
-        if self._connected:
+        if self.connection and self.connection.is_open and self.channel and self.channel.is_open:
             return
+
         attempts = 0
         while attempts < self.max_retries:
             try:
+                # Close existing closed connection if any
+                if self.connection and not self.connection.is_closed:
+                    try:
+                        self.connection.close()
+                    except:
+                        pass
+                
                 self.connection = pika.BlockingConnection(
                     pika.ConnectionParameters(host=self.host)
                 )
@@ -60,6 +68,8 @@ class QueueService:
                     f"QueueService: Fallo de conexión a RabbitMQ (intento {attempts}/{self.max_retries}): {e}"
                 )
                 time.sleep(self.retry_delay)
+        
+        self._connected = False
         logger.error(f"QueueService: No se pudo conectar a RabbitMQ tras {self.max_retries} intentos.")
         raise ConnectionError(f"Could not connect to RabbitMQ after {self.max_retries} attempts.")
     
@@ -170,8 +180,13 @@ class QueueService:
             logger.info(f"Job published to RabbitMQ: {job_id} for keyword: {keyword}")
         except Exception as e:
             logger.error(f"Failed to publish job to RabbitMQ: {e}")
+            # Log the full traceback for debugging
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             self._job_status[job_id] = "failed"
             self._jobs[job_id]["status"] = "failed"
+            # Re-raise to inform the caller
+            raise e
         return job_id
 
     def get_job(self, job_id: str) -> dict:
