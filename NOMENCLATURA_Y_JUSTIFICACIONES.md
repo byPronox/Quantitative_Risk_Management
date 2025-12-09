@@ -18,57 +18,182 @@ Este documento explica **exhaustivamente** el porqué de cada nombre, convenció
 
 ---
 
-## 🐳 Contenedores Docker y Servicios
+## 🐳 Documentación Detallada de Contenedores Docker
 
-### 1. ¿Por qué se llama `backend` el servicio principal?
+A continuación, se detalla cada contenedor (servicio) que compone el sistema, explicando su nombre, función técnica y función general.
 
-**Nombre en Docker Compose:** `backend`
+### 1. `gateway` (API Gateway)
 
-**Justificación:**
-- **Simplicidad**: Término universalmente entendido en desarrollo web
-- **Diferenciación clara**: Se opone directamente a `frontend`, creando una separación lógica
-- **Estándar de la industria**: Convención adoptada por frameworks como Next.js, Django, etc.
-- **Escalabilidad**: Permite agregar servicios como `backend-auth`, `backend-analytics` sin confusión
+**1. ¿Por qué se llama así?**
+- **Nombre:** `gateway`
+- **Razón:** Actúa como la "puerta de entrada" única para todas las peticiones externas. Es un patrón de diseño estándar en microservicios.
+- **Por qué no `api-gateway`:** Por brevedad y facilidad de uso en comandos Docker (`docker exec gateway`).
 
-### 2. ¿Por qué `frontend` y no `client` o `web`?
+**2. ¿Qué hace? (Explicación Técnica)**
+- **Router Central:** Recibe todas las peticiones HTTP del frontend (puerto 8080) y las redirige al microservicio correspondiente (`backend`, `nvd-service`, etc.) usando `httpx`.
+- **Balanceo de Carga (Potencial):** Puede distribuir tráfico si hubiera múltiples instancias de un servicio.
+- **Seguridad Unificada:** Maneja CORS, autenticación preliminar y rate limiting en un solo punto.
+- **Tecnología:** FastAPI (Python).
 
-**Nombre en Docker Compose:** `frontend`
+**3. ¿Qué hace? (Explicación General)**
+- Es como el **recepcionista** de un edificio de oficinas.
+- Cuando usted (el usuario) pide algo, no va directamente a la oficina del especialista. Se lo pide al recepcionista, y él sabe exactamente a qué oficina enviarlo.
+- Esto mantiene el orden y la seguridad, ya que nadie entra directo a las oficinas internas sin pasar por recepción.
 
-**Justificación:**
-- **Consistencia**: Complementa perfectamente con `backend`
-- **Tecnología agnóstica**: Funciona tanto para React, Vue, Angular, etc.
-- **Diferenciación de responsabilidades**: Clarifica que maneja la presentación de datos
-- **Estándar moderno**: Adoptado por la mayoría de equipos de desarrollo full-stack
+---
 
-### 3. ¿Por qué `gateway` y no `api-gateway`?
+### 2. `backend` (Core Service)
 
-**Nombre en Docker Compose:** `gateway`
+**1. ¿Por qué se llama así?**
+- **Nombre:** `backend`
+- **Razón:** Es el servicio "central" o "trasero" que maneja la lógica de negocio principal del sistema.
+- **Por qué no `core-service`:** Por convención universal en desarrollo web full-stack.
 
-**Justificación:**
-- **Brevedad**: En el contexto del proyecto, es claro que es un API Gateway
-- **Facilidad de uso**: Comandos Docker más cortos (`docker exec gateway` vs `docker exec api-gateway`)
-- **Patrón arquitectónico reconocido**: Gateway es un patrón bien establecido en microservicios
-- **Flexibilidad futura**: Puede evolucionar a otros tipos de gateway (WebSocket, GraphQL, etc.)
+**2. ¿Qué hace? (Explicación Técnica)**
+- **Orquestador de Lógica:** Maneja la lógica de negocio que no pertenece a un microservicio específico.
+- **Gestión de Base de Datos:** Es el principal responsable de escribir y leer de la base de datos PostgreSQL (`db`) usando SQLAlchemy.
+- **Motor de Decisión:** Ejecuta algoritmos de Programación Dinámica para optimizar estrategias de mitigación.
+- **Tecnología:** FastAPI (Python), SQLAlchemy.
 
-### 4. ¿Por qué `db` y no `database` o `postgres`?
+**3. ¿Qué hace? (Explicación General)**
+- Es el **cerebro** del sistema.
+- Aquí es donde se toman las decisiones importantes, se guardan los archivos en el archivador (base de datos) y se coordinan las tareas generales.
+- Si el Gateway es el recepcionista, el Backend es el gerente general.
 
-**Nombre en Docker Compose:** `db`
+---
 
-**Justificación:**
-- **Convención universal**: Usado en 95% de proyectos Docker Compose
-- **Brevedad**: Facilita referencias en variables de entorno (`DB_HOST=db`)
-- **Abstracción**: No ata el nombre a una tecnología específica (PostgreSQL)
-- **Legibilidad**: Fácil de recordar y escribir en configuraciones
+### 3. `frontend` (User Interface)
 
-### 5. ¿Por qué `rabbitmq` completo y no `queue` o `mq`?
+**1. ¿Por qué se llama así?**
+- **Nombre:** `frontend`
+- **Razón:** Representa la parte "frontal" que el usuario ve y toca.
+- **Por qué no `client`:** `frontend` es el término estándar de la industria para la capa de presentación web.
 
-**Nombre en Docker Compose:** `rabbitmq`
+**2. ¿Qué hace? (Explicación Técnica)**
+- **Renderizado de UI:** Sirve la aplicación React (SPA) al navegador del usuario.
+- **Consumo de API:** Realiza peticiones HTTP asíncronas (Axios) al `gateway` para obtener datos.
+- **Visualización:** Genera gráficos interactivos (Chart.js) y tablas dinámicas.
+- **Tecnología:** React, Vite, Nginx (para servir los estáticos).
 
-**Justificación:**
-- **Especificidad técnica**: RabbitMQ tiene configuraciones muy específicas
-- **Debugging**: Facilita identificar problemas relacionados con RabbitMQ específicamente
-- **Documentación**: Aligns con ejemplos oficiales de RabbitMQ Docker
-- **Clarity for DevOps**: Los ingenieros de DevOps saben inmediatamente qué tecnología usar
+**3. ¿Qué hace? (Explicación General)**
+- Es la **cara** del sistema.
+- Es la pantalla bonita con botones y gráficos que usted usa.
+- Se encarga de traducir sus clics en órdenes que el sistema entiende y de mostrarle las respuestas de forma visual y comprensible.
+
+---
+
+### 4. `db` (Database)
+
+**1. ¿Por qué se llama así?**
+- **Nombre:** `db`
+- **Razón:** Abreviatura universal de "Database".
+- **Por qué no `postgres`:** Para abstraer la tecnología específica. Si mañana cambiamos a MySQL, el nombre del servicio `db` puede seguir siendo el mismo en la configuración de los otros contenedores.
+
+**2. ¿Qué hace? (Explicación Técnica)**
+- **Persistencia Relacional:** Almacena datos estructurados de forma permanente (Usuarios, Historial de Escaneos, Activos).
+- **Integridad de Datos:** Asegura que la información no se corrompa y mantenga sus relaciones (Foreign Keys).
+- **Tecnología:** PostgreSQL 15.
+
+**3. ¿Qué hace? (Explicación General)**
+- Es el **archivador** de la empresa.
+- Aquí se guarda todo lo que necesita recordarse para siempre: informes pasados, listas de usuarios, configuraciones.
+- Es muy ordenado y seguro; nada se pierde aquí.
+
+---
+
+### 5. `rabbitmq` (Message Queue)
+
+**1. ¿Por qué se llama así?**
+- **Nombre:** `rabbitmq`
+- **Razón:** Es el nombre específico de la tecnología.
+- **Por qué no `queue`:** RabbitMQ tiene configuraciones muy específicas, y es útil para los ingenieros saber exactamente qué software de colas se está usando.
+
+**2. ¿Qué hace? (Explicación Técnica)**
+- **Broker de Mensajería:** Permite la comunicación asíncrona entre servicios.
+- **Desacoplamiento:** El `nvd-service` puede enviar una tarea de "analizar vulnerabilidad" a la cola, y el `report-service` puede tomarla cuando esté libre, sin bloquear al primero.
+- **Tecnología:** RabbitMQ 3 Management.
+
+**3. ¿Qué hace? (Explicación General)**
+- Es la **bandeja de entrada de correo** o una **línea de ensamblaje**.
+- Si hay mucho trabajo, no se le tira todo al trabajador de golpe. Se ponen las tareas en una bandeja (cola).
+- Los trabajadores van tomando tareas de la bandeja una por una a su propio ritmo. Esto evita que el sistema se colapse por exceso de trabajo.
+
+---
+
+### 6. `nmap-scanner-service`
+
+**1. ¿Por qué se llama así?**
+- **Nombre:** `nmap-scanner-service`
+- **Razón:** Identifica claramente la herramienta subyacente (`nmap`) y su función (`scanner`).
+- **Por qué no `network-scanner`:** Para ser transparentes sobre la dependencia técnica (Nmap) que requiere privilegios especiales de red.
+
+**2. ¿Qué hace? (Explicación Técnica)**
+- **Escaneo de Puertos:** Ejecuta comandos `nmap` contra IPs objetivo para detectar puertos abiertos (22, 80, 443, etc.).
+- **Detección de Servicios:** Identifica qué software y versión corre en cada puerto.
+- **Ejecución de Scripts NSE:** Corre scripts de Nmap para detectar vulnerabilidades conocidas (CVEs).
+- **Tecnología:** Python, Nmap, Docker (con capacidades `NET_ADMIN`).
+
+**3. ¿Qué hace? (Explicación General)**
+- Es el **inspector de seguridad** o **detective**.
+- Visita la "casa" (servidor) que le indicamos y revisa todas las puertas y ventanas (puertos).
+- Reporta cuáles están abiertas, qué tipo de cerradura tienen y si alguna cerradura parece rota o vieja.
+
+---
+
+### 7. `nvd-service`
+
+**1. ¿Por qué se llama así?**
+- **Nombre:** `nvd-service`
+- **Razón:** Se conecta específicamente a la **National Vulnerability Database (NVD)**.
+- **Por qué no `vuln-service`:** Porque su fuente de verdad es específicamente la NVD del NIST.
+
+**2. ¿Qué hace? (Explicación Técnica)**
+- **Proxy de API:** Consulta la API pública del NIST para obtener detalles de CVEs (Common Vulnerabilities and Exposures).
+- **Enriquecimiento de Datos:** Agrega puntuaciones de riesgo (CVSS) y descripciones a las vulnerabilidades detectadas.
+- **Caché (MongoDB):** Guarda copias locales de las vulnerabilidades para no consultar repetidamente a la API externa (que tiene límites de velocidad).
+- **Tecnología:** FastAPI, MongoDB (interno).
+
+**3. ¿Qué hace? (Explicación General)**
+- Es el **bibliotecario experto**.
+- Cuando el detective (Nmap) encuentra algo sospechoso, le pregunta al bibliotecario.
+- El bibliotecario consulta su enciclopedia gigante (NVD) y le dice: "Sí, eso es un fallo conocido de 2023, es muy peligroso y se arregla así".
+
+---
+
+### 8. `ml-prediction-service`
+
+**1. ¿Por qué se llama así?**
+- **Nombre:** `ml-prediction-service`
+- **Razón:** `ml` (Machine Learning) y `prediction` describen exactamente su función.
+- **Por qué no `ai-service`:** "AI" es muy genérico. "ML Prediction" es técnicamente preciso sobre lo que hace (modelos predictivos).
+
+**2. ¿Qué hace? (Explicación Técnica)**
+- **Inferencia de Modelos:** Carga modelos entrenados (Random Forest, Isolation Forest) para predecir anomalías o riesgos.
+- **Procesamiento de Datos:** Transforma datos crudos de tráfico o logs en vectores de características para los modelos.
+- **Tecnología:** Python, Scikit-learn, Pandas.
+
+**3. ¿Qué hace? (Explicación General)**
+- Es el **analista de riesgos** o **futurólogo**.
+- Mira los patrones del pasado y del presente para predecir si algo malo podría pasar en el futuro.
+- No busca fallos obvios (como el detective), sino comportamientos extraños que podrían indicar un problema sutil.
+
+---
+
+### 9. `report-service`
+
+**1. ¿Por qué se llama así?**
+- **Nombre:** `report-service`
+- **Razón:** Su única responsabilidad es generar documentos (reportes).
+- **Por qué no `pdf-generator`:** Porque podría generar CSV, HTML, etc. "Report" es el dominio, no el formato.
+
+**2. ¿Qué hace? (Explicación Técnica)**
+- **Generación de Documentos:** Recopila datos de `db` y `nvd-service` para compilar informes PDF o CSV.
+- **Formato y Diseño:** Aplica plantillas y estilos a los datos crudos para hacerlos legibles.
+- **Tecnología:** Python, ReportLab, Jinja2.
+
+**3. ¿Qué hace? (Explicación General)**
+- Es el **secretario** o **editor**.
+- Toma todas las notas desordenadas del detective, el bibliotecario y el analista, y las pone en un documento bonito, limpio y organizado que el jefe (usted) pueda leer y firmar.
 
 ---
 
@@ -108,45 +233,7 @@ Este documento explica **exhaustivamente** el porqué de cada nombre, convenció
 
 ---
 
-## 🧩 Microservicios Específicos
 
-### 1. `ml_prediction_service` - ¿Por qué este nombre?
-
-**Justificación detallada:**
-- **`ml`**: Abreviación universalmente reconocida de Machine Learning
-- **`prediction`**: Especifica la función principal - hacer predicciones
-- **`service`**: Indica que es un microservicio independiente
-- **Separación de responsabilidades**: Aísla la lógica de ML del resto del sistema
-- **Escalabilidad horizontal**: Puede ejecutarse en múltiples instancias para alta demanda
-- **Deployment independiente**: Se puede actualizar sin afectar otros servicios
-
-### 2. `nvd_service` - ¿Por qué no `vulnerability_service`?
-
-**Justificación detallada:**
-- **NVD**: Acrónimo específico de National Vulnerability Database
-- **Especificidad de fuente**: Clarifica que usa específicamente la API de NIST NVD
-- **Diferenciación**: Permite agregar otros servicios como `cve_service`, `snyk_service`
-- **Compliance**: Facilita auditorías de seguridad al identificar fuentes de datos
-- **Documentación técnica**: Alinea con documentación oficial de NIST
-
-### 3. `report_service` - ¿Por qué no `reporting_service`?
-
-**Justificación detallada:**
-- **Brevedad**: Más fácil de escribir y recordar
-- **Enfoque en el producto**: Se centra en los reportes como entidad, no en el proceso
-- **REST conventions**: Alinea con endpoints RESTful (`/reports/`, no `/reporting/`)
-- **Escalabilidad**: Permite servicios relacionados como `report_analytics_service`
-
-### 4. `nmap_scanner` - ¿Por qué no `network_scanner_service`?
-
-**Justificación detallada:**
-- **Herramienta específica**: Nmap es la herramienta de escaneo utilizada
-- **Dependency transparency**: Clarifica dependencias técnicas para deployment
-- **Troubleshooting**: Facilita debug cuando hay problemas con Nmap específicamente
-- **Licensing awareness**: Nmap tiene licencia específica que debe considerarse
-- **Technical precision**: Los ingenieros saben exactamente qué esperar del servicio
-
----
 
 ## 🔗 Endpoints y Rutas API
 

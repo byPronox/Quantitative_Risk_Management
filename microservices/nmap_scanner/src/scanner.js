@@ -165,82 +165,173 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
   const category = mapScoreToCategory(score);
   const title = vuln.title || vuln.id || 'Vulnerability';
   const cve = vuln.cve || null;
-  const product = vuln.context?.product || vuln.product || '';
-  const reasonParts = [];
-  const remediation = [];
+  const product = vuln.context?.product || vuln.product || 'Desconocido';
+  const port = vuln.context?.port || 'N/A';
 
-  // Detailed explanation for scoring
-  reasonParts.push(`El puntaje de riesgo se calcula utilizando los siguientes componentes:`);
-  reasonParts.push(`- <strong>Componente CVSS (60%):</strong> Basado en la puntuación base CVSSv3, que refleja la gravedad inherente de la vulnerabilidad.`);
-  reasonParts.push(`- <strong>Componente de Exposición (30%):</strong> Evalúa si el puerto o servicio es público o comúnmente accesible desde el exterior.`);
-  reasonParts.push(`- <strong>Componente de Conteo (10%):</strong> Considera el número de vulnerabilidades en el mismo activo, aumentando el puntaje si hay múltiples vulnerabilidades.`);
-  reasonParts.push(`Cada componente contribuye al puntaje total, que se normaliza en una escala de 0 a 100.`);
-
-  // Reason build
-  reasonParts.push(`Hallazgo: "${title}".`);
-  if (cve) reasonParts.push(`Referencia: ${cve}.`);
-  reasonParts.push(`Tipo de activo: ${classification}.`);
-  reasonParts.push(`Categoria de riesgo: ${category}. (Puntaje: ${score})`);
-  if (vuln.output) {
-    const excerpt = String(vuln.output).split('\n').slice(0, 2).join(' ').trim();
-    if (excerpt) reasonParts.push(`Detalle: ${excerpt}`);
+  // --- 1. Descripción del Hallazgo ---
+  // Explica en 2–3 líneas qué significa el servicio o puerto encontrado.
+  let descriptionText = vuln.description || '';
+  if (!descriptionText) {
+    if (port !== 'N/A') descriptionText = `Se ha detectado el puerto ${port} abierto, asociado al servicio ${product}.`;
+    else descriptionText = `Se ha detectado el servicio ${product} en el host.`;
   }
+  // Ensure description is not too long for the summary but detailed enough
+  if (descriptionText.length > 300) descriptionText = descriptionText.substring(0, 300) + '...';
 
-  // NVD hints (patch availability, cvss, vendor statements)
-  let patchHint = null;
-  if (nvdData && typeof nvdData === 'object') {
-    // Try to extract useful hints
-    const descriptions = (nvdData.description && Array.isArray(nvdData.description) && nvdData.description.length > 0)
-      ? (nvdData.description[0].value || '')
-      : (nvdData.description?.value || '');
-    if (descriptions && descriptions.toLowerCase().includes('no fix')) {
-      patchHint = 'No hay parche disponible conocido';
-    } else if (descriptions && (descriptions.toLowerCase().includes('fixed') || descriptions.toLowerCase().includes('patch'))) {
-      patchHint = 'Parche o mitigación disponible según NVD';
-    }
-  }
-
-  // Choose treatment
+  // --- 2. Tratamiento Recomendado ---
   let treatment = 'mitigar';
   if (score <= 30) treatment = 'aceptar';
   if (score > 30 && score <= 85) treatment = 'mitigar';
-  if (score > 85) treatment = 'evitar';
+  if (score > 85) treatment = 'evitar'; // Mapping 'evitar' to critical mitigation actions, but keeping internal logic consistent
 
-  // If NVD indicates patch available and score is high, still mitigar (apply patch) rather than transfer
-  if (classification === 'Bases de datos' && score > 70) {
-    // Databases with high score -> prefer evitar (isolate) or mitigar depending on patch hint
-    treatment = patchHint && patchHint.toLowerCase().includes('patch') ? 'mitigar' : 'evitar';
-  }
-
-  // Transferir scenario: if product looks like managed/third-party SaaS and score medium-high
-  const productLower = String(product || '').toLowerCase();
-  if ((productLower.includes('saas') || productLower.includes('managed service') || productLower.includes('hosted')) && score > 50) {
+  // Special cases
+  const productLower = String(product).toLowerCase();
+  if ((productLower.includes('saas') || productLower.includes('managed service')) && score > 50) {
     treatment = 'transferir';
   }
 
-  // Build remediation suggestions
-  if (treatment === 'aceptar') {
-    remediation.push('Monitoreo continuo del activo y revisión en la próxima ventana de mantenimiento.');
-    remediation.push('Registrar el hallazgo en el sistema de gestión de vulnerabilidades para seguimiento.');
-  } else if (treatment === 'mitigar') {
-    remediation.push('Aplicar parche o actualización del proveedor lo antes posible.');
-    remediation.push('Si el parche no está disponible, aplicar medidas compensatorias: limitar acceso por firewall, reglas SIG, o segmentación de red.');
-    remediation.push('Revisar configuración y credenciales por seguridad (remover credenciales por defecto).');
-  } else if (treatment === 'transferir') {
-    remediation.push('Contactar al proveedor/tercero para solicitar parche o mitigación y SLA de resolución.');
-    remediation.push('Formalizar la transferencia de riesgo mediante contrato o seguro si aplica.');
-    remediation.push('Aplicar controles compensatorios en la red para reducir exposición mientras proveedor actúa.');
-  } else if (treatment === 'evitar') {
-    remediation.push('Aislar inmediatamente el activo de la red de producción (segmentación/quarantine).');
-    remediation.push('Aplicar parche de emergencia o revertir servicio si el parche no está disponible.');
-    remediation.push('Considerar restaurar desde snapshot conocido seguro o desplegar instancia reemplazo parcheada.');
+  // --- 3. Motivos ---
+  // Motivo Teórico (Gestión de Riesgos)
+  let theoreticalMotive = '';
+  if (score <= 30) {
+    theoreticalMotive = 'El riesgo residual es bajo debido a la baja probabilidad de explotación exitosa o al impacto limitado en la confidencialidad, integridad y disponibilidad del activo. Se considera aceptable dentro del apetito de riesgo operativo.';
+  } else if (score <= 60) {
+    theoreticalMotive = 'El riesgo representa una amenaza moderada. La combinación de la severidad de la vulnerabilidad y la exposición del activo sugiere que una explotación es plausible y podría tener consecuencias operativas notables.';
+  } else {
+    theoreticalMotive = 'El riesgo es crítico. La alta severidad base combinada con la exposición del activo crea una superficie de ataque inminente. La probabilidad de compromiso es alta y el impacto en el negocio sería severo.';
   }
 
-  // Augment remediation with specific hints from NVD where possible
-  if (patchHint) remediation.unshift(`NVD: ${patchHint}.`);
+  // Motivo Técnico (Ciberseguridad)
+  // Factors: CVSS (60%), Exposure (30%), Count (10%)
+  const cvssBase = vuln.cvssBase || 0;
+  const isExposed = (vuln.context && vuln.context.port && ['80', '443', '8080', '8443', '21', '22', '23', '25', '3306', '5432', '27017', '3389'].includes(String(vuln.context.port)));
+  const vulnCount = Math.min(vuln.vulnCount || 1, 5); // Assuming vulnCount is passed or we default to 1. Note: scanner.js logic passes vulnCountForAsset to computeRiskScore but not explicitly here. We might need to infer or pass it. 
+  // Actually, computeRiskScore is called before this. Let's reconstruct the technical motive from the score components we know.
 
-  const reason = reasonParts.join(' ');
-  return { treatment, reason, remediation };
+  const compCVSS = (Math.min(cvssBase, 10) / 10) * 60;
+  const compExposure = isExposed ? 30 : 0;
+  const compCount = 10; // We don't have the exact count here easily without changing signature, so we'll generalize or assume 1-5 scale contribution. 
+  // Let's use a generic explanation for the technical part if we can't get exact numbers, or rely on the score.
+
+  let technicalMotive = `
+    <ul>
+      <li><strong>Severidad Base (CVSS):</strong> ${cvssBase.toFixed(1)}/10. Refleja la complejidad del ataque y el impacto directo.</li>
+      <li><strong>Exposición:</strong> ${isExposed ? 'Pública (Internet/Red Externa)' : 'Interna/Limitada'}. ${isExposed ? 'Aumenta significativamente el riesgo al ser accesible remotamente.' : 'Reduce el vector de ataque inmediato.'}</li>
+      <li><strong>Naturaleza:</strong> ${classification}. Afecta a componentes de ${classification.toLowerCase()}.</li>
+    </ul>
+  `;
+
+  // --- 4. Explicación del Puntaje ---
+  const scoreExplanation = `
+    El puntaje final de <strong>${score}</strong> se obtiene ponderando:
+    <ul>
+      <li><strong>60% Severidad Base (CVSS):</strong> Gravedad intrínseca del fallo.</li>
+      <li><strong>30% Exposición:</strong> Accesibilidad del servicio desde el exterior.</li>
+      <li><strong>10% Conteo/Contexto:</strong> Frecuencia de vulnerabilidades en el activo.</li>
+    </ul>
+    La suma se normaliza a una escala de 0-100.
+  `;
+
+  // --- 5. Remediación Sugerida (REAL | ACCIONABLE) ---
+  let remediationSteps = [];
+
+  // NVD Hints
+  let patchHint = '';
+  if (nvdData) {
+    const desc = (nvdData.description && nvdData.description[0]?.value) || '';
+    if (desc.toLowerCase().includes('fixed')) patchHint = 'Existe un parche oficial documentado en NVD.';
+  }
+
+  if (category === 'Muy baja' || category === 'Baja') {
+    remediationSteps.push('Restringir el acceso al puerto/servicio mediante reglas de firewall (listas blancas).');
+    remediationSteps.push('Validar que la versión instalada sea la más reciente estable.');
+    remediationSteps.push('Revisar la configuración para deshabilitar banners informativos y métodos no seguros.');
+  } else if (category === 'Media') {
+    remediationSteps.push('Endurecer la configuración del servicio (hardening) siguiendo guías CIS o del proveedor.');
+    remediationSteps.push('Eliminar módulos o extensiones no utilizadas que aumenten la superficie de ataque.');
+    remediationSteps.push('Rotar credenciales asociadas y verificar que no se usen valores por defecto.');
+    if (patchHint) remediationSteps.push(patchHint);
+    else remediationSteps.push('Buscar y aplicar actualizaciones de seguridad del proveedor.');
+  } else { // Alta / Muy Alta
+    remediationSteps.push('<strong>ACCIÓN INMEDIATA:</strong> Deshabilitar el servicio si no es crítico para el negocio.');
+    remediationSteps.push('Aplicar parches de seguridad de manera prioritaria (Emergency Change).');
+    remediationSteps.push('Aislar el host de la red pública hasta que se remedie el hallazgo.');
+    remediationSteps.push('Realizar un análisis forense de logs para descartar compromiso previo.');
+  }
+
+  // Specific tech remediations
+  if (productLower.includes('http') || productLower.includes('apache') || productLower.includes('nginx')) {
+    remediationSteps.push('Implementar cabeceras de seguridad (HSTS, CSP, X-Frame-Options).');
+  }
+  if (productLower.includes('ssh')) {
+    remediationSteps.push('Deshabilitar autenticación por contraseña y usar solo llaves SSH.');
+    remediationSteps.push('Deshabilitar acceso root remoto.');
+  }
+  if (productLower.includes('sql') || productLower.includes('database')) {
+    remediationSteps.push('Asegurar que el puerto de base de datos no esté expuesto a Internet.');
+    remediationSteps.push('Habilitar cifrado TLS para conexiones entrantes.');
+  }
+
+  const remediationHtml = remediationSteps.map(step => `<li>${step}</li>`).join('');
+
+  // Construct the full HTML Report
+  const reportHtml = `
+    <div class="risk-report">
+      <div class="report-header">
+        <span class="risk-badge risk-${category.toLowerCase().replace(' ', '-')}">
+          🟩 Nivel de Riesgo: ${category} — Puntaje: ${score}
+        </span>
+      </div>
+      
+      <div class="report-section">
+        <h3>🔍 Hallazgo: ${product} ${port !== 'N/A' ? `(Puerto ${port})` : ''}</h3>
+      </div>
+
+      <div class="report-section">
+        <h4>🧭 Descripción</h4>
+        <p>${descriptionText}</p>
+      </div>
+
+      <div class="report-section">
+        <h4>🛑 Tratamiento Recomendado: <span class="treatment-tag">${treatment.toUpperCase()}</span></h4>
+        <p>
+          ${treatment === 'aceptar' ? 'El riesgo residual es tolerable bajo monitoreo.' : ''}
+          ${treatment === 'mitigar' ? 'Se requiere acción directa para reducir la probabilidad o impacto.' : ''}
+          ${treatment === 'transferir' ? 'El riesgo debe ser gestionado por el tercero responsable.' : ''}
+          ${treatment === 'evitar' ? 'El riesgo es inaceptable; se debe eliminar la causa raíz inmediatamente.' : ''}
+        </p>
+      </div>
+
+      <div class="report-section">
+        <h4>📘 Motivo Teórico</h4>
+        <p>${theoreticalMotive}</p>
+      </div>
+
+      <div class="report-section">
+        <h4>🛠️ Motivo Técnico</h4>
+        ${technicalMotive}
+      </div>
+
+      <div class="report-section">
+        <h4>📊 Cómo se Calculó el Puntaje</h4>
+        <p>${scoreExplanation}</p>
+      </div>
+
+      <div class="report-section">
+        <h4>🔧 Remediación Sugerida</h4>
+        <ul class="remediation-list">
+          ${remediationHtml}
+        </ul>
+      </div>
+    </div>
+  `;
+
+  return {
+    treatment,
+    reason: theoreticalMotive, // Keep for backward compatibility if needed
+    remediation: remediationSteps, // Keep for backward compatibility
+    report: reportHtml // NEW FIELD
+  };
 };
 
 /* --- Existing XML processing logic (slightly adapted to integrate enrichment) --- */
@@ -306,7 +397,7 @@ const normalizeScript = (script, context = {}) => {
     try {
       const idCve = String(id || '').match(/CVE-\d{4}-\d{4,7}/i);
       if (idCve && idCve.length > 0) cve = idCve[0].toUpperCase();
-    } catch (e) {}
+    } catch (e) { }
     if (!cve) {
       const titleCve = String(title || '').match(/CVE-\d{4}-\d{4,7}/i);
       if (titleCve && titleCve.length > 0) cve = titleCve[0].toUpperCase();
@@ -315,7 +406,7 @@ const normalizeScript = (script, context = {}) => {
     // Some scripts encode CVE/ids in different forms, try looser matches (e.g. CVE-YYYY-NNNN with variable digits)
     if (!cve) {
       const loose = description.match(/CVE[-\s:]?\s*\d{4}[-\s]?\d{4,7}/i);
-      if (loose && loose.length > 0) cve = loose[0].toUpperCase().replace(/\s+/g, '').replace(/[:]/g,'-');
+      if (loose && loose.length > 0) cve = loose[0].toUpperCase().replace(/\s+/g, '').replace(/[:]/g, '-');
     }
 
     // Fallback: capture vendor bulletin identifiers (e.g. ms10-054) as a reference if no CVE found
@@ -595,7 +686,7 @@ const processXMLOutput = async (xmlFilePath, target) => {
         }
 
         // Determine exposure: is this port commonly public-facing?
-        const exposedPorts = ['80','443','8080','8443','21','22','23','25','3306','5432','27017','3389'];
+        const exposedPorts = ['80', '443', '8080', '8443', '21', '22', '23', '25', '3306', '5432', '27017', '3389'];
         const isExposed = !!(v.context && v.context.port && exposedPorts.includes(String(v.context.port)));
 
         const score = computeRiskScore(cvssBase, isExposed, vulnCountForAsset);
@@ -632,7 +723,7 @@ const processXMLOutput = async (xmlFilePath, target) => {
     // Aggregate high-level risk summary for the scan (max score, average)
     const scores = enhancedVulns.map(v => (v.risk && typeof v.risk.score === 'number') ? v.risk.score : 0);
     const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
-    const avgScore = scores.length > 0 ? Math.round((scores.reduce((a,b) => a+b,0)/scores.length)*10)/10 : 0;
+    const avgScore = scores.length > 0 ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : 0;
     const aggregateCategory = mapScoreToCategory(maxScore);
 
     const scanResult = {

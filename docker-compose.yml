@@ -54,7 +54,7 @@ services:
     env_file: .env
     volumes:
       - nmap_temp:/app/temp
-    privileged: true  # Required for nmap network scanning
+    privileged: true # Required for nmap network scanning
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -99,18 +99,8 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
-  # Redis Cache (for microservices)
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    restart: always
-    volumes:
-      - redis_data:/data
-
 volumes:
   pgdata:
   rabbitmq_data:
-  redis_data:
   report_data:
   nmap_temp:

@@ -8,6 +8,7 @@ export default function ScanPage() {
   const [scanResults, setScanResults] = useState(null);
   const [scanHistory, setScanHistory] = useState([]);
   const [error, setError] = useState(null);
+  const [showDocs, setShowDocs] = useState(false);
 
   useEffect(() => {
     loadScanHistory();
@@ -223,229 +224,152 @@ export default function ScanPage() {
     URL.revokeObjectURL(url);
   };
 
+
+
   return (
     <div className="scan-page" style={{ padding: '20px', maxWidth: 1100, margin: '0 auto' }}>
-      {/* Sección de Documentación Integral */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '32px' }}>
 
-        {/* 1. Guía Básica (Analogía) */}
-        <section style={{ background: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', borderLeft: '6px solid #3182ce' }}>
-          <h2 style={{ margin: '0 0 16px 0', color: '#2c5282', fontSize: '1.6rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            📘 Guía Básica: Entendiendo el Escaneo
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-            <div>
-              <h3 style={{ color: '#2b6cb0', marginTop: 0 }}>🏠 La Analogía de la "Casa Digital"</h3>
-              <p style={{ lineHeight: '1.6', color: '#4a5568' }}>
-                Imagine que su red es su <strong>casa</strong>.
-                <br /><br />
-                🚪 <strong>Puertos = Puertas y Ventanas:</strong> Son las entradas a su casa. Algunas deben estar abiertas (como la puerta principal para visitas), pero otras no (la ventana del baño).
-                <br />
-                🔓 <strong>Vulnerabilidades = Cerraduras Rotas:</strong> Son fallos que permitirían a un ladrón entrar, incluso si la puerta está cerrada.
-                <br />
-                🕵️ <strong>El Escáner = Inspector de Seguridad:</strong> Esta herramienta revisa cada puerta y ventana para ver si están abiertas o si tienen cerraduras defectuosas.
-              </p>
-            </div>
-            <div style={{ background: '#ebf8ff', padding: '16px', borderRadius: '8px' }}>
-              <h3 style={{ color: '#2c5282', marginTop: 0 }}>🚦 ¿Cómo leo los resultados?</h3>
-              <ul style={{ paddingLeft: '20px', lineHeight: '1.8', color: '#2d3748' }}>
-                <li>🟢 <strong>Verde (Seguro):</strong> Puertas cerradas o con buenas cerraduras. No hay peligro inmediato.</li>
-                <li>🟡 <strong>Amarillo (Precaución):</strong> Una ventana abierta que no debería, o una cerradura vieja. Requiere atención.</li>
-                <li>🔴 <strong>Rojo (Peligro):</strong> La puerta principal está abierta de par en par y sin llave. <strong>Acción inmediata requerida.</strong></li>
-              </ul>
-            </div>
-          </div>
-        </section>
+      {/* 1. Scan Input Section (Prioritized) */}
+      <div className="scan-config" style={{ marginBottom: '24px', padding: '24px', borderRadius: '12px', background: '#ffffff', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ margin: 0, color: '#2d3748', fontSize: '1.5rem' }}>🚀 Escáner de Vulnerabilidades</h2>
+          <button
+            onClick={() => setShowDocs(!showDocs)}
+            style={{
+              background: 'none',
+              border: '1px solid #cbd5e0',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              color: '#4a5568',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            {showDocs ? 'Ocultar Ayuda' : '📖 Ver Ayuda / Documentación'}
+          </button>
+        </div>
 
-        {/* 2. Diccionario de Términos */}
-        <section style={{ background: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-          <h2 style={{ margin: '0 0 20px 0', color: '#2d3748', fontSize: '1.4rem' }}>📖 Diccionario para No Expertos</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
-            <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
-              <strong style={{ color: '#e53e3e', fontSize: '1.1em' }}>Vulnerabilidad</strong>
-              <p style={{ fontSize: '0.95em', color: '#718096', marginTop: '8px' }}>
-                Un error de fábrica en el software. Es como comprar una caja fuerte que tiene un defecto: si golpeas la esquina, se abre sola.
-              </p>
-            </div>
-            <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
-              <strong style={{ color: '#d69e2e', fontSize: '1.1em' }}>CVSS (Puntuación Base)</strong>
-              <p style={{ fontSize: '0.95em', color: '#718096', marginTop: '8px' }}>
-                Una nota del 0 al 10 que dice qué tan peligrosa es la falla <em>por sí sola</em>.
-                <br /><strong>10 = Huracán Cat. 5</strong> (Destrucción total).
-                <br /><strong>1 = Lluvia ligera</strong> (Molesto pero no grave).
-              </p>
-            </div>
-            <div style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
-              <strong style={{ color: '#3182ce', fontSize: '1.1em' }}>Exposición</strong>
-              <p style={{ fontSize: '0.95em', color: '#718096', marginTop: '8px' }}>
-                ¿Dónde está el problema?
-                <br /><strong>Pública:</strong> En la acera (Cualquiera lo ve).
-                <br /><strong>Interna:</strong> Dentro de la casa (Solo invitados lo ven).
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* 3. El Modelo de Riesgo (Profundo) */}
-        <section style={{ background: '#2d3748', color: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ margin: '0 0 24px 0', color: '#fff', fontSize: '1.5rem', borderBottom: '1px solid #4a5568', paddingBottom: '12px' }}>
-            🔬 El Modelo de Riesgo: ¿Por qué calculamos así?
-          </h2>
-
-          <div style={{ background: 'rgba(255,255,255,0.1)', padding: '16px', borderRadius: '8px', marginBottom: '24px', textAlign: 'center' }}>
-            <span style={{ fontSize: '1.2em', fontFamily: 'monospace' }}>Riesgo = Impacto (Daño) × Probabilidad (Facilidad)</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-            {/* Impacto */}
-            <div>
-              <h3 style={{ color: '#fc8181', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                💣 Impacto (60%) - "El Tamaño de la Bomba"
-              </h3>
-              <p style={{ lineHeight: '1.6', color: '#cbd5e0' }}>
-                <strong>¿Qué es?</strong> Usamos el CVSS Base.
-                <br />
-                <strong>El "Por Qué" Real:</strong> Imaginemos dos explosivos: un petardo y dinamita.
-                La dinamita (CVSS alto) <em>siempre</em> será más peligrosa por su naturaleza, sin importar dónde esté.
-                Por eso tiene el peso más alto (60%), porque define el <strong>techo</strong> del daño posible.
-                Si el impacto es bajo, el riesgo nunca puede ser crítico, no importa qué tan expuesto esté.
-              </p>
-            </div>
-
-            {/* Probabilidad */}
-            <div>
-              <h3 style={{ color: '#63b3ed', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                🎲 Probabilidad (40%) - "La Ubicación"
-              </h3>
-              <div style={{ marginBottom: '16px' }}>
-                <strong style={{ color: '#90cdf4' }}>1. Exposición (30%)</strong>
-                <p style={{ lineHeight: '1.6', color: '#cbd5e0', fontSize: '0.95em' }}>
-                  Una dinamita en una caja fuerte en el sótano (Puerto Cerrado) es menos riesgosa que un petardo en la calle (Puerto Abierto).
-                  La accesibilidad es el factor #1 que convierte una "amenaza teórica" en un "ataque real".
-                </p>
-              </div>
-              <div>
-                <strong style={{ color: '#90cdf4' }}>2. Densidad (10%) - "Ventanas Rotas"</strong>
-                <p style={{ lineHeight: '1.6', color: '#cbd5e0', fontSize: '0.95em' }}>
-                  Si ves una casa con una ventana rota, es probable que tenga más problemas.
-                  Un servidor con 10 fallos indica descuido, aumentando la probabilidad de que un atacante encuentre <em>alguna</em> forma de entrar.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #4a5568' }}>
-            <h4 style={{ margin: '0 0 12px 0', color: '#a0aec0' }}>¿Por qué esta fórmula y no otra?</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', fontSize: '0.9em' }}>
-              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-                <strong>vs. Solo CVSS</strong>
-                <p style={{ color: '#cbd5e0', margin: '4px 0 0 0' }}>CVSS solo no ve el contexto. Un fallo crítico en un servidor desconectado no es un riesgo real. Nosotros corregimos eso.</p>
-              </div>
-              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '6px' }}>
-                <strong>vs. Probabilístico Puro</strong>
-                <p style={{ color: '#cbd5e0', margin: '4px 0 0 0' }}>Requiere datos históricos de años que no tenemos. Nuestro modelo es más práctico y directo.</p>
-              </div>
-              <div style={{ background: 'rgba(49, 151, 149, 0.2)', border: '1px solid #319795', padding: '12px', borderRadius: '6px' }}>
-                <strong>Nuestra Elección</strong>
-                <p style={{ color: '#81e6d9', margin: '4px 0 0 0' }}>Modelo <strong>Determinista</strong>: Transparente, calculable y sin "magia negra". Usted puede verificar el número.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. Guía Paso a Paso */}
-        <section style={{ background: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-          <h2 style={{ margin: '0 0 20px 0', color: '#2d3748', fontSize: '1.4rem' }}>🚀 Guía de Uso Paso a Paso</h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-              <div style={{ background: '#3182ce', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>1</div>
-              <div>
-                <strong style={{ fontSize: '1.1em', color: '#2d3748' }}>Ingrese el Objetivo (Input)</strong>
-                <p style={{ color: '#4a5568', margin: '4px 0' }}>
-                  Escriba la <strong>Dirección IP</strong> (ej. <code>192.168.1.1</code>) o Dominio.
-                  <br /><em>Analogía:</em> Es como darle al inspector la dirección de la casa que debe revisar.
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-              <div style={{ background: '#3182ce', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>2</div>
-              <div>
-                <strong style={{ fontSize: '1.1em', color: '#2d3748' }}>Analice los Resultados</strong>
-                <p style={{ color: '#4a5568', margin: '4px 0' }}>
-                  Verá una lista de "Puertos Abiertos" y "Vulnerabilidades".
-                  <br /><strong>Puertos:</strong> ¿Qué puertas están abiertas? (Web, Correo, Base de Datos).
-                  <br /><strong>OS:</strong> ¿Qué sistema operativo usa? (El "acento" del servidor).
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-              <div style={{ background: '#3182ce', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>3</div>
-              <div>
-                <strong style={{ fontSize: '1.1em', color: '#2d3748' }}>Tome Acción (Remediación)</strong>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginTop: '8px' }}>
-                  <div style={{ background: '#f0fff4', padding: '8px', borderRadius: '4px', border: '1px solid #c6f6d5' }}>
-                    <strong style={{ color: '#2f855a' }}>🛡️ Mitigar</strong>
-                    <div style={{ fontSize: '0.9em' }}>Arreglarlo (Parchear o cerrar puerto).</div>
-                  </div>
-                  <div style={{ background: '#fffaf0', padding: '8px', borderRadius: '4px', border: '1px solid #fbd38d' }}>
-                    <strong style={{ color: '#c05621' }}>📝 Aceptar</strong>
-                    <div style={{ fontSize: '0.9em' }}>El riesgo es bajo, lo dejamos así por ahora.</div>
-                  </div>
-                  <div style={{ background: '#ebf8ff', padding: '8px', borderRadius: '4px', border: '1px solid #bee3f8' }}>
-                    <strong style={{ color: '#2b6cb0' }}>👉 Transferir</strong>
-                    <div style={{ fontSize: '0.9em' }}>Es culpa del proveedor (ej. AWS), que ellos lo arreglen.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* Scan configuration and warning */}
-      <div className="scan-config" style={{ marginBottom: '16px', padding: '16px', borderRadius: '8px', background: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-        <h3 style={{ marginTop: 0 }}>Escáner de red</h3>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <input
             type="text"
             id="target"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            placeholder="ej: 192.168.1.1, ejemplo.com"
-            style={{ flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d7e0' }}
+            placeholder="Ingrese IP (ej: 192.168.1.1) o Dominio (ej: ejemplo.com)"
+            style={{ flex: 1, padding: '12px 16px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: '1.1em' }}
             aria-label="IP o dominio objetivo"
           />
           <button
             onClick={startScan}
             disabled={isScanning || !target.trim()}
             style={{
-              padding: '8px 14px',
-              borderRadius: 6,
-              background: isScanning ? '#999' : '#0069d9',
+              padding: '12px 24px',
+              borderRadius: 8,
+              background: isScanning ? '#a0aec0' : '#3182ce',
               color: '#fff',
               border: 'none',
-              cursor: isScanning ? 'default' : 'pointer'
+              cursor: isScanning ? 'default' : 'pointer',
+              fontSize: '1.1em',
+              fontWeight: 'bold',
+              boxShadow: '0 2px 4px rgba(49, 130, 206, 0.3)'
             }}
             aria-label="Iniciar escaneo de red"
           >
-            {isScanning ? 'Escaneando... (puede tardar varios minutos)' : '🚀 Iniciar escaneo'}
+            {isScanning ? 'Escaneando...' : 'Escanear Ahora'}
           </button>
           <button
             onClick={exportCSV}
             disabled={!scanResults}
-            style={{ padding: '8px 12px', borderRadius: 6, background: '#17a2b8', color: '#fff', border: 'none', cursor: 'pointer' }}
+            style={{ padding: '12px 16px', borderRadius: 8, background: '#38b2ac', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
             aria-label="Exportar resultados del escaneo a CSV"
           >
-            ⤓ Exportar CSV
+            ⤓ CSV
           </button>
         </div>
-        <p style={{ marginTop: 8, color: '#666' }}>
-          Aviso: un escaneo puede tardar varios minutos dependiendo del objetivo y los scripts ejecutados. No interrumpir.
+        <p style={{ marginTop: 12, color: '#718096', fontSize: '0.9em' }}>
+          ℹ️ El escaneo puede tardar varios minutos. Por favor no cierre la ventana.
         </p>
       </div>
+
+      {/* 2. Collapsible Documentation Section */}
+      {showDocs && (
+        <div className="docs-container" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+
+          {/* Guía Básica */}
+          <section style={{ background: '#fff', padding: '24px', borderRadius: '12px', marginBottom: '24px', borderLeft: '6px solid #4299e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#2b6cb0' }}>📘 Guía Rápida: ¿Qué estoy viendo?</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+
+              {/* Para el Gerente */}
+              <div style={{ background: '#ebf8ff', padding: '16px', borderRadius: '8px' }}>
+                <strong style={{ color: '#2c5282', display: 'block', marginBottom: '8px' }}>👔 Para el Gerente (No Técnico)</strong>
+                <p style={{ fontSize: '0.95em', color: '#2d3748', lineHeight: '1.6' }}>
+                  Piense en este escáner como un <strong>inspector de edificios</strong> digital.
+                  <br />Revisa su "casa" (servidor) buscando:
+                  <ul style={{ paddingLeft: '20px', marginTop: '8px' }}>
+                    <li>🚪 <strong>Puertas Abiertas (Puertos):</strong> Entradas que dejó sin llave.</li>
+                    <li>🪟 <strong>Ventanas Rotas (Vulnerabilidades):</strong> Fallos que un ladrón podría usar para entrar.</li>
+                  </ul>
+                  <strong>Su meta:</strong> Mantener las puertas cerradas y arreglar las ventanas rotas.
+                </p>
+              </div>
+
+              {/* Para el Técnico */}
+              <div style={{ background: '#f7fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <strong style={{ color: '#4a5568', display: 'block', marginBottom: '8px' }}>🛠️ Para el Ingeniero (Técnico)</strong>
+                <p style={{ fontSize: '0.95em', color: '#4a5568', lineHeight: '1.6' }}>
+                  Esta herramienta ejecuta <strong>Nmap</strong> con scripts de detección de vulnerabilidades (NSE).
+                  <br />Identifica servicios expuestos, versiones de software y CVEs conocidos.
+                  <br />El puntaje de riesgo pondera: <strong>CVSS Base (60%)</strong> + <strong>Exposición Pública (30%)</strong> + <strong>Densidad de Fallos (10%)</strong>.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Diccionario y Modelo */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+
+            {/* Diccionario */}
+            <section style={{ background: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+              <h3 style={{ margin: '0 0 16px 0', color: '#2d3748' }}>📖 Glosario Esencial</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <strong style={{ color: '#e53e3e' }}>Vulnerabilidad (CVE)</strong>
+                  <p style={{ fontSize: '0.9em', color: '#718096', margin: '4px 0 0 0' }}>Fallo de seguridad reconocido globalmente. Es como tener una copia de su llave circulando en internet.</p>
+                </div>
+                <div>
+                  <strong style={{ color: '#d69e2e' }}>CVSS (0-10)</strong>
+                  <p style={{ fontSize: '0.9em', color: '#718096', margin: '4px 0 0 0' }}>Estándar industrial para medir la gravedad. 10 es crítico (actuar ya), 0 es seguro.</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Modelo de Riesgo Simplificado */}
+            <section style={{ background: '#2d3748', color: 'white', padding: '20px', borderRadius: '12px' }}>
+              <h3 style={{ margin: '0 0 16px 0', color: '#fff' }}>⚖️ ¿Cómo calculamos el riesgo?</h3>
+              <div style={{ fontSize: '0.95em', lineHeight: '1.6', color: '#cbd5e0' }}>
+                No usamos solo el CVSS. Nuestro algoritmo es contextual:
+                <br /><br />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <span style={{ background: '#fc8181', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8em' }}>60%</span>
+                  <span><strong>Gravedad (CVSS):</strong> ¿Qué tan peligroso es el fallo?</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <span style={{ background: '#63b3ed', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8em' }}>30%</span>
+                  <span><strong>Exposición:</strong> ¿Está abierto a internet?</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ background: '#f6ad55', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8em' }}>10%</span>
+                  <span><strong>Cantidad:</strong> ¿Hay muchos fallos juntos?</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
 
       {/* Results */}
       {error && <div style={{ marginBottom: 12, color: '#c82333' }}>{error}</div>}
@@ -512,39 +436,47 @@ export default function ScanPage() {
                         </div>
                       </div>
 
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>                        <div style={{ color: '#333' }}>
-                        <strong>Descripción:</strong>
-                        <div style={{ marginTop: 6, whiteSpace: 'pre-wrap', color: '#444' }}>
-                          {vuln.description || 'No hay descripción detallada disponible.'}
-                        </div>
-                      </div>
-
-                        {/* Treatment and personalized remediation */}                        <div style={{ marginTop: 6, background: '#fbfcfe', padding: 10, borderRadius: 6 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                              <strong>Tratamiento recomendado:</strong> <span style={{ textTransform: 'capitalize' }}>{vuln.treatment?.treatment || 'N/A'}</span>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {vuln.treatment?.report ? (
+                          <div dangerouslySetInnerHTML={{ __html: vuln.treatment.report }} />
+                        ) : (
+                          <>
+                            <div style={{ color: '#333' }}>
+                              <strong>Descripción:</strong>
+                              <div style={{ marginTop: 6, whiteSpace: 'pre-wrap', color: '#444' }}>
+                                {vuln.description || 'No hay descripción detallada disponible.'}
+                              </div>
                             </div>
-                            <div style={{ color: '#666' }}>Puntaje: <strong>{vuln.risk?.score ?? 'N/A'}</strong></div>
-                          </div>
 
-                          <div style={{ marginTop: 8 }}>
-                            <strong>Motivo:</strong>
-                            <div style={{ marginTop: 6 }}>{vuln.treatment?.reason || 'No se proporcionó motivo.'}</div>
-                          </div>
+                            {/* Treatment and personalized remediation */}
+                            <div style={{ marginTop: 6, background: '#fbfcfe', padding: 10, borderRadius: 6 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <strong>Tratamiento recomendado:</strong> <span style={{ textTransform: 'capitalize' }}>{vuln.treatment?.treatment || 'N/A'}</span>
+                                </div>
+                                <div style={{ color: '#666' }}>Puntaje: <strong>{vuln.risk?.score ?? 'N/A'}</strong></div>
+                              </div>
 
-                          <div style={{ marginTop: 8 }}>
-                            <strong>Remediación sugerida:</strong>
-                            <ul style={{ marginTop: 6 }}>
-                              {buildPersonalizedRemediation(vuln).map((r, i) => <li key={i}>{r}</li>)}
-                            </ul>
-                          </div>
+                              <div style={{ marginTop: 8 }}>
+                                <strong>Motivo:</strong>
+                                <div style={{ marginTop: 6 }}>{vuln.treatment?.reason || 'No se proporcionó motivo.'}</div>
+                              </div>
 
-                          {vuln.cve && (
-                            <div style={{ marginTop: 8 }}>
-                              <a href={`https://nvd.nist.gov/vuln/detail/${vuln.cve}`} target="_blank" rel="noreferrer">Ver en NVD: {vuln.cve}</a>
+                              <div style={{ marginTop: 8 }}>
+                                <strong>Remediación sugerida:</strong>
+                                <ul style={{ marginTop: 6 }}>
+                                  {buildPersonalizedRemediation(vuln).map((r, i) => <li key={i}>{r}</li>)}
+                                </ul>
+                              </div>
+
+                              {vuln.cve && (
+                                <div style={{ marginTop: 8 }}>
+                                  <a href={`https://nvd.nist.gov/vuln/detail/${vuln.cve}`} target="_blank" rel="noreferrer">Ver en NVD: {vuln.cve}</a>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}

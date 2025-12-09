@@ -51,6 +51,8 @@ Una aplicación full-stack basada en microservicios para **evaluación y mitigac
 
 Todos los servicios están contenerizados y orquestados con Docker Compose.
 
+> 📘 **Documentación Detallada:** Para una explicación exhaustiva de cada contenedor, por qué se llama así y qué hace exactamente (técnica y generalmente), consulta [NOMENCLATURA_Y_JUSTIFICACIONES.md](NOMENCLATURA_Y_JUSTIFICACIONES.md#🐳-documentación-detallada-de-contenedores-docker).
+
 ---
 
 ## 🛡️ Sistema de Gestión de Vulnerabilidades NVD
@@ -326,6 +328,7 @@ LANL_MODEL_PATH=/app/ml/isolation_forest_model.pkl
 
 **Stefan Jativa** — [@byPronox](https://github.com/byPronox)  
 *Entusiasta de Machine Learning | Ingeniero de Software*
+
 **Justin Gomezcoello** — [@JustinGomezcoello](https://github.com/JustinGomezcoello)  
 *Automatizaciones | Ingeniero de Software*s
 

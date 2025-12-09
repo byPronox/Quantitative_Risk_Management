@@ -58,7 +58,8 @@
   font-size: 1.1em;
 }
 
-.target-input, .scan-type-select {
+.target-input,
+.scan-type-select {
   padding: 12px 15px;
   border: 2px solid #e1e5e9;
   border-radius: 8px;
@@ -66,7 +67,8 @@
   transition: border-color 0.3s ease;
 }
 
-.target-input:focus, .scan-type-select:focus {
+.target-input:focus,
+.scan-type-select:focus {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -114,8 +116,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .error-message {
@@ -168,11 +175,13 @@
   color: #6c757d;
 }
 
-.ports-section, .vulnerabilities-section {
+.ports-section,
+.vulnerabilities-section {
   margin-bottom: 20px;
 }
 
-.ports-section h4, .vulnerabilities-section h4 {
+.ports-section h4,
+.vulnerabilities-section h4 {
   margin: 0 0 15px 0;
   color: #2c3e50;
   font-size: 1.2em;
@@ -361,20 +370,126 @@
   .scan-page {
     padding: 10px;
   }
-  
+
   .ports-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .history-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 5px;
   }
-  
+
   .vuln-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+}
+
+/* --- New Risk Report Styles --- */
+.risk-report {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  line-height: 1.6;
+}
+
+.report-header {
+  margin-bottom: 15px;
+}
+
+.risk-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 700;
+  color: white;
+  font-size: 1.1em;
+}
+
+.risk-muy-baja {
+  background-color: #6c757d;
+}
+
+.risk-baja {
+  background-color: #28a745;
+}
+
+.risk-media {
+  background-color: #fd7e14;
+}
+
+.risk-alta {
+  background-color: #dc3545;
+}
+
+.risk-muy-alta {
+  background-color: #8b0000;
+}
+
+.report-section {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.report-section:last-child {
+  border-bottom: none;
+}
+
+.report-section h3 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 1.3em;
+}
+
+.report-section h4 {
+  margin: 0 0 8px 0;
+  color: #4a5568;
+  font-size: 1.1em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-section p {
+  margin: 0;
+  color: #4a5568;
+}
+
+.treatment-tag {
+  background-color: #edf2f7;
+  color: #2d3748;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  border: 1px solid #cbd5e0;
+}
+
+.remediation-list {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+
+.remediation-list li {
+  margin-bottom: 6px;
+  color: #2d3748;
+}
+
+.remediation-list li strong {
+  color: #e53e3e;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
