@@ -22,17 +22,24 @@ class RiskRepository:
         analysis_id: str,
         request: RiskAnalysisRequest,
         asset_analyses: List[AssetRiskAnalysis],
-        overall_risk: RiskScore
+        overall_risk: RiskScore,
+        timestamp: Optional[datetime] = None
     ) -> bool:
         """Save risk analysis to database"""
         try:
+            # Get timestamp from TimeService if not provided
+            if not timestamp:
+                from services.time_service import TimeService
+                time_service = TimeService()
+                timestamp = await time_service.get_current_time()
+
             # Save to PostgreSQL
-            await self._save_to_postgres(analysis_id, request, asset_analyses, overall_risk)
+            await self._save_to_postgres(analysis_id, request, asset_analyses, overall_risk, timestamp)
             
             # Save to MongoDB for detailed storage
-            await self._save_to_mongodb(analysis_id, request, asset_analyses, overall_risk)
+            await self._save_to_mongodb(analysis_id, request, asset_analyses, overall_risk, timestamp)
             
-            logger.info(f"Risk analysis {analysis_id} saved successfully")
+            logger.info(f"Risk analysis {analysis_id} saved successfully with timestamp {timestamp}")
             return True
             
         except Exception as e:
@@ -44,7 +51,8 @@ class RiskRepository:
         analysis_id: str,
         request: RiskAnalysisRequest,
         asset_analyses: List[AssetRiskAnalysis],
-        overall_risk: RiskScore
+        overall_risk: RiskScore,
+        timestamp: datetime
     ):
         """Save analysis summary to PostgreSQL"""
         db = next(get_db())
@@ -64,6 +72,7 @@ class RiskRepository:
             # Create analysis record
             analysis = RiskAnalysisDB(
                 analysis_id=analysis_id,
+                timestamp=timestamp,  # Explicit timestamp from TimeService
                 overall_risk_score=overall_risk.overall_score,
                 overall_risk_level=overall_risk.risk_level.value,
                 assets_analyzed=assets_data,
@@ -90,7 +99,8 @@ class RiskRepository:
         analysis_id: str,
         request: RiskAnalysisRequest,
         asset_analyses: List[AssetRiskAnalysis],
-        overall_risk: RiskScore
+        overall_risk: RiskScore,
+        timestamp: datetime
     ):
         """Save detailed analysis to MongoDB"""
         mongodb = await get_mongodb()
@@ -101,7 +111,7 @@ class RiskRepository:
             # Prepare detailed document
             document = {
                 "analysis_id": analysis_id,
-                "timestamp": datetime.utcnow(),
+                "timestamp": timestamp,  # Explicit timestamp from TimeService
                 "request": {
                     "analysis_type": request.analysis_type,
                     "include_nvd": request.include_nvd,

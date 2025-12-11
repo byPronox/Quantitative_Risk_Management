@@ -31,8 +31,7 @@ async def services_status():
     """Check status of all microservices"""
     services_to_check = {
         "ml_prediction": os.getenv("ML_SERVICE_URL", "http://ml-prediction-service:8001"),
-        "nvd_service": os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002"),
-        "report_service": os.getenv("REPORT_SERVICE_URL", "http://report-service:8003")
+        "nvd_service": os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
     }
     
     status = {}
@@ -216,8 +215,7 @@ async def proxy_to_microservice(service_name: str, path: str):
     """Generic GET proxy requests to microservices"""
     services = {
         "ml": os.getenv("ML_SERVICE_URL", "http://ml-prediction-service:8001"),
-        "nvd": os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002"),
-        "report": os.getenv("REPORT_SERVICE_URL", "http://report-service:8003")
+        "nvd": os.getenv("NVD_SERVICE_URL", "http://nvd-service:8002")
     }
     
     if service_name not in services:

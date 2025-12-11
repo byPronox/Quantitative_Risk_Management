@@ -6,7 +6,6 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
       - rabbitmq
     restart: always
     env_file: .env
@@ -27,31 +26,29 @@ services:
   nvd-service:
     build: ./microservices/nvd_service
     ports:
-      - "8002:8002"
+      - "8002-8005:8002"
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     restart: always
     env_file: .env
-
-  # Report Generation Microservice
-  report-service:
-    build: ./microservices/report_service
-    ports:
-      - "8003:8003"
-    depends_on:
-      - rabbitmq
-    restart: always
-    env_file: .env
-    volumes:
-      - report_data:/tmp/reports
+    deploy:
+      mode: replicated
+      replicas: 1
 
   # Nmap Scanner Microservice
   nmap-scanner-service:
     build: ./microservices/nmap_scanner
     ports:
-      - "8004:8004"
+      - "8004-8007:8004"
     restart: always
     env_file: .env
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      - NVD_SERVICE_URL=http://nvd-service:8002
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     volumes:
       - nmap_temp:/app/temp
     privileged: true # Required for nmap network scanning
@@ -68,23 +65,23 @@ services:
       - backend
       - ml-prediction-service
       - nvd-service
-      - report-service
+
       - nmap-scanner-service
     restart: always
     env_file: .env
 
   # Database
-  db:
-    image: postgres:15
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+  # db:
+  #   image: postgres:15
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: postgres
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
 
   # Message Queue
   rabbitmq:
@@ -98,9 +95,41 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Gateway
+  kong:
+    image: kong:3.4
+    restart: always
+    volumes:
+      - ./kong.yml:/usr/local/kong/declarative/kong.yml
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /usr/local/kong/declarative/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+    ports:
+      - "8080:8000" # Proxy Port (Public)
+      - "8081:8001" # Admin API Port
+    depends_on:
+      - backend
+      - nmap-scanner-service
+      - nvd-service
+    healthcheck:
+      test: [ "CMD", "kong", "health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  pgdata:
+  # pgdata:
   rabbitmq_data:
   report_data:
   nmap_temp:

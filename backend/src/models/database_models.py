@@ -56,3 +56,32 @@ class Vulnerability(Base):
     references = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class NvdJob(Base):
+    """NVD Job database model"""
+    __tablename__ = "nvd_jobs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(String(50), unique=True, index=True, nullable=False)
+    keyword = Column(String(255), index=True)
+    status = Column(String(50), default="pending")
+    total_results = Column(Integer, default=0)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+    processed_via = Column(String(50), nullable=True)
+    vulnerabilities = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class NmapJob(Base):
+    """Nmap Job database model"""
+    __tablename__ = "nmap_jobs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(String(50), unique=True, index=True, nullable=False)
+    target = Column(String(255), index=True, nullable=False)
+    status = Column(String(50), default="queued")
+    result = Column(JSON, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)

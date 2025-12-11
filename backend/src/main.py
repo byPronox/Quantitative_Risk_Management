@@ -16,7 +16,6 @@ import logging
 
 from config.settings import settings
 from config.database import init_db
-from controllers.health_controller import router as health_router
 from controllers.risk_controller import router as risk_router
 from controllers.gateway_controller import router as gateway_router
 from controllers.nmap_controller import router as nmap_router
@@ -57,7 +56,6 @@ def create_app() -> FastAPI:
     app.add_middleware(LoggingMiddleware)
     
     # Include routers
-    app.include_router(health_router, prefix=f"/api/{settings.API_VERSION}", tags=["Health"])
     app.include_router(risk_router, prefix=f"/api/{settings.API_VERSION}", tags=["Risk Analysis"])
     app.include_router(gateway_router, prefix=f"/api/{settings.API_VERSION}", tags=["Gateway"])
     app.include_router(nmap_router, prefix=f"/api/{settings.API_VERSION}", tags=["Nmap Scanner"])

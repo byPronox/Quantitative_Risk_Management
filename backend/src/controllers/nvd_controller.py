@@ -2,18 +2,22 @@
 NVD (National Vulnerability Database) controller
 """
 import logging
-from fastapi import APIRouter, HTTPException, Query
-from typing import Dict, Any, List, Optional
-import httpx
+from fastapi import APIRouter, HTTPException, Query, Depends
+from sqlalchemy.orm import Session
+from config.database import get_db
+from models.database_models import NvdJob
 
-from config.settings import settings
-from services.nvd_service import NVDService
+# ... imports ...
 
-logger = logging.getLogger(__name__)
-router = APIRouter()
-
+@router.get("/nvd/history")
+async def get_nvd_history(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
+    """Get history of NVD jobs"""
+    jobs = db.query(NvdJob).order_by(NvdJob.created_at.desc()).offset(skip).limit(limit).all()
+    return jobs
 
 @router.get("/nvd/vulnerabilities")
+async def get_vulnerabilities(
+# ... rest of file ...
 async def get_vulnerabilities(
     cpe_name: Optional[str] = Query(None, description="CPE name to search for"),
     keyword: Optional[str] = Query(None, description="Keyword to search for"),

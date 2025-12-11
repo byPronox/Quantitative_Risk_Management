@@ -25,7 +25,10 @@ class RiskService:
         Perform comprehensive risk analysis
         """
         analysis_id = str(uuid.uuid4())
-        timestamp = datetime.utcnow()
+        # Use TimeService for consistent timestamp
+        from services.time_service import TimeService
+        time_service = TimeService()
+        timestamp = await time_service.get_current_time()
         
         logger.info(f"Starting risk analysis {analysis_id} for {len(request.assets)} assets")
         
@@ -59,7 +62,7 @@ class RiskService:
         )
         
         # Save analysis to database
-        await self.risk_repository.save_analysis(analysis_id, request, asset_analyses, overall_risk)
+        await self.risk_repository.save_analysis(analysis_id, request, asset_analyses, overall_risk, timestamp)
         
         return RiskAnalysisResponse(
             analysis_id=analysis_id,

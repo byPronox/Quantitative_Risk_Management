@@ -2,6 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import routes from './routes.js';
+import { startConsumer } from './consumer.js';
+
+// Start RabbitMQ Consumer
+startConsumer();
 
 // Create Express app
 const app = express();
@@ -64,7 +68,7 @@ app.use('*', (req, res) => {
 // Global error handler
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
-  
+
   res.status(500).json({
     error: 'Internal server error',
     details: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong',

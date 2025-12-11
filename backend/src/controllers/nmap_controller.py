@@ -1,328 +1,70 @@
 """
-Nmap Scanner Controller - Integration with QRMS Backend
+Nmap Controller for Async Scanning
 """
-import httpx
-import logging
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
-import asyncio
+import uuid
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from datetime import datetime
 
-from config.settings import settings
-
-logger = logging.getLogger(__name__)
+from config.database import get_db
+from models.database_models import NmapJob
+from services.nmap_queue_service import NmapQueueService
 
 router = APIRouter()
+queue_service = NmapQueueService()
 
-# Pydantic models for request/response
-class ScanRequest(BaseModel):
-    ip: str = Field(..., description="IP address or hostname to scan")
+@router.post("/scan/async")
+async def start_async_scan(target: str, db: Session = Depends(get_db)):
+    """
+    Start an asynchronous Nmap scan.
+    Returns a job_id to track progress.
+    """
+    job_id = str(uuid.uuid4())
     
-class ScanResponse(BaseModel):
-    success: bool
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    details: Optional[str] = None
-    scanDuration: Optional[str] = None
-    timestamp: str
-
-class ValidationRequest(BaseModel):
-    target: str = Field(..., description="IP address or hostname to validate")
-
-class ValidationResponse(BaseModel):
-    target: str
-    isValidIP: bool
-    isValidHostname: bool
-    isValid: bool
-    timestamp: str
-
-# HTTP client for nmap service
-nmap_service_url = f"http://nmap-scanner-service:8004"
-
-async def get_nmap_service_client():
-    """Get HTTP client for nmap service"""
-    return httpx.AsyncClient(
-        base_url=nmap_service_url,
-        timeout=httpx.Timeout(900.0)  # 15 minutes timeout
+    # Create job record in DB
+    job = NmapJob(
+        job_id=job_id,
+        target=target,
+        status="queued"
     )
-
-@router.post("/nmap/scan")
-async def scan_target(request: Dict[str, Any]):
-    """
-    Scan a target IP or hostname using nmap
+    db.add(job)
+    db.commit()
     
-    Executes: nmap -sV --script vuln [IP] -oX scan_result.xml
-    """
-    logger.info(f"Received scan request: {request}")
+    # Publish to Queue
+    success = queue_service.publish_scan_job(job_id, target)
     
-    # Extract IP from different possible formats
-    ip = None
-    if isinstance(request, dict):
-        ip = request.get("ip") or request.get("target") or request.get("host")
-    elif hasattr(request, 'ip'):
-        ip = request.ip
-    
-    if not ip:
-        raise HTTPException(
-            status_code=400,
-            detail={"error": "Missing IP parameter", "details": "IP address or hostname is required"}
-        )
-    
-    try:
-        async with await get_nmap_service_client() as client:
-            response = await client.post(
-                "/api/v1/scan",
-                json={"ip": ip}
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info(f"Scan completed successfully for {ip}")
-                return result
-            else:
-                error_data = response.json()
-                logger.error(f"Scan failed for {ip}: {error_data}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_data
-                )
-                
-    except httpx.TimeoutException:
-        logger.error(f"Scan timeout for {ip}")
-        raise HTTPException(
-            status_code=408,
-            detail={
-                "error": "Scan timeout",
-                "details": "Nmap scan exceeded 15 minute timeout",
-                "target": ip
-            }
-        )
-    except httpx.ConnectError:
-        logger.error("Cannot connect to nmap scanner service")
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "error": "Service unavailable",
-                "details": "Nmap scanner service is not available"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during scan: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Internal server error",
-                "details": str(e)
-            }
-        )
-
-@router.get("/nmap/history")
-async def get_scan_history():
-    """Get scan history (placeholder endpoint)"""
-    logger.info("Getting scan history...")
+    if not success:
+        job.status = "failed"
+        job.error = "Failed to publish to queue"
+        db.commit()
+        raise HTTPException(status_code=500, detail="Failed to queue scan job")
+        
     return {
-        "success": True,
-        "data": [],
-        "message": "No scan history available yet",
-        "timestamp": "2025-10-24T17:00:00Z"
+        "job_id": job_id,
+        "target": target,
+        "status": "queued",
+        "message": "Scan job submitted successfully"
     }
 
-@router.get("/nmap/test")
-async def test_nmap_service():
-    """Test nmap service installation and availability"""
-    logger.info("Testing nmap service...")
-    
-    try:
-        async with await get_nmap_service_client() as client:
-            response = await client.get("/api/v1/test")
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info("Nmap service test successful")
-                return result
-            else:
-                error_data = response.json()
-                logger.error(f"Nmap service test failed: {error_data}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_data
-                )
-                
-    except httpx.ConnectError:
-        logger.error("Cannot connect to nmap scanner service")
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "error": "Service unavailable",
-                "details": "Nmap scanner service is not available"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during nmap test: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Internal server error",
-                "details": str(e)
-            }
-        )
+@router.get("/scan/status/{job_id}")
+async def get_scan_status(job_id: str, db: Session = Depends(get_db)):
+    """Get the status and result of a scan job"""
+    job = db.query(NmapJob).filter(NmapJob.job_id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
+    return {
+        "job_id": job.job_id,
+        "target": job.target,
+        "status": job.status,
+        "created_at": job.created_at,
+        "completed_at": job.completed_at,
+        "result": job.result,
+        "error": job.error
+    }
 
-@router.get("/nmap/validate/{target}", response_model=ValidationResponse)
-async def validate_target(target: str):
-    """Validate IP address or hostname format"""
-    logger.info(f"Validating target: {target}")
-    
-    try:
-        async with await get_nmap_service_client() as client:
-            response = await client.get(f"/api/v1/validate/{target}")
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info(f"Target validation completed for {target}")
-                return ValidationResponse(**result)
-            else:
-                error_data = response.json()
-                logger.error(f"Target validation failed for {target}: {error_data}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_data
-                )
-                
-    except httpx.ConnectError:
-        logger.error("Cannot connect to nmap scanner service")
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "error": "Service unavailable",
-                "details": "Nmap scanner service is not available"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during target validation: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Internal server error",
-                "details": str(e)
-            }
-        )
-
-@router.get("/nmap/status")
-async def get_nmap_status():
-    """Get nmap service status and configuration"""
-    logger.info("Getting nmap service status...")
-    
-    try:
-        async with await get_nmap_service_client() as client:
-            response = await client.get("/api/v1/status")
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info("Nmap service status retrieved successfully")
-                return result
-            else:
-                error_data = response.json()
-                logger.error(f"Failed to get nmap service status: {error_data}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_data
-                )
-                
-    except httpx.ConnectError:
-        logger.error("Cannot connect to nmap scanner service")
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "error": "Service unavailable",
-                "details": "Nmap scanner service is not available"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error getting nmap status: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Internal server error",
-                "details": str(e)
-            }
-        )
-
-@router.get("/nmap/scripts")
-async def get_nmap_scripts():
-    """Get available nmap vulnerability scripts"""
-    logger.info("Getting available nmap scripts...")
-    
-    try:
-        async with await get_nmap_service_client() as client:
-            response = await client.get("/api/v1/scripts")
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info("Nmap scripts retrieved successfully")
-                return result
-            else:
-                error_data = response.json()
-                logger.error(f"Failed to get nmap scripts: {error_data}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_data
-                )
-                
-    except httpx.ConnectError:
-        logger.error("Cannot connect to nmap scanner service")
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "error": "Service unavailable",
-                "details": "Nmap scanner service is not available"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error getting nmap scripts: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Internal server error",
-                "details": str(e)
-            }
-        )
-
-@router.get("/nmap/health")
-async def nmap_health_check():
-    """Health check for nmap service"""
-    logger.info("Performing nmap service health check...")
-    
-    try:
-        async with await get_nmap_service_client() as client:
-            response = await client.get("/api/v1/health")
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info("Nmap service health check passed")
-                return result
-            else:
-                error_data = response.json()
-                logger.error(f"Nmap service health check failed: {error_data}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_data
-                )
-                
-    except httpx.ConnectError:
-        logger.error("Cannot connect to nmap scanner service")
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "error": "Service unavailable",
-                "details": "Nmap scanner service is not available"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during nmap health check: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Internal server error",
-                "details": str(e)
-            }
-        )
+@router.get("/scan/history")
+async def get_scan_history(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
+    """Get history of Nmap scans"""
+    jobs = db.query(NmapJob).order_by(NmapJob.created_at.desc()).offset(skip).limit(limit).all()
+    return jobs

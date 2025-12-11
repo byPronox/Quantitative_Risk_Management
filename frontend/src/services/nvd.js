@@ -28,7 +28,7 @@ export async function analyzeSoftwareAsync(softwareList, params = {}) {
       software_list: softwareList,
       metadata: params
     });
-    
+
     return response.data;
   } catch (error) {
     console.error('Error starting async analysis:', error);
@@ -63,20 +63,20 @@ export function pollAnalysisResults(jobIds, callback) {
   const pollInterval = 3000; // Poll cada 3 segundos
   let attemptCount = 0;
   const maxAttempts = 20; // Máximo 60 segundos de polling
-  
+
   const poll = async () => {
     attemptCount++;
     const progress = Math.min((attemptCount / maxAttempts) * 100, 95);
-    
+
     try {
       const completed = [];
-      
+
       // Usar el endpoint del backend para obtener resultados de cada job
       for (const jobId of jobIds) {
         try {
           const response = await backendApi.get(`/nvd/results/${jobId}`);
           const result = response.data;
-          
+
           if (result.status === 'completed' || result.status === 'failed') {
             completed.push({
               jobId: jobId,
@@ -102,13 +102,13 @@ export function pollAnalysisResults(jobIds, callback) {
           }
         }
       }
-      
+
       // Llamar callback con resultados
       callback({
         progress: progress,
         completed: completed
       });
-      
+
       // Si completamos todos los jobs o llegamos al máximo de intentos
       if (completed.length === jobIds.length || attemptCount >= maxAttempts) {
         callback({
@@ -117,10 +117,10 @@ export function pollAnalysisResults(jobIds, callback) {
         });
         return;
       }
-      
+
       // Continuar polling si no hemos terminado
       setTimeout(poll, pollInterval);
-      
+
     } catch (error) {
       callback({
         error: error.message,
@@ -128,7 +128,7 @@ export function pollAnalysisResults(jobIds, callback) {
       });
     }
   };
-  
+
   // Iniciar polling después de un breve delay
   setTimeout(poll, 1000);
 }
@@ -149,13 +149,13 @@ export async function getConsumerStatus() {
     // This endpoint doesn't exist yet, but we can check if consumer is running
     // by looking at queue status
     const queueStatus = await getQueueStatus();
-    
+
     // If there are processing jobs or consumers, consumer is likely running
     const isRunning = queueStatus.processing_jobs > 0 || queueStatus.consumers > 0;
-    
+
     return {
       running: isRunning,
-      description: isRunning 
+      description: isRunning
         ? "El consumidor está procesando trabajos via Kong Gateway"
         : "El consumidor está detenido. Inícielo para procesar trabajos en cola."
     };
@@ -176,6 +176,16 @@ export async function getAllQueueResults() {
     return response.data;
   } catch (error) {
     console.error('Error fetching all queue results:', error);
+    return [];
+  }
+}
+
+export async function getNvdHistory() {
+  try {
+    const response = await backendApi.get('/nvd/history');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching NVD history:', error);
     return [];
   }
 }
