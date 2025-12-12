@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     
     # Kong Configuration (loaded from .env)
     KONG_PROXY_URL: Optional[str] = None
+    KONG_TOKEN: Optional[str] = None
     KONG_ADMIN_URL: Optional[str] = None
     KONG_ADMIN_API: Optional[str] = None
     KONG_CONTROL_PLANE_ID: Optional[str] = None

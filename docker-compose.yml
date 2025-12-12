@@ -3,12 +3,15 @@ services:
     build: ./backend
     volumes:
       - ./backend/src:/app/src
+      - sqlite_data:/app/data
     ports:
       - "8000:8000"
     depends_on:
       rabbitmq:
         condition: service_healthy
     restart: always
+    dns:
+      - 8.8.8.8
     env_file: .env
 
   # ML Prediction Microservice
@@ -37,6 +40,8 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+    volumes:
+      - sqlite_data:/app/data
 
   # Nmap Scanner Microservice
   nmap-scanner-service:
@@ -57,6 +62,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
     volumes:
       - nmap_temp:/app/temp
+      - sqlite_data:/app/data
     privileged: true # Required for nmap network scanning
     cap_add:
       - NET_ADMIN
@@ -109,35 +115,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # API Gateway
-  kong:
-    image: kong:3.4
-    restart: always
-    volumes:
-      - ./kong.yml:/usr/local/kong/declarative/kong.yml
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /usr/local/kong/declarative/kong.yml
-      KONG_PROXY_ACCESS_LOG: /dev/stdout
-      KONG_ADMIN_ACCESS_LOG: /dev/stdout
-      KONG_PROXY_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
-    ports:
-      - "8080:8000" # Proxy Port (Public)
-      - "8081:8001" # Admin API Port
-    depends_on:
-      - backend
-      - nmap-scanner-service
-      - nvd-service
-    healthcheck:
-      test: [ "CMD", "kong", "health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 volumes:
   # pgdata:
   rabbitmq_data:
   report_data:
   nmap_temp:
+  sqlite_data:

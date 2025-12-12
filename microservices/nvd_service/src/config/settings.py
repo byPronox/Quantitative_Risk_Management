@@ -42,6 +42,7 @@ class Settings:
     
     # Kong Gateway Configuration
     KONG_PROXY_URL: Optional[str] = os.getenv("KONG_PROXY_URL")
+    KONG_TOKEN: Optional[str] = os.getenv("KONG_TOKEN")
     USE_KONG_NVD: bool = os.getenv("USE_KONG_NVD", "false").lower() == "true"
     
     # PostgreSQL/Supabase Configuration

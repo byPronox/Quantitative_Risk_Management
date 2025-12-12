@@ -12,7 +12,7 @@ export default function ScannerModule() {
   const [scanHistory, setScanHistory] = useState([]);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
-  
+
   // Flow tracking state
   const [flowSteps, setFlowSteps] = useState([
     { id: 1, name: 'Frontend', status: 'idle', icon: '🖥️', detail: '' },
@@ -24,7 +24,7 @@ export default function ScannerModule() {
   ]);
 
   const updateFlowStep = (stepId, status, detail = '') => {
-    setFlowSteps(prev => prev.map(step => 
+    setFlowSteps(prev => prev.map(step =>
       step.id === stepId ? { ...step, status, detail } : step
     ));
   };
@@ -35,7 +35,7 @@ export default function ScannerModule() {
 
   // Get Kong URL from environment
   const getKongUrl = () => {
-    return import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    return import.meta.env.VITE_API_URL || 'http://localhost:8000';
   };
 
   useEffect(() => {
@@ -74,22 +74,22 @@ export default function ScannerModule() {
       // Step 2: Kong Gateway
       updateFlowStep(2, 'active', `Conectando a ${getKongUrl()}...`);
       await new Promise(r => setTimeout(r, 300));
-      
+
       // Make the actual API call through Kong
       const kongUrl = getKongUrl();
       console.log(`📤 Sending to Kong Gateway: ${kongUrl}/api/v1/scan/async`);
-      
+
       updateFlowStep(2, 'completed', 'Ruta: /api/v1/scan/async');
-      
+
       // Step 3: Backend receives
       updateFlowStep(3, 'active', 'Backend procesando...');
-      
+
       const response = await api.post('/api/v1/scan/async', null, {
         params: { target: target.trim() }
       });
 
       const { job_id, status, message } = response.data;
-      
+
       if (!job_id) {
         throw new Error('No se recibió ID de trabajo');
       }
@@ -110,12 +110,12 @@ export default function ScannerModule() {
       setCurrentJobId(job_id);
       setJobStatus(status);
       setSuccessMessage(`✅ Trabajo enviado exitosamente!\n📋 Job ID: ${job_id}\n🐰 Cola: nmap_scan_queue`);
-      
+
       console.log(`✅ Scan job submitted: ${job_id}`);
       console.log(`   Flow: Frontend → Kong (${kongUrl}) → Backend → RabbitMQ → PostgreSQL`);
-      
+
       loadScanHistory();
-      
+
     } catch (error) {
       console.error('❌ Submit error:', error);
       updateFlowStep(2, 'error', 'Error de conexión');
@@ -139,16 +139,16 @@ export default function ScannerModule() {
     try {
       updateFlowStep(1, 'active', 'Consultando estado...');
       updateFlowStep(2, 'active', 'Via Kong Gateway...');
-      
+
       const response = await api.get(`/api/v1/scan/status/${currentJobId}`);
       const { status, result, error: jobError, target: jobTarget } = response.data;
-      
+
       updateFlowStep(1, 'completed', 'Respuesta recibida');
       updateFlowStep(2, 'completed', 'Kong OK');
       updateFlowStep(3, 'completed', 'Backend OK');
-      
+
       setJobStatus(status);
-      
+
       if (status === 'completed') {
         updateFlowStep(5, 'completed', 'Escaneo finalizado');
         updateFlowStep(6, 'completed', 'Resultado en DB');
@@ -166,7 +166,7 @@ export default function ScannerModule() {
         updateFlowStep(5, 'pending', 'Esperando worker');
         setSuccessMessage(`📋 En cola RabbitMQ...\n⏳ Esperando que un worker tome el trabajo`);
       }
-      
+
     } catch (error) {
       setError(error.response?.data?.detail || error.message || 'Error al consultar estado');
     } finally {
@@ -192,9 +192,9 @@ export default function ScannerModule() {
       try {
         const response = await api.get(`/api/v1/scan/status/${currentJobId}`);
         const { status, result, error: jobError, target: jobTarget } = response.data;
-        
+
         setJobStatus(status);
-        
+
         if (status === 'completed') {
           updateFlowStep(5, 'completed', 'Escaneo finalizado');
           updateFlowStep(6, 'completed', 'Resultado guardado');
@@ -213,10 +213,10 @@ export default function ScannerModule() {
           updateFlowStep(4, 'active', 'En cola RabbitMQ');
           setSuccessMessage(`📋 En cola... (${attempts + 1}/${maxAttempts})`);
         }
-        
+
         await new Promise(resolve => setTimeout(resolve, 5000));
         attempts++;
-        
+
       } catch (err) {
         await new Promise(resolve => setTimeout(resolve, 5000));
         attempts++;
@@ -333,8 +333,8 @@ export default function ScannerModule() {
             <p><strong>Job ID:</strong> <code>{currentJobId}</code></p>
             <p><strong>Target:</strong> <code>{target}</code></p>
             <p>
-              <strong>Estado:</strong> 
-              <span 
+              <strong>Estado:</strong>
+              <span
                 className="status-indicator"
                 style={{ backgroundColor: getStatusColor(jobStatus), marginLeft: '8px', padding: '4px 12px', borderRadius: '4px', color: 'white' }}
               >
@@ -456,12 +456,12 @@ export default function ScannerModule() {
       <div className="scan-history">
         <h3>📋 Historial de Escaneos (PostgreSQL)</h3>
         <button onClick={loadScanHistory} className="refresh-button">🔄 Refrescar</button>
-        
+
         {scanHistory.length > 0 ? (
           <div className="history-list">
             {scanHistory.slice(0, 10).map((scan) => (
-              <div 
-                key={scan.id || scan.job_id} 
+              <div
+                key={scan.id || scan.job_id}
                 className="history-item"
                 onClick={() => {
                   setCurrentJobId(scan.job_id);

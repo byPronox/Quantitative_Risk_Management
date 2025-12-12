@@ -33,14 +33,26 @@ def get_db() -> Session:
 
 async def init_db():
     """Initialize database connections"""
-    try:
-        # Create SQLAlchemy tables
-        Base.metadata.create_all(bind=engine)
-        logger.info("PostgreSQL/Supabase database initialization completed")
-        
-    except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
-        raise
+    import time
+    
+    max_retries = 5
+    retry_delay = 5
+    
+    for attempt in range(max_retries):
+        try:
+            # Create SQLAlchemy tables
+            Base.metadata.create_all(bind=engine)
+            logger.info("PostgreSQL/Supabase database initialization completed")
+            return
+            
+        except Exception as e:
+            logger.warning(f"Database initialization attempt {attempt + 1}/{max_retries} failed: {e}")
+            if attempt < max_retries - 1:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                logger.error("All database initialization attempts failed")
+                raise
 
 
 async def close_db():

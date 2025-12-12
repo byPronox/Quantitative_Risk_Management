@@ -264,7 +264,8 @@ VITE_API_URL=http://localhost:8000
 |----------|------------|------------|
 | RABBITMQ_URL | Docker local | CloudAMQP |
 | DATABASE_URL | Supabase | Supabase |
-| KONG_PROXY_URL | localhost:8080 | Kong Cloud |
+| KONG_PROXY_URL | https://<your-id>.us.konghq.tech | Kong Konnect (Cloud) Proxy URL |
+| KONG_TOKEN | your-token | Kong Konnect Personal Access Token |
 
 ---
 

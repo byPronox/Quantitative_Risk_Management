@@ -28,9 +28,9 @@ Documento de referencia sobre la nomenclatura, decisiones de diseño y arquitect
 | **Función Técnica** | Routing, rate limiting, CORS, load balancing |
 | **Función General** | "Recepcionista" que dirige tráfico a servicios internos |
 | **Puerto** | 8080 (proxy), 8081 (admin) |
-| **Tecnología** | Kong 3.4 (DB-less mode) |
+| **Tecnología** | Kong Konnect (Cloud Managed) |
 
-**Configuración:** `kong.yml`
+**Configuración:** Gestionado en [cloud.konghq.com](https://cloud.konghq.com). Variables en `.env`.
 ```yaml
 services:
   - name: backend-api

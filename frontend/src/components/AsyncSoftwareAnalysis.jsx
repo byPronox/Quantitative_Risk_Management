@@ -661,12 +661,9 @@ export default function AsyncSoftwareAnalysis() {
         </ul>
       </div>
       {/* Completed Jobs Section */}
-    </ul>
-      </div >
 
-    {/* DB History Section */ }
-    < div className = "db-history-section" style = {{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }
-}>
+      {/* DB History Section */}
+      <div className="db-history-section" style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
         <h4>📜 Historial Persistente (Supabase)</h4>
         <div className="history-list">
           {dbHistory.length === 0 ? (
@@ -702,7 +699,7 @@ export default function AsyncSoftwareAnalysis() {
             </div>
           )}
         </div>
-      </div >
+      </div>
     </div >
   );
 }
