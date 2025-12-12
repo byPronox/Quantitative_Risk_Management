@@ -3,6 +3,7 @@ Application settings and configuration
 """
 from pathlib import Path
 from typing import Optional
+import os
 
 try:
     from pydantic_settings import BaseSettings
@@ -18,17 +19,16 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     API_VERSION: str = "v1"
     
-    # Database Configuration (loaded from .env)
-    DATABASE_URL: str
-    MONGODB_URL: str
-    MONGODB_DATABASE: str = "quantitative_risk_management"
+    # Database Configuration (PostgreSQL/Supabase)
+    DATABASE_URL: str = "sqlite:///./risk_management.db"
     
-    # NVD Configuration (loaded from .env)
-    NVD_API_KEY: str
+    # NVD Configuration
+    NVD_API_KEY: str = ""
     USE_KONG_NVD: bool = False
     
     # Kong Configuration (loaded from .env)
     KONG_PROXY_URL: Optional[str] = None
+    KONG_ADMIN_URL: Optional[str] = None
     KONG_ADMIN_API: Optional[str] = None
     KONG_CONTROL_PLANE_ID: Optional[str] = None
     
@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     # Microservices URLs (loaded from .env)
     ML_SERVICE_URL: str = "http://ml-prediction-service:8001"
     NVD_SERVICE_URL: str = "http://nvd-service:8002"
+    NMAP_SERVICE_URL: str = "http://nmap-scanner-service:8004"
     REPORT_SERVICE_URL: str = "http://report-service:8003"
     
     # Logging
@@ -60,8 +61,9 @@ class Settings(BaseSettings):
     VITE_API_URL: Optional[str] = None
     
     class Config:
-        env_file = Path(__file__).parent.parent / ".env"
+        env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Ignore extra env vars
 
 
 # Global settings instance

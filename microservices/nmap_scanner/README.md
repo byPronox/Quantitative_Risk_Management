@@ -1,23 +1,89 @@
-# Nmap Scanner Service
+# 🔍 NMAP Scanner Service
 
-A microservice for vulnerability scanning using nmap, designed to integrate with the Quantitative Risk Management System (QRMS).
+Microservicio de escaneo de red usando **Nmap**, construido con **Node.js/Express**, integrado con **RabbitMQ** para procesamiento asíncrono y **PostgreSQL/Supabase** para persistencia.
 
-## Features
+## 🏗️ Arquitectura
 
-- **Exact nmap command implementation**: `nmap -sV --script vuln [IP] -oX scan_result.xml`
-- **XML processing**: Parses nmap XML output using xml2js
-- **Structured data extraction**: IP, OS, ports, services, and vulnerabilities
-- **Input validation**: IP address and hostname validation
-- **Error handling**: Comprehensive error handling with detailed logging
-- **Rate limiting**: Prevents abuse with configurable limits
-- **Security**: Helmet.js security headers and CORS protection
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│   Backend   │ ──── │  RabbitMQ   │ ──── │ NMAP Worker │
+│   (FastAPI) │ POST │  (Queue)    │ CONSUME │ (Node.js) │
+└─────────────┘      └─────────────┘      └──────┬──────┘
+                                                  │
+                                                  ▼
+                                          ┌─────────────┐
+                                          │  PostgreSQL │
+                                          │  (Supabase) │
+                                          └─────────────┘
+```
 
-## API Endpoints
+## ✨ Características
+
+- **Escaneo Nmap** con scripts de vulnerabilidades
+- **Procesamiento asíncrono** via RabbitMQ
+- **Persistencia** en PostgreSQL/Supabase
+- **API REST** para consultas directas
+- **Rate Limiting** y seguridad con Helmet.js
+- **Reconexión automática** a RabbitMQ con exponential backoff
+- **SSL/TLS** para conexiones cloud
+
+## 📦 Tecnologías
+
+| Tecnología | Uso |
+|------------|-----|
+| Node.js 20 | Runtime |
+| Express 4.x | API REST |
+| amqplib | Cliente RabbitMQ |
+| pg | Cliente PostgreSQL |
+| xml2js | Parser XML de Nmap |
+| Helmet.js | Seguridad HTTP |
+
+## 🚀 Quick Start
+
+### Docker (Recomendado)
+```bash
+docker build -t nmap-scanner-service .
+docker run -p 8004:8004 --env-file .env nmap-scanner-service
+```
+
+### Desarrollo Local
+```bash
+# Instalar nmap
+sudo apt-get install nmap nmap-scripts  # Ubuntu/Debian
+brew install nmap                        # macOS
+
+# Instalar dependencias
+npm install
+
+# Iniciar
+npm start
+```
+
+## 🔧 Configuración
+
+### Variables de Entorno
+
+```env
+# Server
+PORT=8004
+NODE_ENV=production
+
+# Database (Supabase)
+DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres
+
+# RabbitMQ
+RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+
+# Production (CloudAMQP)
+# RABBITMQ_URL=amqps://user:pass@host.rmq.cloudamqp.com/vhost
+```
+
+## 📡 API Endpoints
 
 ### POST /api/v1/scan
-Main scanning endpoint that executes nmap scan.
+Escaneo directo (síncrono).
 
-**Request Body:**
+**Request:**
 ```json
 {
   "ip": "192.168.1.1"
@@ -30,132 +96,170 @@ Main scanning endpoint that executes nmap scan.
   "success": true,
   "data": {
     "ip": "192.168.1.1",
-    "os": "Microsoft Windows",
+    "os": "Linux",
     "status": "up",
     "services": [
       {
-        "port": "135",
+        "port": "22",
         "protocol": "tcp",
         "state": "open",
-        "name": "msrpc",
-        "product": "Microsoft Windows RPC",
-        "version": "",
-        "method": "probed",
-        "conf": "10",
-        "extrainfo": ""
+        "name": "ssh",
+        "product": "OpenSSH",
+        "version": "8.2"
       }
     ],
     "vulnerabilities": [],
-    "timestamp": "2025-01-02T21:23:14.694Z",
-    "scanDuration": "unknown"
-  },
-  "scanDuration": "15000ms",
-  "timestamp": "2025-01-02T21:23:14.694Z"
+    "timestamp": "2025-01-02T21:23:14.694Z"
+  }
+}
+```
+
+### GET /api/v1/health
+Health check del servicio.
+
+```json
+{
+  "status": "healthy",
+  "service": "nmap-scanner",
+  "uptime": 3600
 }
 ```
 
 ### GET /api/v1/test
-Test nmap installation and get version information.
+Verificar instalación de Nmap.
 
 ### GET /api/v1/scripts
-Get available vulnerability scripts.
-
-### GET /api/v1/validate/:target
-Validate IP address or hostname format.
+Listar scripts de vulnerabilidades disponibles.
 
 ### GET /api/v1/status
-Get service status and configuration.
+Estado del servicio y conexiones.
 
-### GET /api/v1/health
-Health check endpoint.
+## 🐰 RabbitMQ Consumer
 
-## Installation
+El servicio consume jobs de la cola `nmap_scan_queue`:
 
-### Docker (Recommended)
-```bash
-docker build -t nmap-scanner-service .
-docker run -p 8004:8004 nmap-scanner-service
+### Mensaje de Entrada
+```json
+{
+  "job_id": "nmap_abc123",
+  "target": "192.168.1.1"
+}
 ```
 
-### Local Development
-```bash
-# Install nmap
-# Ubuntu/Debian:
-sudo apt-get install nmap nmap-scripts
+### Flujo
+1. **Recibe** mensaje de la cola
+2. **Ejecuta** `nmap -sV --script vuln <target> -oX -`
+3. **Parsea** salida XML
+4. **Guarda** resultado en PostgreSQL
+5. **ACK** el mensaje
 
-# macOS:
-brew install nmap
-
-# Windows:
-# Download from https://nmap.org/download.html
-
-# Install Node.js dependencies
-npm install
-
-# Start service
-npm start
+### Reconexión
+```javascript
+// Exponential backoff para reconexión
+const delays = [1000, 2000, 4000, 8000, 16000, 30000];
 ```
 
-## Configuration
+## 🐘 Base de Datos
 
-### Environment Variables
-- `PORT`: Server port (default: 8004)
-- `HOST`: Server host (default: 0.0.0.0)
-- `NODE_ENV`: Environment (development/production)
-- `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins
+### Tabla `nmap_jobs`
 
-### Rate Limiting
-- 10 requests per 15 minutes per IP
-- Configurable via express-rate-limit
+```sql
+CREATE TABLE nmap_jobs (
+  id SERIAL PRIMARY KEY,
+  job_id VARCHAR(50) UNIQUE NOT NULL,
+  target VARCHAR(255) NOT NULL,
+  status VARCHAR(50) DEFAULT 'queued',
+  result JSONB,
+  error TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+```
 
-### Scan Timeout
-- 5 minutes maximum per scan
-- Configurable in scanner.js
+### Estados del Job
+| Estado | Descripción |
+|--------|-------------|
+| `queued` | En cola, esperando procesamiento |
+| `processing` | Escaneo en progreso |
+| `completed` | Finalizado exitosamente |
+| `failed` | Error durante el escaneo |
 
-## Test Cases
+## 🐳 Docker
 
-The service has been tested with:
-- `127.0.0.1` (localhost)
-- `192.168.1.1` (private network)
-- `8.8.8.8` (public DNS)
-- `scanme.nmap.org` (nmap test host)
+### Dockerfile
+```dockerfile
+FROM node:20-alpine
 
-## Error Handling
+# Instalar nmap
+RUN apk add --no-cache nmap nmap-scripts
 
-The service handles various error scenarios:
-- Invalid IP format
-- Nmap execution failures
-- XML parsing errors
-- File system errors
-- Timeout errors
-- Permission errors
+WORKDIR /app
 
-## Security Considerations
+COPY package*.json ./
+RUN npm ci --only=production
 
-- Non-root user in Docker container
-- Rate limiting to prevent abuse
-- Input validation
-- Security headers with Helmet.js
-- CORS protection
-- Temporary file cleanup
+COPY src/ ./src/
 
-## Logging
+EXPOSE 8004
+CMD ["node", "src/index.js"]
+```
 
-Comprehensive logging includes:
-- Request/response logging
-- Nmap command execution
-- XML processing steps
-- Error details
-- Performance metrics
+### Healthcheck
+```yaml
+healthcheck:
+  test: ["CMD", "wget", "-q", "--spider", "http://localhost:8004/api/v1/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+```
 
-## Integration
+## 🔒 Seguridad
 
-This service integrates with the QRMS ecosystem:
-- Docker Compose orchestration
-- API Gateway routing
-- MongoDB for result storage
-- RabbitMQ for async processing
+- **Helmet.js** para headers de seguridad
+- **Rate Limiting** para prevenir abuso
+- **Validación de IP** antes del escaneo
+- **SSL/TLS** para conexiones a base de datos cloud
+- **Sin ejecución de comandos arbitrarios**
 
-## License
+## 📊 Estructura del Proyecto
 
-MIT License
+```
+nmap_scanner/
+├── src/
+│   ├── index.js       # Entry point + Express API
+│   ├── consumer.js    # RabbitMQ consumer
+│   ├── scanner.js     # Lógica de escaneo Nmap
+│   └── db.js          # Cliente PostgreSQL
+├── package.json
+├── Dockerfile
+└── .env
+```
+
+## 🧪 Testing
+
+```bash
+# Test de conexión
+curl http://localhost:8004/api/v1/health
+
+# Test de escaneo
+curl -X POST http://localhost:8004/api/v1/scan \
+  -H "Content-Type: application/json" \
+  -d '{"ip": "scanme.nmap.org"}'
+```
+
+## 📝 Logs
+
+```
+[CONSUMER] Starting NMAP Scanner Consumer...
+[CONSUMER] Connected to RabbitMQ
+[CONSUMER] Waiting for messages in queue: nmap_scan_queue
+[CONSUMER] Received job: nmap_abc123 for target: 192.168.1.1
+[CONSUMER] Scan completed for job: nmap_abc123
+[CONSUMER] Result saved to database
+```
+
+---
+
+## 📄 Licencia
+
+MIT License © 2025

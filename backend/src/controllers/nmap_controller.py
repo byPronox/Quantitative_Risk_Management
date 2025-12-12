@@ -67,4 +67,21 @@ async def get_scan_status(job_id: str, db: Session = Depends(get_db)):
 async def get_scan_history(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
     """Get history of Nmap scans"""
     jobs = db.query(NmapJob).order_by(NmapJob.created_at.desc()).offset(skip).limit(limit).all()
-    return jobs
+    return {
+        "scans": [
+            {
+                "id": job.id,
+                "job_id": job.job_id,
+                "target": job.target,
+                "status": job.status,
+                "created_at": job.created_at,
+                "completed_at": job.completed_at,
+                "result": job.result,
+                "error": job.error
+            }
+            for job in jobs
+        ],
+        "total": len(jobs),
+        "skip": skip,
+        "limit": limit
+    }

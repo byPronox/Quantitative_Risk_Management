@@ -15,11 +15,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from config.settings import settings
-from config.database import init_db
+from config.database import init_db, SessionLocal
 from controllers.risk_controller import router as risk_router
 from controllers.gateway_controller import router as gateway_router
 from controllers.nmap_controller import router as nmap_router
 from controllers.enhanced_risk_controller import router as enhanced_risk_router
+from controllers.health_controller import router as health_router
+from controllers.auth_controller import router as auth_router, seed_default_user
 from middleware.error_handler import ErrorHandlerMiddleware
 from middleware.logging_middleware import LoggingMiddleware
 
@@ -56,12 +58,16 @@ def create_app() -> FastAPI:
     app.add_middleware(LoggingMiddleware)
     
     # Include routers
+    app.include_router(auth_router, prefix=f"/api/{settings.API_VERSION}", tags=["Authentication"])
+    app.include_router(health_router, prefix=f"/api/{settings.API_VERSION}", tags=["Health"])
     app.include_router(risk_router, prefix=f"/api/{settings.API_VERSION}", tags=["Risk Analysis"])
     app.include_router(gateway_router, prefix=f"/api/{settings.API_VERSION}", tags=["Gateway"])
     app.include_router(nmap_router, prefix=f"/api/{settings.API_VERSION}", tags=["Nmap Scanner"])
     app.include_router(enhanced_risk_router, prefix=f"/api/{settings.API_VERSION}", tags=["Enhanced Risk Analysis"])
     
     # Compatibility routes (without API prefix for existing frontend)
+    app.include_router(auth_router, tags=["Auth Compatibility"])
+    app.include_router(health_router, tags=["Health Compatibility"])
     app.include_router(risk_router, tags=["Compatibility"])
     app.include_router(gateway_router, tags=["Gateway Compatibility"])
     app.include_router(nmap_router, tags=["Nmap Compatibility"])
@@ -72,6 +78,15 @@ def create_app() -> FastAPI:
         """Initialize application on startup"""
         logger.info("Starting Risk Management API Gateway")
         await init_db()
+        
+        # Seed default user (qrms/qrms)
+        try:
+            db = SessionLocal()
+            seed_default_user(db)
+            db.close()
+        except Exception as e:
+            logger.warning(f"Could not seed default user: {e}")
+        
         logger.info("Application startup completed")
     
     @app.on_event("shutdown")

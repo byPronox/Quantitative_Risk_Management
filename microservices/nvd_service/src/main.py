@@ -43,22 +43,20 @@ async def startup_event():
     """Initialize services on startup"""
     try:
         logger.info("Starting NVD service...")
-        # Import the already initialized queue service from controller
-        from .controllers.nvd_controller import queue_service, mongodb_service
-        # Prueba conexión a MongoDB
+        # Import the already initialized services from controller
+        from .controllers.nvd_controller import queue_service, database_service
+        # Test PostgreSQL/Supabase connection
         try:
-            await mongodb_service.connect()
-            logger.info("MongoDB connection test: OK")
-        except Exception as mongo_err:
-            logger.error(f"MongoDB connection failed at startup: {mongo_err}")
-        # Prueba conexión a RabbitMQ
+            await database_service.connect()
+            logger.info("PostgreSQL/Supabase connection test: OK")
+        except Exception as db_err:
+            logger.error(f"Database connection failed at startup: {db_err}")
+        # Test RabbitMQ connection
         try:
             queue_service._connect()
             logger.info("RabbitMQ connection test: OK")
         except Exception as rabbit_err:
             logger.error(f"RabbitMQ connection failed at startup: {rabbit_err}")
-        # consumer_result = queue_service.start_consumer()
-        # logger.info(f"Queue consumer startup result: {consumer_result}")
         logger.info("Consumer auto-start disabled for manual control testing")
     except Exception as e:
         logger.warning(f"Failed to start queue consumer on startup: {str(e)}")
@@ -74,10 +72,20 @@ async def root():
         "environment": settings.ENVIRONMENT
     }
 
-# Health check endpoint
+# Health check endpoint (root level)
 @app.get("/health")
 async def health():
     """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": settings.SERVICE_NAME,
+        "version": settings.SERVICE_VERSION
+    }
+
+# Health check endpoint (API v1 level - for Dockerfile healthcheck)
+@app.get("/api/v1/health")
+async def health_api():
+    """Health check endpoint for API v1"""
     return {
         "status": "healthy",
         "service": settings.SERVICE_NAME,

@@ -1,5 +1,6 @@
 """
 Risk analysis repository for database operations
+Uses PostgreSQL/Supabase as the single database
 """
 import logging
 from typing import Dict, Any, List, Optional
@@ -7,7 +8,7 @@ from datetime import datetime
 import json
 
 from sqlalchemy.orm import Session
-from config.database import get_db, get_mongodb
+from config.database import get_db
 from models.database_models import RiskAnalysis as RiskAnalysisDB, Asset as AssetDB
 from models.risk_models import RiskAnalysisRequest, AssetRiskAnalysis, RiskScore
 
@@ -36,9 +37,6 @@ class RiskRepository:
             # Save to PostgreSQL
             await self._save_to_postgres(analysis_id, request, asset_analyses, overall_risk, timestamp)
             
-            # Save to MongoDB for detailed storage
-            await self._save_to_mongodb(analysis_id, request, asset_analyses, overall_risk, timestamp)
-            
             logger.info(f"Risk analysis {analysis_id} saved successfully with timestamp {timestamp}")
             return True
             
@@ -54,7 +52,7 @@ class RiskRepository:
         overall_risk: RiskScore,
         timestamp: datetime
     ):
-        """Save analysis summary to PostgreSQL"""
+        """Save analysis to PostgreSQL/Supabase"""
         db = next(get_db())
         try:
             # Prepare assets data
@@ -69,49 +67,8 @@ class RiskRepository:
                 for asset in asset_analyses
             ]
             
-            # Create analysis record
-            analysis = RiskAnalysisDB(
-                analysis_id=analysis_id,
-                timestamp=timestamp,  # Explicit timestamp from TimeService
-                overall_risk_score=overall_risk.overall_score,
-                overall_risk_level=overall_risk.risk_level.value,
-                assets_analyzed=assets_data,
-                vulnerabilities_found=sum(len(a.vulnerabilities) for a in asset_analyses),
-                recommendations=[rec for asset in asset_analyses for rec in asset.recommendations],
-                analysis_metadata={  # Changed from 'metadata' to 'analysis_metadata'
-                    "analysis_type": request.analysis_type,
-                    "nvd_enabled": request.include_nvd,
-                    "ml_enabled": request.include_ml_prediction
-                }
-            )
-            
-            db.add(analysis)
-            db.commit()
-            
-        except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
-    
-    async def _save_to_mongodb(
-        self,
-        analysis_id: str,
-        request: RiskAnalysisRequest,
-        asset_analyses: List[AssetRiskAnalysis],
-        overall_risk: RiskScore,
-        timestamp: datetime
-    ):
-        """Save detailed analysis to MongoDB"""
-        mongodb = await get_mongodb()
-        if not mongodb:
-            return
-        
-        try:
-            # Prepare detailed document
-            document = {
-                "analysis_id": analysis_id,
-                "timestamp": timestamp,  # Explicit timestamp from TimeService
+            # Prepare detailed data (previously stored in MongoDB)
+            detailed_data = {
                 "request": {
                     "analysis_type": request.analysis_type,
                     "include_nvd": request.include_nvd,
@@ -163,21 +120,57 @@ class RiskRepository:
                 ]
             }
             
-            await mongodb.risk_analyses.insert_one(document)
+            # Create analysis record
+            analysis = RiskAnalysisDB(
+                analysis_id=analysis_id,
+                timestamp=timestamp,
+                overall_risk_score=overall_risk.overall_score,
+                overall_risk_level=overall_risk.risk_level.value,
+                assets_analyzed=assets_data,
+                vulnerabilities_found=sum(len(a.vulnerabilities) for a in asset_analyses),
+                recommendations=[rec for asset in asset_analyses for rec in asset.recommendations],
+                analysis_metadata={
+                    "analysis_type": request.analysis_type,
+                    "nvd_enabled": request.include_nvd,
+                    "ml_enabled": request.include_ml_prediction,
+                    "detailed_data": detailed_data  # Store detailed data in PostgreSQL JSONB
+                }
+            )
+            
+            db.add(analysis)
+            db.commit()
             
         except Exception as e:
-            logger.error(f"MongoDB save failed: {e}")
-            # Don't raise - PostgreSQL save is more important
+            db.rollback()
+            raise e
+        finally:
+            db.close()
     
     async def get_analysis_by_id(self, analysis_id: str) -> Optional[Dict[str, Any]]:
-        """Get analysis by ID from MongoDB"""
+        """Get analysis by ID from PostgreSQL"""
         try:
-            mongodb = await get_mongodb()
-            if not mongodb:
+            db = next(get_db())
+            analysis = db.query(RiskAnalysisDB).filter(
+                RiskAnalysisDB.analysis_id == analysis_id
+            ).first()
+            
+            if not analysis:
                 return None
             
-            document = await mongodb.risk_analyses.find_one({"analysis_id": analysis_id})
-            return document
+            return {
+                "analysis_id": analysis.analysis_id,
+                "timestamp": analysis.timestamp.isoformat() if analysis.timestamp else None,
+                "overall_risk_score": analysis.overall_risk_score,
+                "overall_risk_level": analysis.overall_risk_level,
+                "assets_analyzed": analysis.assets_analyzed,
+                "vulnerabilities_found": analysis.vulnerabilities_found,
+                "recommendations": analysis.recommendations,
+                "metadata": analysis.analysis_metadata
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get analysis {analysis_id}: {e}")
+            return None
             
         except Exception as e:
             logger.error(f"Failed to get analysis {analysis_id}: {e}")

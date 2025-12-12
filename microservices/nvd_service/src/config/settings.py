@@ -44,9 +44,8 @@ class Settings:
     KONG_PROXY_URL: Optional[str] = os.getenv("KONG_PROXY_URL")
     USE_KONG_NVD: bool = os.getenv("USE_KONG_NVD", "false").lower() == "true"
     
-    # MongoDB Atlas Configuration
-    MONGODB_URL: Optional[str] = os.getenv("MONGODB_URL")
-    MONGODB_DATABASE: str = os.getenv("MONGODB_DATABASE", "cveScanner")
+    # PostgreSQL/Supabase Configuration
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     
     # RabbitMQ Configuration
     RABBITMQ_HOST: str = os.getenv("RABBITMQ_HOST", "rabbitmq")
@@ -65,8 +64,8 @@ class Settings:
     
     def __init__(self):
         # Validate required environment variables
-        if not self.MONGODB_URL:
-            raise ValueError("MONGODB_URL environment variable is required")
+        if not self.DATABASE_URL:
+            raise ValueError("DATABASE_URL environment variable is required")
         
         # Compute derived values
         self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:5672/"

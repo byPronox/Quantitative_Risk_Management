@@ -1,93 +1,107 @@
-# ⚠️ Sistema de Gestión de Riesgos Cuantitativo
+# 🛡️ QRMS - Quantitative Risk Management System
 
-Una aplicación full-stack basada en microservicios para **evaluación y mitigación cuantitativa de riesgos**, potenciada por **Aprendizaje Automático** y **Programación Dinámica**. Este sistema predice riesgos potenciales, evalúa su impacto y recomienda estrategias de mitigación óptimas utilizando algoritmos inteligentes e insights basados en datos.
+Sistema de **Gestión de Riesgos Cuantitativo** basado en microservicios para evaluación y mitigación de riesgos de ciberseguridad, potenciado por **Machine Learning**, **escaneo de vulnerabilidades** y arquitectura **Cloud-Native**.
 
-![Demostración del Sistema de Gestión de Riesgos Cuantitativo](docs/images/demo.png)
-
-*Captura de pantalla: Sistema de Gestión de Vulnerabilidades NVD con dashboard integral de análisis de riesgos, que incluye interfaz con pestañas para búsqueda de vulnerabilidades, configuración de evaluación de riesgos y categorización de activos a nivel empresarial.*
+![Demostración del Sistema](docs/images/demo.png)
 
 ---
 
-## ✨ Características
+## ✨ Características Principales
 
-- 🎯 **Predicción Avanzada de Riesgos** utilizando modelos de ML entrenados (CICIDS, LANL)
-- 🧠 **Motor de Programación Dinámica** para toma de decisiones óptima
-- 📊 **Dashboard Interactivo** construido con React + Tailwind CSS
-- 🔄 **APIs RESTful** potenciadas por FastAPI (Python)
-- 🐳 **Completamente Contenerizado** con Docker & Docker Compose
-- 📁 **Integración con Base de Datos PostgreSQL**
-- 📈 **Visualización de Datos** con Chart.js y componentes SVG personalizados
-- 🛡️ **Integración NVD** con la API de la Base de Datos Nacional de Vulnerabilidades (NVD)
-- 🏛️ **Arquitectura de Microservicios** con API Gateway
-- 🔍 **Búsqueda Integral de Vulnerabilidades** con filtrado basado en palabras clave
-- 📋 **Sistema de Gestión de Cola** con RabbitMQ para procesamiento asíncrono
-- 🎛️ **Configuración de Evaluación de Riesgos** con umbrales personalizables
-- 🏢 **Categorización de Activos Empresariales** (Aplicaciones Web, Infraestructura, Bases de Datos, etc.)
-- 📊 **Análisis de Impacto Empresarial** con algoritmos de puntuación ponderada
-- 📈 **Seguimiento del Historial de Análisis** para auditoría y cumplimiento
-- 🎨 **Interfaz Moderna y Responsiva** con interfaz de pestañas y actualizaciones en tiempo real
-
----
-
-## 🧱 Stack Tecnológico
-
-| Capa         | Tecnología         |
-|-------------|--------------------|
-| Frontend    | React, Tailwind CSS, Axios, Chart.js |
-| Backend     | FastAPI (Python), Scikit-learn, Lógica de Programación Dinámica |
-| API Gateway | FastAPI (Python), httpx |
-| Base de Datos | PostgreSQL         |
-| DevOps      | Docker, Docker Compose |
-| Otros       | REST API, Pydantic, Vite (o CRA) |
+| Feature | Descripción |
+|---------|-------------|
+| 🔐 **Autenticación JWT** | Sistema de login seguro con tokens JWT |
+| 🎯 **Predicción ML** | Modelos entrenados (CICIDS, LANL) para predicción de riesgos |
+| 🛡️ **Integración NVD** | Búsqueda de vulnerabilidades en la Base de Datos Nacional |
+| 🔍 **Escaneo Nmap** | Escaneo de redes con detección de servicios y vulnerabilidades |
+| 🐰 **Colas RabbitMQ** | Procesamiento asíncrono de escaneos y análisis |
+| 🌐 **Kong Gateway** | API Gateway para enrutamiento y rate limiting |
+| 🐘 **Supabase** | Base de datos PostgreSQL en la nube |
+| 🐳 **Docker** | Completamente contenerizado con Docker Compose |
 
 ---
 
 ## 🏗️ Arquitectura
 
-- **API Gateway** (FastAPI): Punto de entrada central, enruta solicitudes a microservicios backend.
-- **Microservicio Backend** (FastAPI): Maneja predicciones de ML, lógica de PD y operaciones de base de datos.
-- **Frontend** (React): Interfaz de usuario para análisis y visualización de riesgos.
-- **Base de Datos** (PostgreSQL): Almacena resultados de análisis de riesgos y datos de usuario.
-
-Todos los servicios están contenerizados y orquestados con Docker Compose.
-
-> 📘 **Documentación Detallada:** Para una explicación exhaustiva de cada contenedor, por qué se llama así y qué hace exactamente (técnica y generalmente), consulta [NOMENCLATURA_Y_JUSTIFICACIONES.md](NOMENCLATURA_Y_JUSTIFICACIONES.md#🐳-documentación-detallada-de-contenedores-docker).
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND (React)                                │
+│                           http://localhost:5173                              │
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           KONG API GATEWAY                                   │
+│                           http://localhost:8080                              │
+│  • Rate Limiting  • CORS  • Routing  • Load Balancing                       │
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+            ┌─────────────────────────┼─────────────────────────┐
+            │                         │                         │
+            ▼                         ▼                         ▼
+┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
+│  BACKEND (FastAPI)│   │   NVD SERVICE     │   │  NMAP SCANNER     │
+│   :8000           │   │   :8002           │   │  :8004            │
+│  ─────────────────│   │  ─────────────────│   │  ─────────────────│
+│  • Auth/JWT       │   │  • CVE Search     │   │  • Network Scan   │
+│  • Risk Analysis  │   │  • Vuln Database  │   │  • Port Detection │
+│  • ML Proxy       │   │                   │   │  • Service ID     │
+└─────────┬─────────┘   └─────────┬─────────┘   └─────────┬─────────┘
+          │                       │                       │
+          ▼                       ▼                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              RABBITMQ                                        │
+│                 Local: localhost:5672  |  Cloud: CloudAMQP                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+          │                                                │
+          ▼                                                ▼
+┌───────────────────┐                         ┌───────────────────┐
+│  ML PREDICTION    │                         │  SUPABASE         │
+│  SERVICE :8001    │                         │  PostgreSQL Cloud │
+│  ─────────────────│                         │  ─────────────────│
+│  • CICIDS Model   │                         │  • Users          │
+│  • LANL Model     │                         │  • Risk Analyses  │
+│  • Isolation Forest│                        │  • Nmap Jobs      │
+└───────────────────┘                         │  • NVD Jobs       │
+                                              └───────────────────┘
+```
 
 ---
 
-## 🛡️ Sistema de Gestión de Vulnerabilidades NVD
+## 🚀 Quick Start
 
-Nuestra integración mejorada de NVD proporciona evaluación integral de vulnerabilidades y gestión de riesgos empresariales:
+### Prerrequisitos
+- Docker & Docker Compose
+- Git
 
-### 🔍 **Búsqueda y Descubrimiento**
-- Búsqueda de vulnerabilidades en tiempo real usando la API de NVD
-- Filtrado basado en palabras clave para tecnologías específicas
-- Información detallada de CVE con fechas de publicación y descripciones
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/byPronox/Quantitative_Risk_Management.git
+cd Quantitative_Risk_Management
+```
 
-### 📊 **Dashboard de Análisis de Riesgos** 
-- **Interfaz con Pestañas**: Vistas de Búsqueda, Análisis e Historial
-- **Configuración de Evaluación de Riesgos**: Umbrales personalizables (Crítico: 80%, Alto: 60%, Medio: 40%, Bajo: 20%, Muy Bajo: 10%)
-- **Gestión de Cola**: Agregar vulnerabilidades específicas a la cola de análisis
-- **Métricas Empresariales**: Análisis integral del impacto empresarial
+### 2. Configurar variables de entorno
+```bash
+cp .env.example .env
+# Editar .env con tus credenciales
+```
 
-### 🏢 **Categorización de Activos Empresariales**
-- **Aplicaciones Web**: React, Vue, Angular, JavaScript, Node.js
-- **Infraestructura**: Apache, Nginx, Docker, Kubernetes, Linux, Windows  
-- **Bases de Datos**: MySQL, PostgreSQL, MongoDB, Redis, Oracle
-- **Herramientas de Desarrollo**: Git, Jenkins, Python, Java, PHP, Ruby
-- **Herramientas de Seguridad**: OpenSSL, SSH, SSL/TLS, Crypto, Vault
+### 3. Iniciar servicios
+```bash
+docker-compose up --build
+```
 
-### 📈 **Análisis de Impacto Empresarial**
-- Algoritmos de puntuación ponderada basados en la criticidad de activos
-- Clasificación automática del nivel de riesgo (Crítico, Alto, Medio, Bajo, Muy Bajo)
-- Agregación y reporte de riesgos a nivel empresarial
-- Recomendaciones accionables basadas en la evaluación de riesgos
+### 4. Acceder a la aplicación
+- **Frontend:** http://localhost:5173
+- **Kong Gateway:** http://localhost:8080
+- **Backend API:** http://localhost:8000/api/v1/docs
+- **RabbitMQ:** http://localhost:15672 (guest/guest)
 
-### 🔄 **Procesamiento Basado en Colas**
-- Integración con RabbitMQ para procesamiento asíncrono de vulnerabilidades
-- Análisis selectivo - solo analizar elementos explícitamente encolados
-- Monitoreo del estado de cola en tiempo real
-- Capacidades de análisis masivo
+### Credenciales por defecto
+```
+Usuario: qrms
+Contraseña: qrms
+```
 
 ---
 
@@ -95,268 +109,249 @@ Nuestra integración mejorada de NVD proporciona evaluación integral de vulnera
 
 ```
 Quantitative_Risk_Management/
-├── backend/
-│   └── app/
-│       ├── api/          # Rutas y Esquemas (FastAPI)
-│       ├── ml/           # Modelos de ML y helpers
-│       ├── dp/           # Motor de programación dinámica
-│       ├── database/     # Modelos CRUD y ORM
-│       └── main.py       # Punto de entrada FastAPI
-├── frontend/
+├── backend/                    # API Principal (FastAPI)
 │   └── src/
-│       ├── components/   # UI Reutilizable
-│       ├── pages/        # Vistas
-│       ├── services/     # Llamadas API
+│       ├── config/            # Configuración (database, settings)
+│       ├── controllers/       # Endpoints (auth, risk, nmap, nvd)
+│       ├── models/            # Modelos (Pydantic, SQLAlchemy)
+│       ├── services/          # Lógica de negocio
+│       ├── repositories/      # Acceso a datos
+│       └── main.py
+│
+├── frontend/                   # UI (React + Vite)
+│   └── src/
+│       ├── components/        # Componentes reutilizables
+│       ├── pages/             # Páginas (Login, Scan, Reports)
+│       ├── context/           # Context API (AuthContext)
+│       ├── services/          # Llamadas API
 │       └── App.jsx
-├── api_gateway/
-│   └── api_gateway.py    # API Gateway FastAPI para microservicios
-│   └── Dockerfile
-├── docker-compose.yml
-└── README.md
+│
+├── microservices/
+│   ├── ml_prediction_service/ # Servicio ML (Python)
+│   ├── nmap_scanner/          # Escáner Nmap (Node.js)
+│   └── nvd_service/           # Servicio NVD (Python)
+│
+├── docker-compose.yml         # Orquestación de contenedores
+├── kong.yml                   # Configuración Kong Gateway
+└── .env                       # Variables de entorno
 ```
 
 ---
 
-## 🚀 Comenzando
+## 🔐 Autenticación
 
-### 1. Clonar el repositorio
+El sistema usa **JWT (JSON Web Tokens)** para autenticación.
 
+### Endpoints de Auth
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/login` | Login con usuario/contraseña |
+| GET | `/api/v1/auth/me` | Obtener usuario actual |
+| POST | `/api/v1/auth/verify` | Verificar token válido |
+| POST | `/api/v1/auth/logout` | Cerrar sesión |
+
+### Ejemplo de Login
 ```bash
-git clone https://github.com/your-username/quantitative_risk_managment.git
-cd quantitative_risk_managment
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "qrms", "password": "qrms"}'
 ```
 
-### 2. Ejecutar con Docker
+Respuesta:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "username": "qrms",
+  "expires_in": 86400
+}
+```
 
+---
+
+## 🔍 Escaneo de Red (Nmap)
+
+El módulo de escaneo utiliza Nmap para detectar servicios y vulnerabilidades.
+
+### Flujo del Escaneo
+```
+Frontend → Kong Gateway → Backend → RabbitMQ → Nmap Worker → PostgreSQL
+```
+
+### Endpoints
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/v1/nmap/scan` | Iniciar escaneo (async) |
+| GET | `/api/v1/nmap/job/{job_id}` | Obtener estado del job |
+| GET | `/api/v1/nmap/health` | Estado del servicio |
+
+### Ejemplo de Escaneo
 ```bash
-docker-compose up --build
+# Iniciar escaneo
+curl -X POST http://localhost:8000/api/v1/nmap/scan \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"target": "192.168.1.1"}'
+
+# Respuesta
+{
+  "job_id": "nmap_abc123",
+  "status": "queued",
+  "message": "Scan queued successfully"
+}
 ```
 
-Esto iniciará:
-- `frontend` en [http://localhost:5173](http://localhost:5173)
-- `gateway` (API Gateway) en [http://localhost:8080](http://localhost:8080)
-- `backend` en [http://localhost:8000](http://localhost:8000)
-- `PostgreSQL` en el puerto 5432
+---
+
+## 🛡️ Búsqueda de Vulnerabilidades (NVD)
+
+Integración con la **National Vulnerability Database** del NIST.
+
+### Endpoints
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/v1/nvd/search?keyword=apache` | Buscar CVEs |
+| POST | `/api/v1/nvd/analyze` | Analizar vulnerabilidades |
+| GET | `/api/v1/nvd/job/{job_id}` | Estado del análisis |
 
 ---
 
-## 🧠 Cómo Funciona
+## 🧠 Predicción ML
 
-1. El **API Gateway** (FastAPI) recibe todas las solicitudes del frontend y las enruta al microservicio backend apropiado (predicción de riesgos, NVD, etc.).
-2. El **Backend** (FastAPI) expone endpoints para predicciones de ML (CICIDS, LANL), programación dinámica y operaciones de base de datos.
-3. El **motor de ML** predice la probabilidad y severidad de un riesgo basado en características de entrada.
-4. El **optimizador de PD** calcula la mejor estrategia de mitigación bajo restricciones como presupuesto e impacto.
-5. Los resultados se visualizan y almacenan en la base de datos.
-6. Los usuarios interactúan con predicciones y optimizaciones a través del dashboard de React.
+Modelos de Machine Learning para predicción de riesgos.
 
----
+### Modelos Disponibles
+- **CICIDS2017**: Detección de intrusiones en red
+- **LANL**: Detección de anomalías de autenticación
+- **Isolation Forest**: Detección de outliers
 
-## 🏛️ Patrones de Diseño Utilizados
-
-- **Factory Method:** Utilizado en `ml/engine.py` (`PredictionFactory`) para instanciar la estrategia de predicción correcta (CICIDS, LANL) basada en la entrada.
-- **Strategy:** La clase base abstracta `PredictionStrategy` permite lógica de predicción intercambiable para diferentes modelos.
-- **Singleton:** Cada estrategia de modelo (`CICIDSPredictionStrategy`, `LANLPredictionStrategy`) se carga solo una vez por proceso, asegurando uso eficiente de recursos.
-
----
-
-## ⚙️ Gestión de Configuración
-
-- Todos los secretos y configuraciones (URL de base de datos, claves API, rutas de modelos, configuraciones de cola) se gestionan a través de variables de entorno y `backend/app/config.py`.
-- No hay secretos o credenciales hardcodeados en el código base.
+### Endpoints
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/v1/predict/cicids` | Predicción CICIDS |
+| POST | `/api/v1/predict/lanl` | Predicción LANL |
+| POST | `/api/v1/predict/combined` | Predicción combinada |
 
 ---
 
-## 🩺 Observabilidad y Verificaciones de Salud
+## ⚙️ Configuración
 
-- El logging está habilitado en todo el backend para carga de modelos, errores y operaciones de cola.
-- Todos los endpoints de predicción incluyen manejo de errores y registro de fallos.
-- El endpoint `/health` está disponible para verificaciones de salud.
-
----
-
-## 📨 Integración de Cola de Mensajes
-
-- El backend integra una cola de mensajes (stub en `backend/app/queue.py`) para procesamiento asíncrono (ej., logging de predicciones, tareas por lotes).
-- Listo para Azure Service Bus o una alternativa local (ver `QUEUE_CONNECTION_STRING` y `QUEUE_NAME` en config).
-- Ejemplo: Los resultados de predicción combinados se envían a la cola para procesamiento asíncrono.
-
----
-
-## 🔒 Seguridad y Mejores Prácticas
-
-- Todo el código, comentarios y documentación técnica están en inglés para compatibilidad internacional.
-- Backend modular, testeable y extensible usando inyección de dependencias y patrones de diseño.
-- No hay datos sensibles en el código fuente o imágenes Docker.
-
----
-
-## 🌐 Integración con la API de la Base de Datos Nacional de Vulnerabilidades (NVD)
-
-Este proyecto se integra con la API de la [Base de Datos Nacional de Vulnerabilidades (NVD)](https://nvd.nist.gov/), proporcionada por el Instituto Nacional de Estándares y Tecnología de EE.UU. (NIST).
-
-> La NVD es el repositorio del gobierno de EE.UU. de datos de gestión de vulnerabilidades basados en estándares, que permite la automatización de la gestión de vulnerabilidades, medición de seguridad y cumplimiento.  
-> La NVD incluye bases de datos de referencias de listas de verificación de seguridad, fallas de software, nombres de productos y métricas de impacto, y enriquece los CVE con metadatos adicionales como puntuaciones CVSS, CWE y declaraciones de aplicabilidad CPE.
-
-- **Documentación de la API:** [API de NVD](https://nvd.nist.gov/developers/vulnerabilities)
-- **Descargo Legal:** La NVD es un producto de la División de Seguridad Informática de NIST, Laboratorio de Tecnología de la Información. La NVD no realiza activamente pruebas de vulnerabilidades, dependiendo de proveedores, investigadores de seguridad de terceros y coordinadores de vulnerabilidades para proporcionar información.
-- **Créditos:**  
-  - Base de Datos Nacional de Vulnerabilidades (NVD), Laboratorio de Tecnología de la Información, NIST  
-  - [Descargo Legal de NVD](https://nvd.nist.gov/general/disclaimer)
-
----
-
-## 🛣️ Endpoints del API Gateway
-
-Todas las solicitudes del frontend se enrutan a través del API Gateway. Endpoints principales:
-
-| Método | Endpoint                    | Descripción                           |
-|--------|-----------------------------|---------------------------------------|
-| POST   | /predict/cicids/            | Predecir riesgo usando modelo CICIDS  |
-| POST   | /predict/lanl/              | Predecir riesgo usando modelo LANL    |
-| POST   | /predict/combined/          | Predicción de riesgo combinada        |
-| GET    | /nvd                        | Buscar vulnerabilidades NVD          |
-| POST   | /nvd/add_to_queue          | Agregar palabra clave a cola de análisis |
-| POST   | /nvd/analyze_risk          | Analizar vulnerabilidades en cola    |
-| POST   | /nvd/enterprise_metrics    | Obtener métricas de riesgo empresarial |
-| GET    | /nvd/queue_status          | Obtener estado actual de cola         |
-| POST   | /nvd/clear_queue           | Limpiar cola de análisis              |
-| GET    | /health                     | Verificación de salud                 |
-
----
-
-## 🌐 API Gateway y CORS
-
-- El API Gateway (FastAPI) es el único punto de entrada para todas las llamadas API del frontend.
-- CORS está habilitado para permitir solicitudes desde el frontend (ver `main.py` en `api_gateway`).
-- Configura la URL base de la API de tu frontend al gateway:
-  
-  ```env
-  VITE_API_URL=http://localhost:8080
-  ```
-
----
-
-## 🧠 Archivos de Modelos y Configuración
-
-- Los archivos de modelos entrenados deben estar presentes en `backend/app/ml/`:
-    - `isolation_forest_model.pkl`
-- El backend espera estos archivos en `/app/ml/` dentro del contenedor Docker.
-- Puedes sobrescribir las rutas con variables de entorno `CICIDS_MODEL_PATH` y `LANL_MODEL_PATH` si es necesario.
-
----
-
-## ⚙️ Ejemplo de Variables de Entornoo
+### Variables de Entorno (.env)
 
 ```env
-# .env para frontend
-VITE_API_URL=http://localhost:8080
+# Database (Supabase)
+DATABASE_URL=postgresql://user:pass@host:5432/db
 
-# docker-compose.yml para backend/gateway
-DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
-NVD_API_KEY=tu-clave-api-nvd
-CICIDS_MODEL_PATH=/app/ml/rf_cicids2017_model.pkl
-LANL_MODEL_PATH=/app/ml/isolation_forest_model.pkl
+# JWT Authentication
+JWT_SECRET_KEY=your-secret-key
+
+# RabbitMQ
+RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+
+# NVD API
+NVD_API_KEY=your-nvd-api-key
+
+# Kong Gateway
+KONG_PROXY_URL=http://localhost:8080
+
+# Frontend
+VITE_API_URL=http://localhost:8000
+```
+
+### Producción vs Desarrollo
+
+| Variable | Desarrollo | Producción |
+|----------|------------|------------|
+| RABBITMQ_URL | Docker local | CloudAMQP |
+| DATABASE_URL | Supabase | Supabase |
+| KONG_PROXY_URL | localhost:8080 | Kong Cloud |
+
+---
+
+## 🐳 Docker Services
+
+| Servicio | Puerto | Descripción |
+|----------|--------|-------------|
+| frontend | 5173 | React + Vite |
+| backend | 8000 | FastAPI |
+| kong | 8080/8081 | API Gateway |
+| rabbitmq | 5672/15672 | Message Queue |
+| nvd-service | 8002 | NVD Integration |
+| nmap-scanner-service | 8004 | Network Scanner |
+| ml-prediction-service | 8001 | ML Models |
+
+### Comandos Útiles
+```bash
+# Iniciar todos los servicios
+docker-compose up -d
+
+# Ver logs
+docker-compose logs -f backend
+
+# Reconstruir un servicio
+docker-compose up -d --build frontend
+
+# Detener todo
+docker-compose down
+
+# Limpiar volúmenes
+docker-compose down -v
 ```
 
 ---
 
-## 🛠️ Solución de Problemas
+## 🧪 Testing
 
-- **Errores CORS/Preflight:** Asegúrate de que el middleware CORS esté habilitado en el API Gateway (`main.py`).
-- **Archivo de modelo no encontrado:** Asegúrate de que los archivos de modelos existan en `backend/app/ml/` y estén copiados en la imagen Docker.
-- **Errores de importación:** Elimina cualquier archivo local que haga sombra a módulos de la biblioteca estándar (ej., `queue.py`).
-- **404 del Frontend en /nvd:** No visites `/nvd` directamente en el navegador; usa la navegación de la aplicación.
+```bash
+# Backend tests
+cd backend
+pytest
 
----
-
-## 🔄 Desarrollo y Recarga en Caliente
-
-- Para desarrollo local, puedes ejecutar cada servicio por separado y usar `docker-compose` para orquestación.
-- Reconstruye contenedores después de cambiar dependencias o rutas de modelos:
-  
-  ```sh
-  docker compose up -d --build
-  ```
--Cambios de frontend para que se reflejen sin volver a construir todo el proyecto
-  ```sh
-  docker compose up -d --build frontend
-  ```
-----
-
-## 🆕 Mejoras Recientes (2025)
-
-### 🛡️ **Gestión Mejorada de Vulnerabilidades NVD**
-- **Interfaz con Pestañas**: Rediseño completo con pestañas de Búsqueda, Análisis e Historial
-- **Matriz de Riesgo de Activos Empresariales**: Evaluación integral de riesgos con análisis de impacto empresarial
-- **Procesamiento Selectivo de Cola**: Solo analizar vulnerabilidades explícitamente agregadas a la cola
-- **Configuración de Umbrales de Riesgo**: Configuraciones personalizables de apetito de riesgo (Crítico, Alto, Medio, Bajo, Muy Bajo)
-- **Historial de Análisis**: Rastrear y auditar todas las evaluaciones de riesgo para cumplimiento
-
-### 🏢 **Características de Nivel Empresarial**
-- **Categorización de Activos**: Clasificación automática de activos por tipo (Aplicaciones Web, Infraestructura, Bases de Datos, Herramientas de Desarrollo, Seguridad)
-- **Puntuación de Impacto Empresarial**: Algoritmos ponderados para calcular la exposición al riesgo a nivel empresarial
-- **Recomendaciones Automatizadas**: Sugerencias impulsadas por IA basadas en los resultados de evaluación de riesgos
-- **Reportes Integrales**: Métricas empresariales con capacidades de análisis detallado
-
-### 🎨 **Mejoras Modernas de UI/UX**
-- **Diseño Responsivo**: Layout de pantalla completa que se adapta a todos los tamaños de pantalla
-- **Diseño Centrado**: Apariencia profesional con distribución óptima de contenido
-- **Componentes Interactivos**: Gráficos circulares SVG personalizados y visualización de datos en tiempo real
-- **Navegación Mejorada**: Interfaz intuitiva con pestañas y jerarquía visual clara
-
-### 🔄 **Mejoras de Arquitectura Backend**
-- **Integración con RabbitMQ**: Cola de mensajes real para búsquedas de vulnerabilidades NVD con procesamiento asíncrono confiable
-- **Dockerización Robusta**: Todos los servicios (backend, gateway, frontend, RabbitMQ, PostgreSQL) completamente contenerizados
-- **Mejora del API Gateway**: Cobertura completa de endpoints con inyección de dependencias y abstracción de servicios
-- **Gestión de Cola**: Conexión lazy con lógica de reintentos, previniendo fallas cuando RabbitMQ no está listo
-
-### 🐳 **DevOps e Infraestructura**
-- **Optimización de Docker**: Dockerfiles mejorados con gestión adecuada de PYTHONPATH y dependencias
-- **Configuración CORS**: Comunicación fluida frontend-backend a través del API gateway
-- **Manejo de Errores**: Manejo mejorado de errores para conexiones de cola y enrutamiento de API
-- **Monitoreo de Salud**: Logging integral y endpoints de verificación de salud
-
-### 🔧 **Resolución de Deuda Técnica**
-- **Estandarización de Importaciones**: Todas las importaciones del backend estandarizadas para evitar ModuleNotFoundError de Docker
-- **Sincronización de Estado**: Estado del frontend sincronizado apropiadamente con operaciones de cola del backend
-- **Calidad de Código**: Manejo mejorado de errores, logging y organización de código
-- **Seguridad**: Sin credenciales hardcodeadas, toda la configuración vía variables de entorno
+# Frontend tests
+cd frontend
+npm test
+```
 
 ---
 
-## 👨‍💻 Autor
+## 📊 API Documentation
+
+- **Swagger UI:** http://localhost:8000/api/v1/docs
+- **ReDoc:** http://localhost:8000/api/v1/redoc
+
+---
+
+## 🔒 Seguridad
+
+- ✅ Autenticación JWT con bcrypt
+- ✅ CORS configurado en Kong
+- ✅ Rate limiting en API Gateway
+- ✅ Variables sensibles en .env
+- ✅ SSL/TLS para conexiones cloud
+
+---
+
+## 👨‍💻 Autores
 
 **Stefan Jativa** — [@byPronox](https://github.com/byPronox)  
-*Entusiasta de Machine Learning | Ingeniero de Software*
+*Machine Learning | Software Engineer*
 
 **Justin Gomezcoello** — [@JustinGomezcoello](https://github.com/JustinGomezcoello)  
-*Automatizaciones | Ingeniero de Software*s
+*Automation | Software Engineer*
 
 ---
 
 ## 📄 Licencia
 
-Licencia MIT © 2025 
+MIT License © 2025
 
 ---
 
-## 📚 Referencias y Créditos
+## 📚 Referencias
 
-### Dataset de Autenticación de LANL
+### Datasets
+- **CICIDS2017**: [Canadian Institute for Cybersecurity](https://www.unb.ca/cic/datasets/ids-2017.html)
+- **LANL Auth Dataset**: [Los Alamos National Laboratory](https://csr.lanl.gov/data/auth/)
 
-- **Fuente:** [Datos de Autenticación del Laboratorio Nacional de Los Álamos](https://csr.lanl.gov/data/auth/)
-- **Licencia:** CC0 — En la medida de lo posible bajo la ley, el Laboratorio Nacional de Los Álamos ha renunciado a todos los derechos de autor y derechos relacionados o vecinos a las Asociaciones de Autenticación Usuario-Computadora en el Tiempo. Este trabajo se publica desde: Estados Unidos.
-- **Citas:**
-  - A. Hagberg, A. Kent, N. Lemons, and J. Neil, “Credential hopping in authentication graphs,” in 2014 International Conference on Signal-Image Technology Internet-Based Systems (SITIS). IEEE Computer Society, Nov. 2014.
-  - A. D. Kent, “User-computer authentication associations in time,” Los Alamos National Laboratory, http://dx.doi.org/10.11578/1160076, 2014.
-
-### Dataset CICIDS2017
-
-- **Fuente:** [Dataset de Evaluación de Detección de Intrusos CICIDS2017](https://www.unb.ca/cic/datasets/ids-2017.html)
-- **Licencia:** El dataset CICIDS2017 está disponible públicamente para propósitos de investigación.
-- **Citas:**
-  - Iman Sharafaldin, Arash Habibi Lashkari, and Ali A. Ghorbani, “Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization”, 4th International Conference on Information Systems Security and Privacy (ICISSP), Portugal, January 2018.
-
----
-
-*Todos los activos de datasets y muestras utilizados en este proyecto están acreditados a sus respectivos autores e instituciones según se referencia arriba.*
+### APIs
+- **NVD API**: [NIST National Vulnerability Database](https://nvd.nist.gov/developers)

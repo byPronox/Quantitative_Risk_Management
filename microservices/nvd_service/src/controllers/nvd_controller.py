@@ -1,5 +1,5 @@
 """
-NVD Controller - Complete API endpoints for vulnerability data and MongoDB operations.
+NVD Controller - Complete API endpoints for vulnerability data and Database operations.
 """
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, Dict, Any, List
@@ -8,7 +8,7 @@ from datetime import datetime
 
 # Import services
 from ..services.nvd_service import NVDService
-from ..services.mongodb_service import MongoDBService
+from ..services.database_service import DatabaseService
 from ..services.queue_service import QueueService
 from ..services.risk_analysis_service import RiskAnalysisService
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize services
 nvd_service = NVDService()
-mongodb_service = MongoDBService()
+database_service = DatabaseService()
 queue_service = QueueService()
 risk_service = RiskAnalysisService()
 
@@ -85,26 +85,26 @@ async def get_vulnerability(cve_id: str):
         logger.error(f"Failed to get vulnerability {cve_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get vulnerability: {str(e)}")
 
-# MongoDB endpoints
-@router.get("/mongodb/results/all")
-async def get_all_mongodb_results():
-    """Get all MongoDB results"""
+# Database endpoints
+@router.get("/database/results/all")
+async def get_all_database_results():
+    """Get all Database results"""
     try:
-        results = await mongodb_service.get_all_jobs()
+        results = await database_service.get_all_jobs()
         return {
             "success": True,
             "total_jobs": len(results),
             "jobs": results
         }
     except Exception as e:
-        logger.error("Error getting all MongoDB results: %s", str(e))
+        logger.error("Error getting all Database results: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/mongodb/reports/keywords")
-async def get_mongodb_keyword_reports():
-    """Get keyword-based reports from MongoDB"""
+@router.get("/database/reports/keywords")
+async def get_database_keyword_reports():
+    """Get keyword-based reports from Database"""
     try:
-        reports = await mongodb_service.get_reports_by_keywords()
+        reports = await database_service.get_reports_by_keywords()
         return {
             "success": True,
             "keywords": reports,
@@ -118,15 +118,15 @@ async def get_mongodb_keyword_reports():
             "keywords": []
         }
 
-@router.post("/mongodb/save")
-async def save_to_mongodb(data: Dict[str, Any]):
-    """Save data to MongoDB"""
+@router.post("/database/save")
+async def save_to_database(data: Dict[str, Any]):
+    """Save data to Database"""
     try:
-        await mongodb_service.save_job_results([data])
-        return {"success": True, "message": "Data saved to MongoDB"}
+        await database_service.save_job_results([data])
+        return {"success": True, "message": "Data saved to Database"}
     except Exception as e:
-        logger.error(f"Failed to save to MongoDB: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to save to MongoDB: {str(e)}")
+        logger.error(f"Failed to save to Database: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save to Database: {str(e)}")
 
 # Queue endpoints
 @router.post("/queue/job")
@@ -331,37 +331,37 @@ async def get_all_results_legacy():
 # MONGODB ENDPOINTS (New refactored endpoints)
 # =============================================================================
 
-@router.get("/mongodb/results/{keyword}")
-async def get_mongodb_results_by_keyword(keyword: str):
-    """Get NVD analysis results by keyword from MongoDB"""
+@router.get("/database/results/{keyword}")
+async def get_database_results_by_keyword(keyword: str):
+    """Get NVD analysis results by keyword from Database"""
     try:
-        results = await mongodb_service.get_detailed_report_by_keyword(keyword)
+        results = await database_service.get_detailed_report_by_keyword(keyword)
         return results
     except Exception as e:
-        logger.error("Error getting MongoDB results for keyword %s: %s", keyword, str(e))
+        logger.error("Error getting Database results for keyword %s: %s", keyword, str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/mongodb/reports/detailed/{keyword}")
-async def get_mongodb_detailed_report(keyword: str):
-    """Get detailed vulnerability report for a specific keyword from MongoDB"""
+@router.get("/database/reports/detailed/{keyword}")
+async def get_database_detailed_report(keyword: str):
+    """Get detailed vulnerability report for a specific keyword from Database"""
     try:
-        report = await mongodb_service.get_detailed_report_by_keyword(keyword)
+        report = await database_service.get_detailed_report_by_keyword(keyword)
         return report
     except Exception as e:
-        logger.error("Error getting MongoDB detailed report for %s: %s", keyword, str(e))
+        logger.error("Error getting Database detailed report for %s: %s", keyword, str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/mongodb/analyze")
-async def analyze_cves_with_mongodb(
+@router.post("/database/analyze")
+async def analyze_cves_with_database(
     keywords: List[str],
     max_results: int = Query(default=100, ge=1, le=1000)
 ):
-    """Analyze CVEs for given keywords and save to MongoDB"""
+    """Analyze CVEs for given keywords and save to Database"""
     try:
         # For now, this is a placeholder - we'll need to implement the actual analysis
-        # This would typically interface with the NVD API and then save to MongoDB
+        # This would typically interface with the NVD API and then save to Database
         return {
             "success": True,
             "message": f"Analysis requested for {len(keywords)} keywords",
@@ -369,25 +369,25 @@ async def analyze_cves_with_mongodb(
             "max_results": max_results
         }
     except Exception as e:
-        logger.error("Error analyzing CVEs with MongoDB: %s", str(e))
+        logger.error("Error analyzing CVEs with Database: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/mongodb/health")
-async def check_mongodb_health():
-    """Check MongoDB connection health"""
+@router.get("/database/health")
+async def check_database_health():
+    """Check Database connection health"""
     try:
-        await mongodb_service.connect()
-        await mongodb_service.disconnect()
+        await database_service.connect()
+        await database_service.disconnect()
         return {
             "success": True,
-            "message": "MongoDB connection healthy",
+            "message": "Database connection healthy",
             "timestamp": datetime.utcnow()
         }
     except Exception as e:
-        logger.error("MongoDB health check failed: %s", str(e))
+        logger.error("Database health check failed: %s", str(e))
         return {
             "success": False,
-            "message": f"MongoDB connection failed: {str(e)}",
+            "message": f"Database connection failed: {str(e)}",
             "timestamp": datetime.utcnow()
         }

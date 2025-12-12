@@ -9,9 +9,19 @@ const QUEUE_NAME = 'nmap_scan_queue';
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672/';
 const DATABASE_URL = process.env.DATABASE_URL;
 
-// Database connection pool
+// Database connection pool with SSL for Supabase
 const pool = new pg.Pool({
     connectionString: DATABASE_URL,
+    ssl: DATABASE_URL?.includes('supabase') ? { rejectUnauthorized: false } : false,
+});
+
+// Verify database connection on startup
+pool.on('connect', () => {
+    console.log('📦 Connected to PostgreSQL database');
+});
+
+pool.on('error', (err) => {
+    console.error('❌ Unexpected PostgreSQL error:', err);
 });
 
 async function updateJobStatus(jobId, status, result = null, error = null) {
@@ -23,8 +33,9 @@ async function updateJobStatus(jobId, status, result = null, error = null) {
         let paramIndex = 2;
 
         if (result) {
-            query += `, result = $${paramIndex}`;
-            values.push(result);
+            // PostgreSQL JSONB requires JSON object, pg library handles serialization
+            query += `, result = $${paramIndex}::jsonb`;
+            values.push(JSON.stringify(result));
             paramIndex++;
         }
         if (error) {
@@ -42,54 +53,78 @@ async function updateJobStatus(jobId, status, result = null, error = null) {
         values.push(jobId);
 
         await client.query(query, values);
-        console.log(`Job ${jobId} updated to ${status}`);
+        console.log(`✅ Job ${jobId} updated to ${status}`);
     } catch (err) {
-        console.error(`Failed to update job ${jobId}:`, err);
+        console.error(`❌ Failed to update job ${jobId}:`, err);
     } finally {
         client.release();
     }
 }
 
 export async function startConsumer() {
-    try {
-        console.log('Connecting to RabbitMQ...');
-        const connection = await amqp.connect(RABBITMQ_URL);
-        const channel = await connection.createChannel();
+    let retryCount = 0;
+    const maxRetries = 10;
+    
+    const connect = async () => {
+        try {
+            console.log(`🐰 Connecting to RabbitMQ at ${RABBITMQ_URL}...`);
+            const connection = await amqp.connect(RABBITMQ_URL);
+            const channel = await connection.createChannel();
 
-        await channel.assertQueue(QUEUE_NAME, { durable: true });
-        console.log(`Waiting for messages in ${QUEUE_NAME}...`);
+            // Handle connection close
+            connection.on('close', () => {
+                console.error('❌ RabbitMQ connection closed. Reconnecting...');
+                setTimeout(connect, 5000);
+            });
 
-        channel.consume(QUEUE_NAME, async (msg) => {
-            if (msg !== null) {
-                const content = JSON.parse(msg.content.toString());
-                const { job_id, target } = content;
+            connection.on('error', (err) => {
+                console.error('❌ RabbitMQ connection error:', err);
+            });
 
-                console.log(`Received scan job: ${job_id} for target: ${target}`);
+            await channel.assertQueue(QUEUE_NAME, { durable: true });
+            console.log(`✅ Connected to RabbitMQ. Waiting for messages in ${QUEUE_NAME}...`);
+            retryCount = 0; // Reset retry count on successful connection
 
-                // Update status to processing
-                await updateJobStatus(job_id, 'processing');
+            channel.consume(QUEUE_NAME, async (msg) => {
+                if (msg !== null) {
+                    const content = JSON.parse(msg.content.toString());
+                    const { job_id, target } = content;
 
-                try {
-                    // Perform Scan
-                    console.log(`Starting scan for ${target}...`);
-                    const scanResult = await scanIP(target);
+                    console.log(`📥 Received scan job: ${job_id} for target: ${target}`);
 
-                    // Update status to completed
-                    await updateJobStatus(job_id, 'completed', scanResult);
-                    console.log(`Scan completed for ${job_id}`);
+                    // Update status to processing
+                    await updateJobStatus(job_id, 'processing');
 
-                    channel.ack(msg);
-                } catch (error) {
-                    console.error(`Scan failed for ${job_id}:`, error);
-                    await updateJobStatus(job_id, 'failed', null, error.message || String(error));
-                    // We ack even if failed to avoid infinite loop, or we could nack/dead-letter
-                    channel.ack(msg);
+                    try {
+                        // Perform Scan
+                        console.log(`🔍 Starting scan for ${target}...`);
+                        const scanResult = await scanIP(target);
+
+                        // Update status to completed
+                        await updateJobStatus(job_id, 'completed', scanResult);
+                        console.log(`✅ Scan completed for ${job_id}`);
+
+                        channel.ack(msg);
+                    } catch (error) {
+                        console.error(`❌ Scan failed for ${job_id}:`, error);
+                        await updateJobStatus(job_id, 'failed', null, error.message || String(error));
+                        channel.ack(msg);
+                    }
                 }
+            });
+        } catch (error) {
+            console.error(`❌ RabbitMQ Consumer Error (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
+            retryCount++;
+            
+            if (retryCount < maxRetries) {
+                const delay = Math.min(5000 * retryCount, 30000); // Exponential backoff, max 30s
+                console.log(`⏳ Retrying in ${delay / 1000} seconds...`);
+                setTimeout(connect, delay);
+            } else {
+                console.error('❌ Max retries reached. Consumer stopped.');
             }
-        });
-    } catch (error) {
-        console.error('RabbitMQ Consumer Error:', error);
-        // Retry logic could go here
-        setTimeout(startConsumer, 5000);
-    }
+        }
+    };
+    
+    await connect();
 }

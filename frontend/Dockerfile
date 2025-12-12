@@ -4,10 +4,16 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm ci
 
 # Copy source code
 COPY . .
+
+# Build arguments for environment variables
+ARG VITE_API_URL=http://localhost:8000
+ARG VITE_BACKEND_URL=http://localhost:8000
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
 
 # Build the application
 RUN npm run build
@@ -20,9 +26,6 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Remove default nginx config
-RUN rm /etc/nginx/conf.d/default.conf.bak 2>/dev/null || true
 
 EXPOSE 80
 

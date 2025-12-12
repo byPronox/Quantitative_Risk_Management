@@ -11,7 +11,7 @@ import asyncio
 import httpx
 from typing import List, Dict, Any, Optional
 from .nvd_service import NVDService
-from .mongodb_service import MongoDBService
+from .database_service import DatabaseService
 from ..config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -35,8 +35,8 @@ class QueueService:
         self._completed = set()   # Simulate completed jobs
         self._consumer_thread = None  # Track consumer thread
         
-        # MongoDB service for automatic persistence
-        self.mongodb_service = MongoDBService()
+        # Database service for automatic persistence (PostgreSQL/Supabase)
+        self.database_service = DatabaseService()
         self.nvd_api_service = NVDService() # Initialize NVDService
     
     def _connect(self) -> None:
@@ -433,7 +433,7 @@ class QueueService:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(
-                self.mongodb_service.save_job_results(jobs_data) # Pass the job(s) as a list
+                self.database_service.save_job_results(jobs_data) # Pass the job(s) as a list
             )
             loop.close()
             logger.info(f"Successfully saved {len(jobs_data)} job(s) to MongoDB.")

@@ -59,14 +59,14 @@ async def services_status():
 
 @router.get("/nvd/results/all")
 async def proxy_nvd_results_all():
-    """Proxy to NVD microservice for retrieving all results from MongoDB"""
+    """Proxy to NVD microservice for retrieving all results from Database"""
     try:
-        # This is the crucial change: point to the mongodb endpoint instead of the in-memory one.
+        # This is the crucial change: point to the database endpoint instead of the in-memory one.
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/mongodb/results/all")
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/results/all")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (mongodb/results/all): %s", str(e))
+        logger.error("Error proxying to NVD service (database/results/all): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
@@ -82,15 +82,15 @@ async def proxy_nvd_queue_status():
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.get("/nvd/results/mongodb")
-async def proxy_nvd_results_mongodb():
-    """Proxy to NVD microservice for MongoDB results"""
+@router.get("/nvd/results/database")
+async def proxy_nvd_results_database():
+    """Proxy to NVD microservice for Database results"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/mongodb/results/all")
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/results/all")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (results/mongodb): %s", str(e))
+        logger.error("Error proxying to NVD service (results/database): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
@@ -145,10 +145,10 @@ async def proxy_nvd_consumer_stop():
 
 @router.post("/nvd/queue/bulk-save")
 async def proxy_nvd_bulk_save():
-    """Proxy to NVD microservice to bulk save all completed jobs to MongoDB"""
+    """Proxy to NVD microservice to bulk save all completed jobs to Database"""
     try:
         async with httpx.AsyncClient(timeout=60.0) as client: # Increased timeout
-            response = await client.post(f"{NVD_SERVICE_URL}/api/v1/mongodb/bulk-save")
+            response = await client.post(f"{NVD_SERVICE_URL}/api/v1/database/bulk-save")
             return response.json()
     except Exception as e:
         logger.error("Error proxying to NVD service (bulk-save): %s", str(e))
@@ -161,25 +161,25 @@ async def proxy_nvd_bulk_save():
 
 @router.get("/reports/general/keywords")
 async def proxy_reports_general_keywords():
-    """Proxy to NVD microservice for MongoDB reports by keywords"""
+    """Proxy to NVD microservice for Database reports by keywords"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/mongodb/reports/keywords")
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/reports/keywords")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (mongodb/reports/keywords): %s", str(e))
+        logger.error("Error proxying to NVD service (database/reports/keywords): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
 @router.get("/reports/general/keyword/{keyword}")
 async def proxy_reports_detailed_keyword(keyword: str):
-    """Proxy to NVD microservice for detailed MongoDB keyword report"""
+    """Proxy to NVD microservice for detailed Database keyword report"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/mongodb/reports/detailed/{keyword}")
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/reports/detailed/{keyword}")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (mongodb/reports/detailed/%s): %s", keyword, str(e))
+        logger.error("Error proxying to NVD service (database/reports/detailed/%s): %s", keyword, str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
@@ -230,50 +230,50 @@ async def proxy_to_microservice(service_name: str, path: str):
         raise HTTPException(status_code=503, detail=f"Service {service_name} unavailable") from e
 
 
-@router.get("/nvd/mongodb/reports/keywords")
-async def proxy_nvd_mongodb_reports_keywords():
-    """Proxy to NVD microservice for MongoDB reports grouped by keywords"""
+@router.get("/nvd/database/reports/keywords")
+async def proxy_nvd_database_reports_keywords():
+    """Proxy to NVD microservice for Database reports grouped by keywords"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/mongodb/reports/keywords")
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/reports/keywords")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (mongodb/reports/keywords): %s", str(e))
+        logger.error("Error proxying to NVD service (database/reports/keywords): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.get("/nvd/mongodb/reports/detailed/{keyword}")
-async def proxy_nvd_mongodb_detailed_report(keyword: str):
-    """Proxy to NVD microservice for detailed MongoDB report by keyword"""
+@router.get("/nvd/database/reports/detailed/{keyword}")
+async def proxy_nvd_database_detailed_report(keyword: str):
+    """Proxy to NVD microservice for detailed Database report by keyword"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/mongodb/reports/detailed/{keyword}")
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/reports/detailed/{keyword}")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (mongodb/reports/detailed/%s): %s", keyword, str(e))
+        logger.error("Error proxying to NVD service (database/reports/detailed/%s): %s", keyword, str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.get("/nvd/mongodb/health")
-async def proxy_nvd_mongodb_health():
-    """Proxy to NVD microservice for MongoDB health check"""
+@router.get("/nvd/database/health")
+async def proxy_nvd_database_health():
+    """Proxy to NVD microservice for Database health check"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/mongodb/health")
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/health")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (mongodb/health): %s", str(e))
+        logger.error("Error proxying to NVD service (database/health): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.post("/nvd/mongodb/analyze")
-async def proxy_nvd_mongodb_analyze(request: Request):
-    """Proxy to NVD microservice for analyzing CVEs and saving to MongoDB"""
+@router.post("/nvd/database/analyze")
+async def proxy_nvd_database_analyze(request: Request):
+    """Proxy to NVD microservice for analyzing CVEs and saving to Database"""
     try:
         body = await request.json()
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(f"{NVD_SERVICE_URL}/api/v1/mongodb/analyze", json=body)
+            response = await client.post(f"{NVD_SERVICE_URL}/api/v1/database/analyze", json=body)
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (mongodb/analyze): %s", str(e))
+        logger.error("Error proxying to NVD service (database/analyze): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
