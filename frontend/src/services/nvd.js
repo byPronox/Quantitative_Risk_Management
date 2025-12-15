@@ -40,10 +40,10 @@ export async function getQueueStatus() {
   try {
     const response = await backendApi.get("/nvd/queue/status");
     return {
-      pending_jobs: response.data.queue_size || 0,
-      processing_jobs: 0, // Kong no proporciona esto directamente
-      completed_jobs: response.data.total_vulnerabilities || 0,
-      queue_health: response.data.connected ? 'healthy' : 'unhealthy',
+      pending_jobs: response.data.pending || response.data.queue_size || 0,
+      processing_jobs: response.data.processing || 0,
+      completed_jobs: response.data.completed || 0,
+      queue_health: response.data.status === 'healthy' ? 'healthy' : 'unhealthy',
       keywords: response.data.keywords || [],
       ...response.data
     };

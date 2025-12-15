@@ -59,14 +59,13 @@ async def services_status():
 
 @router.get("/nvd/results/all")
 async def proxy_nvd_results_all():
-    """Proxy to NVD microservice for retrieving all results from Database"""
+    """Proxy to NVD microservice for retrieving all results from queue"""
     try:
-        # This is the crucial change: point to the database endpoint instead of the in-memory one.
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/results/all")
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/queue/results/all")
             return response.json()
     except Exception as e:
-        logger.error("Error proxying to NVD service (database/results/all): %s", str(e))
+        logger.error("Error proxying to NVD service (queue/results/all): %s", str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 

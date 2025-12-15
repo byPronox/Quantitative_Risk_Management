@@ -1,7 +1,8 @@
 import React from "react";
 
 export default function NvdRiskPie({ results }) {
-  if (!results || results.length === 0) return null;
+  // Ensure results is an array before proceeding
+  if (!results || !Array.isArray(results) || results.length === 0) return null;
 
   // Flatten all keywords and their risk_percent into a single array for charting
   const chartData = results.map(({ keyword, risk_percent }) => {

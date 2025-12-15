@@ -6,9 +6,9 @@ services:
       - sqlite_data:/app/data
     ports:
       - "8000:8000"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+    # depends_on:
+    #   rabbitmq:
+    #     condition: service_healthy
     restart: always
     dns:
       - 8.8.8.8
@@ -19,9 +19,9 @@ services:
     build: ./microservices/ml_prediction_service
     ports:
       - "8001:8001"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+    # depends_on:
+    #   rabbitmq:
+    #     condition: service_healthy
     restart: always
     env_file: .env
     volumes:
@@ -32,9 +32,9 @@ services:
     build: ./microservices/nvd_service
     ports:
       - "8002:8002"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+    # depends_on:
+    #   rabbitmq:
+    #     condition: service_healthy
     restart: always
     env_file: .env
     deploy:

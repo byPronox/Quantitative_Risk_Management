@@ -9,6 +9,8 @@ import time
 import threading
 import asyncio
 import httpx
+import ssl
+from urllib.parse import urlparse
 from typing import List, Dict, Any, Optional
 from .nvd_service import NVDService
 from .database_service import DatabaseService
@@ -22,6 +24,7 @@ class QueueService:
     def __init__(self, max_retries: int = 5, retry_delay: int = 2):
         self.host = settings.RABBITMQ_HOST
         self.queue_name = settings.RABBITMQ_QUEUE
+        self.rabbitmq_url = settings.RABBITMQ_URL
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.connection = None
@@ -35,9 +38,44 @@ class QueueService:
         self._completed = set()   # Simulate completed jobs
         self._consumer_thread = None  # Track consumer thread
         
+        # Parse RABBITMQ_URL to extract connection parameters
+        self._connection_params = self._parse_rabbitmq_url()
+        
         # Database service for automatic persistence (PostgreSQL/Supabase)
         self.database_service = DatabaseService()
         self.nvd_api_service = NVDService() # Initialize NVDService
+    
+    def _parse_rabbitmq_url(self) -> pika.ConnectionParameters:
+        """Parse RABBITMQ_URL using pika.URLParameters (recommended CloudAMQP method)."""
+        try:
+            logger.info(f"Original RABBITMQ_URL scheme: {self.rabbitmq_url[:30]}...")
+            
+            # Use pika.URLParameters for automatic parsing (bulletproof method)
+            params = pika.URLParameters(self.rabbitmq_url)
+            
+            # DEBUG: Log what URLParameters parsed
+            logger.info(f"URLParameters parsed - host: {params.host}, port: {params.port}, vhost: {params.virtual_host}")
+            logger.info(f"credentials: {params.credentials.__class__.__name__ if params.credentials else 'None'}")
+            
+            # Force TLS/SSL for AMQPS
+            if self.rabbitmq_url.startswith('amqps://'):
+                ssl_context = ssl.create_default_context()
+                params.ssl_options = pika.SSLOptions(ssl_context, server_hostname=params.host)
+                logger.info(f"SSL enabled for AMQPS connection")
+            
+            # Recommended settings to avoid hangs
+            params.heartbeat = 60
+            params.blocked_connection_timeout = 300
+            params.connection_attempts = 3
+            params.retry_delay = 2
+            
+            logger.info(f"Parsed RabbitMQ connection using URLParameters: host={params.host}:{params.port}, vhost={params.virtual_host}, SSL={params.ssl_options is not None}")
+            return params
+            
+        except Exception as e:
+            logger.error(f"Error parsing RABBITMQ_URL with URLParameters: {e}")
+            # Fallback to basic connection (should not happen with valid URL)
+            return pika.ConnectionParameters(host=self.host)
     
     def _connect(self) -> None:
         """Establece conexión a RabbitMQ con logging robusto."""
@@ -54,9 +92,7 @@ class QueueService:
                     except:
                         pass
                 
-                self.connection = pika.BlockingConnection(
-                    pika.ConnectionParameters(host=self.host)
-                )
+                self.connection = pika.BlockingConnection(self._connection_params)
                 self.channel = self.connection.channel()
                 self.channel.queue_declare(queue=self.queue_name, durable=True)
                 self._connected = True
@@ -164,7 +200,11 @@ class QueueService:
         self._job_status[job_id] = "queued"
         # Publish job to RabbitMQ
         try:
-            self._connect()
+            # Ensure connection is active - reconnect if needed
+            if not self.connection or self.connection.is_closed or not self.channel or self.channel.is_closed:
+                logger.info("Connection is closed, reconnecting...")
+                self._connect()
+           
             message = {
                 "job_id": job_id,
                 "keyword": keyword,
@@ -230,7 +270,7 @@ class QueueService:
     def peek_queue_status(self) -> dict:
         # Use a temporary connection/channel to avoid channel closed errors
         try:
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host))
+            connection = pika.BlockingConnection(self._connection_params)
             channel = connection.channel()
             method = channel.queue_declare(queue=self.queue_name, passive=True)
             pending = method.method.message_count
@@ -288,7 +328,7 @@ class QueueService:
         def consume():
             connection = None
             try:
-                connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.host))
+                connection = pika.BlockingConnection(self._connection_params)
                 channel = connection.channel()
                 channel.queue_declare(queue=self.queue_name, durable=True)
                 
@@ -337,22 +377,34 @@ class QueueService:
                             logger.error(f"Full error traceback: {traceback.format_exc()}")
                         # --- END FETCH ---
                         
-                        # Update in-memory status for short-term checks, but the source of truth is now MongoDB
+                        # Update in-memory status for short-term checks
                         self._job_status[job_id] = "completed"
                         self._jobs[job_id]["status"] = "completed"
                         if job_id in self._processing:
                             self._processing.remove(job_id)
                         self._completed.add(job_id)
-                        # We no longer store full results in memory.
                         self._job_results[job_id] = vulnerabilities
                         self._jobs[job_id]["total_results"] = total_results
                         self._jobs[job_id]["vulnerabilities"] = vulnerabilities
-                        self._jobs[job_id]["timestamp"] = time.time()
+                        
+                        # Use distributed time service for synchronized timestamps
+                        from ..services.time_service import TimeService
+                        import asyncio
+                        try:
+                            # Get distributed timestamp
+                            distributed_timestamp = asyncio.run(TimeService.get_current_timestamp())
+                            logger.info(f"Using distributed timestamp: {distributed_timestamp}")
+                        except Exception as time_err:
+                            logger.warning(f"Failed to get distributed time, using local: {time_err}")
+                            distributed_timestamp = time.time()
+                        
+                        self._jobs[job_id]["timestamp"] = distributed_timestamp
+                        self._jobs[job_id]["processed_at"] = distributed_timestamp
                         self._jobs[job_id]["processed_via"] = "queue_consumer"
                         
-                        # --- AUTO-SAVE TO MONGODB ---
+                        # --- AUTO-SAVE TO SUPABASE DATABASE ---
                         try:
-                            # Clean and transform vulnerabilities data to match MongoDB schema
+                            # Clean and transform vulnerabilities data to match database schema
                             cleaned_vulnerabilities = []
                             for vuln in vulnerabilities:
                                 cleaned_vuln = vuln.copy()
@@ -382,19 +434,21 @@ class QueueService:
                                 
                                 cleaned_vulnerabilities.append(cleaned_vuln)
                             
-                            # Create job data in the format expected by MongoDB service
-                            job_for_mongodb = {
+                            # Create job data for Supabase
+                            job_for_database = {
                                 "job_id": job_id,
                                 "keyword": keyword,
                                 "status": "completed",
                                 "total_results": total_results,
-                                "timestamp": time.time(),
+                                "timestamp": distributed_timestamp,
+                                "processed_at": distributed_timestamp,
                                 "processed_via": "queue_consumer",
-                                "vulnerabilities": cleaned_vulnerabilities
+                                "vulnerabilities": cleaned_vulnerabilities,
+                                "vulnerabilities_count": len(cleaned_vulnerabilities)
                             }
                             
-                            # Save to MongoDB in a background thread to avoid blocking the consumer
-                            save_thread = threading.Thread(target=self._save_job_to_mongodb_sync, args=([job_for_mongodb],))
+                            # Save to Supabase in a background thread to avoid blocking the consumer
+                            save_thread = threading.Thread(target=self._save_job_to_database_sync, args=([job_for_database],))
                             save_thread.start()
                             
                         except Exception as auto_save_error:
@@ -427,8 +481,8 @@ class QueueService:
         
         return {"message": "Consumer started", "status": "started"}
 
-    def _save_job_to_mongodb_sync(self, jobs_data: List[Dict[str, Any]]):
-        """Synchronous helper to save jobs to MongoDB, designed to be run in a thread."""
+    def _save_job_to_database_sync(self, jobs_data: List[Dict[str, Any]]):
+        """Synchronous helper to save jobs to Supabase, designed to be run in a thread."""
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -436,9 +490,9 @@ class QueueService:
                 self.database_service.save_job_results(jobs_data) # Pass the job(s) as a list
             )
             loop.close()
-            logger.info(f"Successfully saved {len(jobs_data)} job(s) to MongoDB.")
+            logger.info(f"Successfully saved {len(jobs_data)} job(s) to Supabase.")
         except Exception as e:
-            logger.error(f"Failed to save job to MongoDB in background thread: {e}")
+            logger.error(f"Failed to save job to Supabase in background thread: {e}")
 
     def stop_consumer(self):
         # No-op for simulation

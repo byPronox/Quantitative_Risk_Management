@@ -69,7 +69,7 @@ class Settings:
             raise ValueError("DATABASE_URL environment variable is required")
         
         # Compute derived values
-        self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:5672/"
+        self.RABBITMQ_URL = os.getenv("RABBITMQ_URL", f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:5672/")
 
 
 # Global settings instance

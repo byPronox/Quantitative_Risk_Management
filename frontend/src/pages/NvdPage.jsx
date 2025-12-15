@@ -15,15 +15,18 @@ import {
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 function NvdDashboard({ allQueueResults, loading }) {
+  // Ensure allQueueResults is always an array
+  const safeResults = Array.isArray(allQueueResults) ? allQueueResults : [];
+
   // Calculate dashboard metrics
-  const totalJobs = allQueueResults.length;
-  const completedJobs = allQueueResults.filter(j => j.status === "completed").length;
-  const inProgressJobs = allQueueResults.filter(j => j.status === "processing" || j.status === "pending").length;
-  const totalVulnerabilities = allQueueResults.reduce((sum, job) => sum + (job.vulnerabilities ? job.vulnerabilities.length : 0), 0);
+  const totalJobs = safeResults.length;
+  const completedJobs = safeResults.filter(j => j.status === "completed").length;
+  const inProgressJobs = safeResults.filter(j => j.status === "processing" || j.status === "pending").length;
+  const totalVulnerabilities = safeResults.reduce((sum, job) => sum + (job.vulnerabilities ? job.vulnerabilities.length : 0), 0);
 
   // Prepare chart data: vulnerabilities per job
-  const chartLabels = allQueueResults.map(j => j.keyword || `Trabajo ${j.job_id}`);
-  const chartData = allQueueResults.map(j => (j.vulnerabilities ? j.vulnerabilities.length : 0));
+  const chartLabels = safeResults.map(j => j.keyword || `Trabajo ${j.job_id}`);
+  const chartData = safeResults.map(j => (j.vulnerabilities ? j.vulnerabilities.length : 0));
   const barData = {
     labels: chartLabels, datasets: [
       {
@@ -354,7 +357,7 @@ export default function NvdPage() {
           </div>
         ) : (
           <div style={{ display: "grid", gap: "2rem" }}>
-            {allQueueResults.map((job, index) => (
+            {Array.isArray(allQueueResults) && allQueueResults.map((job, index) => (
               <div
                 key={job.job_id || index}
                 style={{

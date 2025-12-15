@@ -128,13 +128,15 @@ export default function AsyncSoftwareAnalysis() {
       const allResults = await getAllQueueResults();
       // This is the fix: check for a successful response and extract the 'jobs' array
       if (allResults && allResults.success) {
-        setAllQueueResults(allResults.jobs || []);
+        setAllQueueResults(Array.isArray(allResults.jobs) ? allResults.jobs : []);
       } else {
         // If the call fails or the format is wrong, ensure it's an empty array
         setAllQueueResults(Array.isArray(allResults) ? allResults : []);
       }
     } catch (error) {
       console.error('Error loading all queue results:', error);
+      // Ensure state is always an array even on error
+      setAllQueueResults([]);
     }
   };
 
@@ -218,6 +220,11 @@ export default function AsyncSoftwareAnalysis() {
       // Send software list for async analysis
       const response = await analyzeSoftwareAsync(validSoftware, analysisParams);
 
+      // Validate response structure
+      if (!response || !response.job_ids || !Array.isArray(response.job_ids)) {
+        throw new Error('Invalid response from server: missing job_ids array');
+      }
+
       setAnalysisStatus({
         status: 'queued',
         jobIds: response.job_ids,
@@ -225,9 +232,9 @@ export default function AsyncSoftwareAnalysis() {
         message: response.message
       });
 
-      // Track jobs history
+      // Track jobs history with validation
       setJobsHistory(validSoftware.map((software, index) => ({
-        jobId: response.job_ids[index],
+        jobId: response.job_ids[index] || `unknown-${index}`,
         keyword: software
       })));
 
@@ -544,7 +551,7 @@ export default function AsyncSoftwareAnalysis() {
             <div className="stat-card">
               <div className="stat-icon">🚨</div>
               <div className="stat-number">
-                {allQueueResults.reduce((total, job) => total + (job.total_results || 0), 0)}
+                {Array.isArray(allQueueResults) ? allQueueResults.reduce((total, job) => total + (job.total_results || 0), 0) : 0}
               </div>
               <div className="stat-label">Vulnerabilidades Encontradas</div>
             </div>
@@ -553,7 +560,7 @@ export default function AsyncSoftwareAnalysis() {
             <div className="vulnerabilities-per-job">
               <h6>Vulnerabilidades por Trabajo</h6>
               <div className="queue-results-grid">
-                {allQueueResults.map((job, index) => {
+                {Array.isArray(allQueueResults) && allQueueResults.map((job, index) => {
                   const totalVulnerabilities = job.total_results || 0;
                   const vulnerabilities = job.vulnerabilities || [];
 
@@ -653,7 +660,7 @@ export default function AsyncSoftwareAnalysis() {
       <div className="pending-jobs-section">
         <h4>⏳ Trabajos Pendientes</h4>
         <ul>
-          {allQueueResults.filter(job => job.status !== 'completed').map((job, idx) => (
+          {Array.isArray(allQueueResults) && allQueueResults.filter(job => job.status !== 'completed').map((job, idx) => (
             <li key={job.job_id || idx}>
               {job.keyword} (Estado: {job.status})
             </li>
@@ -681,7 +688,7 @@ export default function AsyncSoftwareAnalysis() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dbHistory.map((job) => (
+                  {Array.isArray(dbHistory) && dbHistory.map((job) => (
                     <tr key={job.job_id}>
                       <td>{job.job_id.substring(0, 8)}...</td>
                       <td>{job.keyword}</td>
