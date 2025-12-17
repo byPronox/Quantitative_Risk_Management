@@ -106,219 +106,160 @@ const fetchNvdForCve = async (cveId) => {
 
 /**
  * Compute a numeric risk score (0-100) for a given vulnerability context.
- * Formula (documented):
- *  - CVSS component (weight 70%): normalized CVSSv3 base score (0-10) scaled to 0-70
- *  - Exposure component (weight 20%): public/exposed port -> 20, otherwise 0
- *  - Count component (weight 10%): count of vulnerabilities for same asset normalized (min(count,5)/5 * 10)
+ * Formula (documented in Frontend):
+ *  Risk Score = (Severity * 0.4) + (Exposure * 0.3) + (Exploitability * 0.2) + (Impact * 0.1)
  *
- * Total = cvss_component + exposure_component + count_component
- *
- * Rationale:
- *  - CVSS reflects inherent severity (most weight).
- *  - Exposure (public ports) amplifies risk.
- *  - Multiple issues on same asset slightly increase urgency.
+ * Components:
+ *  - Severity (40%): CVSS Base Score (0-10) -> 0-100
+ *  - Exposure (30%): Public/Exposed -> 100, Internal -> 50, Local -> 25
+ *  - Exploitability (20%): Exploit available -> 100, PoC -> 75, High complexity -> 50, Low -> 25
+ *  - Impact (10%): Critical Asset (DB/Infra) -> 100, App -> 75, Other -> 50
  */
-const computeRiskScore = (cvssBase = null, isExposed = false, vulnCountForAsset = 1) => {
-  // New weights chosen for business logic balance:
-  // - CVSS/base severity: 60%
-  // - Exposure (public/exposed): 30%
-  // - Multiple findings on same asset: 10%
+const computeRiskScore = (cvssBase = null, isExposed = false, exploitabilityContext = 'low', assetType = 'Aplicaciones') => {
+  // 1. Severity (40%)
   const cvss = (typeof cvssBase === 'number' && !isNaN(cvssBase)) ? Math.max(0, Math.min(10, cvssBase)) : 0;
-  const compA = (cvss / 10) * 60; // 0-60
-  const compB = isExposed ? 30 : 0; // 0 or 30
-  const compC = (Math.min(vulnCountForAsset, 5) / 5) * 10; // 0-10
-  let total = compA + compB + compC;
-  // Safety caps
-  if (total > 100) total = 100;
-  if (total < 0) total = 0;
-  // Round to one decimal for stable display
+  const severityScore = cvss * 10; // 0-100
+
+  // 2. Exposure (30%)
+  let exposureScore = 50; // Default Internal
+  if (isExposed) exposureScore = 100; // Public
+
+  // 3. Exploitability (20%)
+  let exploitabilityScore = 25; // Default Low
+  if (exploitabilityContext === 'high' || exploitabilityContext.includes('exploit')) exploitabilityScore = 100;
+  else if (exploitabilityContext === 'medium' || exploitabilityContext.includes('poc')) exploitabilityScore = 75;
+  else if (exploitabilityContext === 'low') exploitabilityScore = 50;
+
+  // 4. Impact (10%)
+  let impactScore = 50;
+  if (assetType === 'Bases de datos' || assetType === 'Infraestructura') impactScore = 100;
+  else if (assetType === 'Aplicaciones') impactScore = 75;
+
+  // Calculate Weighted Score
+  const total = (severityScore * 0.4) + (exposureScore * 0.3) + (exploitabilityScore * 0.2) + (impactScore * 0.1);
+
+  // Round to one decimal
   return Math.round(total * 10) / 10;
 };
 
 /**
  * Map numeric score to category:
- * 0-10: Muy baja
- * 10.1-30: Baja
- * 30.1-60: Media
- * 60.1-85: Alta
- * 85.1-100: Muy alta
+ * 0-25: Baja
+ * 25.1-50: Media
+ * 50.1-75: Alta
+ * 75.1-100: Crítica
  */
 const mapScoreToCategory = (score) => {
-  if (score <= 10) return 'Muy baja';
-  if (score <= 30) return 'Baja';
-  if (score <= 60) return 'Media';
-  if (score <= 85) return 'Alta';
-  return 'Muy alta';
+  if (score <= 25) return 'Baja';
+  if (score <= 50) return 'Media';
+  if (score <= 75) return 'Alta';
+  return 'Crítica';
 };
 
 /**
  * Determine recommended treatment and provide personalized justification and remediation steps.
  * Treatments: aceptar, mitigar, transferir, evitar
- *
- * Heuristics:
- * - Very low risk -> aceptar (monitor)
- * - Low/Medium -> mitigar (patch, config, limit access)
- * - High -> mitigar (urgent) or transferir if asset is a third-party service (detected heuristically)
- * - Very high -> evitar (isolate, take offline if possible) + emergency patching
  */
 const determineTreatment = (vuln, score, classification, nvdData) => {
   const category = mapScoreToCategory(score);
-  const title = vuln.title || vuln.id || 'Vulnerability';
-  const cve = vuln.cve || null;
-  const product = vuln.context?.product || vuln.product || 'Desconocido';
+  const product = vuln.context?.product || vuln.product || 'servicio desconocido';
   const port = vuln.context?.port || 'N/A';
+  const serviceName = vuln.context?.service || product;
 
   // --- 1. Descripción del Hallazgo ---
-  // Explica en 2–3 líneas qué significa el servicio o puerto encontrado.
   let descriptionText = vuln.description || '';
   if (!descriptionText) {
-    if (port !== 'N/A') descriptionText = `Se ha detectado el puerto ${port} abierto, asociado al servicio ${product}.`;
+    if (port !== 'N/A') descriptionText = `Se ha detectado el puerto ${port} abierto, ejecutando ${product}.`;
     else descriptionText = `Se ha detectado el servicio ${product} en el host.`;
   }
-  // Ensure description is not too long for the summary but detailed enough
   if (descriptionText.length > 300) descriptionText = descriptionText.substring(0, 300) + '...';
 
   // --- 2. Tratamiento Recomendado ---
   let treatment = 'mitigar';
-  if (score <= 30) treatment = 'aceptar';
-  if (score > 30 && score <= 85) treatment = 'mitigar';
-  if (score > 85) treatment = 'evitar'; // Mapping 'evitar' to critical mitigation actions, but keeping internal logic consistent
+  if (score <= 25) treatment = 'aceptar';
+  else if (score <= 75) treatment = 'mitigar';
+  else treatment = 'evitar'; // Critical -> Evitar/Eliminar
 
-  // Special cases
+  // Special cases for Transfer
   const productLower = String(product).toLowerCase();
-  if ((productLower.includes('saas') || productLower.includes('managed service')) && score > 50) {
+  if ((productLower.includes('saas') || productLower.includes('cloud') || productLower.includes('akamai') || productLower.includes('cloudflare')) && score > 50) {
     treatment = 'transferir';
   }
 
-  // --- 3. Motivos ---
-  // Motivo Teórico (Gestión de Riesgos)
+  // --- 3. Motivos (Personalizados) ---
   let theoreticalMotive = '';
-  if (score <= 30) {
-    theoreticalMotive = 'El riesgo residual es bajo debido a la baja probabilidad de explotación exitosa o al impacto limitado en la confidencialidad, integridad y disponibilidad del activo. Se considera aceptable dentro del apetito de riesgo operativo.';
-  } else if (score <= 60) {
-    theoreticalMotive = 'El riesgo representa una amenaza moderada. La combinación de la severidad de la vulnerabilidad y la exposición del activo sugiere que una explotación es plausible y podría tener consecuencias operativas notables.';
-  } else {
-    theoreticalMotive = 'El riesgo es crítico. La alta severidad base combinada con la exposición del activo crea una superficie de ataque inminente. La probabilidad de compromiso es alta y el impacto en el negocio sería severo.';
+  if (treatment === 'aceptar') {
+    theoreticalMotive = `El riesgo calculado (${score}/100) para ${product} en el puerto ${port} es bajo. El impacto potencial no justifica controles adicionales costosos en este momento.`;
+  } else if (treatment === 'mitigar') {
+    theoreticalMotive = `El riesgo (${score}/100) es considerable. La vulnerabilidad en ${product} podría ser explotada para comprometer la ${classification.toLowerCase()}. Se requieren controles compensatorios.`;
+  } else if (treatment === 'evitar') {
+    theoreticalMotive = `El riesgo es crítico (${score}/100). La exposición de ${product} presenta una amenaza inaceptable para la organización. La única opción segura es eliminar la causa raíz o desconectar el servicio.`;
+  } else if (treatment === 'transferir') {
+    theoreticalMotive = `Al ser ${product} un servicio gestionado/externo, el riesgo operativo debe ser transferido al proveedor mediante SLAs y contratos de seguridad.`;
   }
 
-  // Motivo Técnico (Ciberseguridad)
-  // Factors: CVSS (60%), Exposure (30%), Count (10%)
-  const cvssBase = vuln.cvssBase || 0;
-  const isExposed = (vuln.context && vuln.context.port && ['80', '443', '8080', '8443', '21', '22', '23', '25', '3306', '5432', '27017', '3389'].includes(String(vuln.context.port)));
-  const vulnCount = Math.min(vuln.vulnCount || 1, 5); // Assuming vulnCount is passed or we default to 1. Note: scanner.js logic passes vulnCountForAsset to computeRiskScore but not explicitly here. We might need to infer or pass it. 
-  // Actually, computeRiskScore is called before this. Let's reconstruct the technical motive from the score components we know.
-
-  const compCVSS = (Math.min(cvssBase, 10) / 10) * 60;
-  const compExposure = isExposed ? 30 : 0;
-  const compCount = 10; // We don't have the exact count here easily without changing signature, so we'll generalize or assume 1-5 scale contribution. 
-  // Let's use a generic explanation for the technical part if we can't get exact numbers, or rely on the score.
-
-  let technicalMotive = `
-    <ul>
-      <li><strong>Severidad Base (CVSS):</strong> ${cvssBase.toFixed(1)}/10. Refleja la complejidad del ataque y el impacto directo.</li>
-      <li><strong>Exposición:</strong> ${isExposed ? 'Pública (Internet/Red Externa)' : 'Interna/Limitada'}. ${isExposed ? 'Aumenta significativamente el riesgo al ser accesible remotamente.' : 'Reduce el vector de ataque inmediato.'}</li>
-      <li><strong>Naturaleza:</strong> ${classification}. Afecta a componentes de ${classification.toLowerCase()}.</li>
-    </ul>
-  `;
-
-  // --- 4. Explicación del Puntaje ---
-  const scoreExplanation = `
-    El puntaje final de <strong>${score}</strong> se obtiene ponderando:
-    <ul>
-      <li><strong>60% Severidad Base (CVSS):</strong> Gravedad intrínseca del fallo.</li>
-      <li><strong>30% Exposición:</strong> Accesibilidad del servicio desde el exterior.</li>
-      <li><strong>10% Conteo/Contexto:</strong> Frecuencia de vulnerabilidades en el activo.</li>
-    </ul>
-    La suma se normaliza a una escala de 0-100.
-  `;
-
-  // --- 5. Remediación Sugerida (REAL | ACCIONABLE) ---
+  // --- 4. Remediación Sugerida (ÚNICA Y PERSONALIZADA) ---
   let remediationSteps = [];
 
-  // NVD Hints
-  let patchHint = '';
+  // Base steps based on context
+  if (port !== 'N/A') {
+    if (category === 'Baja') {
+      remediationSteps.push(`Configurar listas de control de acceso (ACLs) para restringir el tráfico al puerto ${port} solo a IPs confiables.`);
+      remediationSteps.push(`Verificar si el servicio ${product} es estrictamente necesario; de lo contrario, detenerlo.`);
+    } else {
+      remediationSteps.push(`Implementar reglas de firewall estrictas para el puerto ${port} (${product}).`);
+    }
+  }
+
+  // Product specific steps (Unique context)
+  if (productLower.includes('http') || productLower.includes('apache') || productLower.includes('nginx') || productLower.includes('iis')) {
+    remediationSteps.push(`Revisar la configuración de ${product} para ocultar la versión del servidor (ServerTokens Prod / server_tokens off).`);
+    remediationSteps.push(`Habilitar cabeceras de seguridad HTTP (HSTS, X-Frame-Options) en el servidor web en el puerto ${port}.`);
+    if (score > 50) remediationSteps.push(`Implementar un WAF (Web Application Firewall) delante de ${product} para filtrar ataques comunes.`);
+  } else if (productLower.includes('ssh')) {
+    remediationSteps.push(`Deshabilitar el acceso root y la autenticación por contraseña en el servicio SSH (puerto ${port}).`);
+    remediationSteps.push(`Implementar Fail2Ban o similar para bloquear intentos de fuerza bruta contra SSH.`);
+  } else if (productLower.includes('sql') || productLower.includes('database') || productLower.includes('mysql') || productLower.includes('postgres')) {
+    remediationSteps.push(`Asegurar que el gestor de base de datos ${product} no esté expuesto a Internet pública.`);
+    remediationSteps.push(`Habilitar SSL/TLS para todas las conexiones entrantes a la base de datos en el puerto ${port}.`);
+  } else if (productLower.includes('ftp')) {
+    remediationSteps.push(`Considerar migrar de FTP a SFTP para asegurar la confidencialidad de las credenciales y datos.`);
+  }
+
+  // Vulnerability specific steps
   if (nvdData) {
-    const desc = (nvdData.description && nvdData.description[0]?.value) || '';
-    if (desc.toLowerCase().includes('fixed')) patchHint = 'Existe un parche oficial documentado en NVD.';
+    remediationSteps.push(`Aplicar el parche de seguridad referenciado en ${nvdData.id || 'el boletín del proveedor'} para ${product}.`);
+  } else if (score > 50) {
+    remediationSteps.push(`Actualizar ${product} a la última versión estable inmediatamente para mitigar vulnerabilidades conocidas.`);
   }
 
-  if (category === 'Muy baja' || category === 'Baja') {
-    remediationSteps.push('Restringir el acceso al puerto/servicio mediante reglas de firewall (listas blancas).');
-    remediationSteps.push('Validar que la versión instalada sea la más reciente estable.');
-    remediationSteps.push('Revisar la configuración para deshabilitar banners informativos y métodos no seguros.');
-  } else if (category === 'Media') {
-    remediationSteps.push('Endurecer la configuración del servicio (hardening) siguiendo guías CIS o del proveedor.');
-    remediationSteps.push('Eliminar módulos o extensiones no utilizadas que aumenten la superficie de ataque.');
-    remediationSteps.push('Rotar credenciales asociadas y verificar que no se usen valores por defecto.');
-    if (patchHint) remediationSteps.push(patchHint);
-    else remediationSteps.push('Buscar y aplicar actualizaciones de seguridad del proveedor.');
-  } else { // Alta / Muy Alta
-    remediationSteps.push('<strong>ACCIÓN INMEDIATA:</strong> Deshabilitar el servicio si no es crítico para el negocio.');
-    remediationSteps.push('Aplicar parches de seguridad de manera prioritaria (Emergency Change).');
-    remediationSteps.push('Aislar el host de la red pública hasta que se remedie el hallazgo.');
-    remediationSteps.push('Realizar un análisis forense de logs para descartar compromiso previo.');
-  }
-
-  // Specific tech remediations
-  if (productLower.includes('http') || productLower.includes('apache') || productLower.includes('nginx')) {
-    remediationSteps.push('Implementar cabeceras de seguridad (HSTS, CSP, X-Frame-Options).');
-  }
-  if (productLower.includes('ssh')) {
-    remediationSteps.push('Deshabilitar autenticación por contraseña y usar solo llaves SSH.');
-    remediationSteps.push('Deshabilitar acceso root remoto.');
-  }
-  if (productLower.includes('sql') || productLower.includes('database')) {
-    remediationSteps.push('Asegurar que el puerto de base de datos no esté expuesto a Internet.');
-    remediationSteps.push('Habilitar cifrado TLS para conexiones entrantes.');
-  }
+  // Ensure uniqueness in the list
+  remediationSteps = [...new Set(remediationSteps)];
 
   const remediationHtml = remediationSteps.map(step => `<li>${step}</li>`).join('');
 
-  // Construct the full HTML Report
+  // Construct Report
   const reportHtml = `
     <div class="risk-report">
       <div class="report-header">
-        <span class="risk-badge risk-${category.toLowerCase().replace(' ', '-')}">
-          🟩 Nivel de Riesgo: ${category} — Puntaje: ${score}
+        <span class="risk-badge risk-${category.toLowerCase().replace('ó', 'o')}">
+          ${category === 'Crítica' ? '🔴' : category === 'Alta' ? '🟠' : category === 'Media' ? '🟡' : '🟢'} 
+          Nivel de Riesgo: ${category} — Puntaje: ${score}
         </span>
       </div>
       
       <div class="report-section">
         <h3>🔍 Hallazgo: ${product} ${port !== 'N/A' ? `(Puerto ${port})` : ''}</h3>
-      </div>
-
-      <div class="report-section">
-        <h4>🧭 Descripción</h4>
         <p>${descriptionText}</p>
       </div>
 
       <div class="report-section">
-        <h4>🛑 Tratamiento Recomendado: <span class="treatment-tag">${treatment.toUpperCase()}</span></h4>
-        <p>
-          ${treatment === 'aceptar' ? 'El riesgo residual es tolerable bajo monitoreo.' : ''}
-          ${treatment === 'mitigar' ? 'Se requiere acción directa para reducir la probabilidad o impacto.' : ''}
-          ${treatment === 'transferir' ? 'El riesgo debe ser gestionado por el tercero responsable.' : ''}
-          ${treatment === 'evitar' ? 'El riesgo es inaceptable; se debe eliminar la causa raíz inmediatamente.' : ''}
-        </p>
-      </div>
-
-      <div class="report-section">
-        <h4>📘 Motivo Teórico</h4>
+        <h4>🛑 Estrategia: <span class="treatment-tag">${treatment.toUpperCase()}</span></h4>
         <p>${theoreticalMotive}</p>
       </div>
 
       <div class="report-section">
-        <h4>🛠️ Motivo Técnico</h4>
-        ${technicalMotive}
-      </div>
-
-      <div class="report-section">
-        <h4>📊 Cómo se Calculó el Puntaje</h4>
-        <p>${scoreExplanation}</p>
-      </div>
-
-      <div class="report-section">
-        <h4>🔧 Remediación Sugerida</h4>
+        <h4>🔧 Pasos de Remediación Personalizados</h4>
         <ul class="remediation-list">
           ${remediationHtml}
         </ul>
@@ -328,9 +269,9 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
 
   return {
     treatment,
-    reason: theoreticalMotive, // Keep for backward compatibility if needed
-    remediation: remediationSteps, // Keep for backward compatibility
-    report: reportHtml // NEW FIELD
+    reason: theoreticalMotive,
+    remediation: remediationSteps,
+    report: reportHtml
   };
 };
 

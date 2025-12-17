@@ -1,70 +1,18 @@
 import amqp from 'amqplib';
-import pg from 'pg';
 import { scanIP } from './scanner.js';
+import databaseService from './database_service.js';
+import timeService from './time_service.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const QUEUE_NAME = 'nmap_scan_queue';
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672/';
-const DATABASE_URL = process.env.DATABASE_URL;
-
-// Database connection pool with SSL for Supabase
-const pool = new pg.Pool({
-    connectionString: DATABASE_URL,
-    ssl: DATABASE_URL?.includes('supabase') ? { rejectUnauthorized: false } : false,
-});
-
-// Verify database connection on startup
-pool.on('connect', () => {
-    console.log('📦 Connected to PostgreSQL database');
-});
-
-pool.on('error', (err) => {
-    console.error('❌ Unexpected PostgreSQL error:', err);
-});
-
-async function updateJobStatus(jobId, status, result = null, error = null) {
-    const client = await pool.connect();
-    try {
-        const now = new Date().toISOString();
-        let query = 'UPDATE nmap_jobs SET status = $1';
-        const values = [status];
-        let paramIndex = 2;
-
-        if (result) {
-            // PostgreSQL JSONB requires JSON object, pg library handles serialization
-            query += `, result = $${paramIndex}::jsonb`;
-            values.push(JSON.stringify(result));
-            paramIndex++;
-        }
-        if (error) {
-            query += `, error = $${paramIndex}`;
-            values.push(error);
-            paramIndex++;
-        }
-        if (status === 'completed' || status === 'failed') {
-            query += `, completed_at = $${paramIndex}`;
-            values.push(now);
-            paramIndex++;
-        }
-
-        query += ` WHERE job_id = $${paramIndex}`;
-        values.push(jobId);
-
-        await client.query(query, values);
-        console.log(`✅ Job ${jobId} updated to ${status}`);
-    } catch (err) {
-        console.error(`❌ Failed to update job ${jobId}:`, err);
-    } finally {
-        client.release();
-    }
-}
 
 export async function startConsumer() {
     let retryCount = 0;
     const maxRetries = 10;
-    
+
     const connect = async () => {
         try {
             console.log(`🐰 Connecting to RabbitMQ at ${RABBITMQ_URL}...`);
@@ -92,22 +40,88 @@ export async function startConsumer() {
 
                     console.log(`📥 Received scan job: ${job_id} for target: ${target}`);
 
-                    // Update status to processing
-                    await updateJobStatus(job_id, 'processing');
+                    // Get distributed timestamp for processing start
+                    const processingTimestamp = await timeService.getCurrentTimestamp();
+
+                    // Update status to processing with timestamp
+                    await databaseService.updateJobStatus(job_id, 'processing', {
+                        processed_at: processingTimestamp
+                    });
+
+                    const startTime = Date.now();
 
                     try {
                         // Perform Scan
-                        console.log(`🔍 Starting scan for ${target}...`);
+                        console.log(`🔍 Starting Nmap scan for ${target}...`);
                         const scanResult = await scanIP(target);
 
-                        // Update status to completed
-                        await updateJobStatus(job_id, 'completed', scanResult);
-                        console.log(`✅ Scan completed for ${job_id}`);
+                        const endTime = Date.now();
+                        const processingTimeSeconds = Math.floor((endTime - startTime) / 1000);
 
+                        console.log(`✅ Scan completed for ${job_id} in ${processingTimeSeconds} seconds`);
+                        console.log(`📊 Scan results:`, JSON.stringify(scanResult, null, 2));
+
+                        // Get distributed timestamp for completion
+                        const completedTimestamp = await timeService.getCurrentTimestamp();
+
+                        // Extract port counts from scan results
+                        const ports = scanResult.ports || [];
+                        const openPorts = ports.filter(p => p.state === 'open');
+                        const closedPorts = ports.filter(p => p.state === 'closed');
+                        const filteredPorts = ports.filter(p => p.state === 'filtered' || p.state.includes('filtered'));
+
+                        // Update job status to completed with full results
+                        await databaseService.updateJobStatus(job_id, 'completed', {
+                            completed_at: completedTimestamp,
+                            processing_time_seconds: processingTimeSeconds,
+                            total_ports_found: ports.length,
+                            open_ports_count: openPorts.length,
+                            closed_ports_count: closedPorts.length,
+                            filtered_ports_count: filteredPorts.length,
+                            scan_results: scanResult
+                        });
+
+                        // Save individual port results to nmap_scan_results table
+                        if (ports.length > 0) {
+                            console.log(`💾 Saving ${ports.length} port results to database...`);
+                            const scannedTimestamp = await timeService.getCurrentTimestamp();
+
+                            for (const port of ports) {
+                                try {
+                                    await databaseService.saveScanResult(job_id, {
+                                        port_number: port.port,
+                                        protocol: port.protocol || 'tcp',
+                                        port_state: port.state,
+                                        service_name: port.service || null,
+                                        service_product: port.product || null,
+                                        service_version: port.version || null,
+                                        service_extra_info: port.extrainfo || null,
+                                        os_match: scanResult.os_match || null,
+                                        os_accuracy: scanResult.os_accuracy || null,
+                                        script_output: port.scripts || null,
+                                        raw_data: port,
+                                        scanned_at: scannedTimestamp
+                                    });
+                                } catch (portError) {
+                                    console.error(`❌ Error saving port ${port.port}:`, portError);
+                                }
+                            }
+                            console.log(`✅ Saved ${ports.length} port results to database`);
+                        }
+
+                        console.log(`✅ Job ${job_id} completed successfully`);
                         channel.ack(msg);
                     } catch (error) {
                         console.error(`❌ Scan failed for ${job_id}:`, error);
-                        await updateJobStatus(job_id, 'failed', null, error.message || String(error));
+
+                        // Get distributed timestamp for failure
+                        const failedTimestamp = await timeService.getCurrentTimestamp();
+
+                        await databaseService.updateJobStatus(job_id, 'failed', {
+                            completed_at: failedTimestamp,
+                            error_message: error.message || String(error)
+                        });
+
                         channel.ack(msg);
                     }
                 }
@@ -115,7 +129,7 @@ export async function startConsumer() {
         } catch (error) {
             console.error(`❌ RabbitMQ Consumer Error (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
             retryCount++;
-            
+
             if (retryCount < maxRetries) {
                 const delay = Math.min(5000 * retryCount, 30000); // Exponential backoff, max 30s
                 console.log(`⏳ Retrying in ${delay / 1000} seconds...`);
@@ -125,6 +139,6 @@ export async function startConsumer() {
             }
         }
     };
-    
+
     await connect();
 }

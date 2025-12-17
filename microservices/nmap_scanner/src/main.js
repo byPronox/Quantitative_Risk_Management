@@ -4,8 +4,8 @@ import helmet from 'helmet';
 import routes from './routes.js';
 import { startConsumer } from './consumer.js';
 
-// Start RabbitMQ Consumer
-startConsumer();
+// Start RabbitMQ Consumer - DISABLED: Consumer now starts manually via API endpoint
+// startConsumer();
 
 // Create Express app
 const app = express();

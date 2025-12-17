@@ -6,7 +6,7 @@ import AssetList from "./components/AssetList";
 import CombinedAnalysisForm from "./components/CombinedAnalysisForm";
 import NvdPage from "./pages/NvdPage";
 import ReportsPage from "./pages/ReportsPage";
-import ScanPage from "./pages/ScanPage";
+import NmapPage from "./pages/NmapPage";
 import Login from "./pages/Login";
 
 const mockAssets = [
@@ -118,7 +118,7 @@ function AppRoutes() {
             path="/scan"
             element={
               <ProtectedRoute>
-                <ScanPage />
+                <NmapPage />
               </ProtectedRoute>
             }
           />

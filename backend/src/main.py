@@ -19,6 +19,7 @@ from config.database import init_db, SessionLocal
 from controllers.risk_controller import router as risk_router
 from controllers.gateway_controller import router as gateway_router
 from controllers.nmap_controller import router as nmap_router
+from controllers.nmap_gateway_controller import router as nmap_gateway_router
 from controllers.enhanced_risk_controller import router as enhanced_risk_router
 from controllers.health_controller import router as health_router
 from controllers.auth_controller import router as auth_router, seed_default_user
@@ -63,6 +64,7 @@ def create_app() -> FastAPI:
     app.include_router(risk_router, prefix=f"/api/{settings.API_VERSION}", tags=["Risk Analysis"])
     app.include_router(gateway_router, prefix=f"/api/{settings.API_VERSION}", tags=["Gateway"])
     app.include_router(nmap_router, prefix=f"/api/{settings.API_VERSION}", tags=["Nmap Scanner"])
+    app.include_router(nmap_gateway_router, prefix=f"/api/{settings.API_VERSION}", tags=["Nmap Gateway"])
     app.include_router(enhanced_risk_router, prefix=f"/api/{settings.API_VERSION}", tags=["Enhanced Risk Analysis"])
     
     # Compatibility routes (without API prefix for existing frontend)
@@ -71,6 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(risk_router, tags=["Compatibility"])
     app.include_router(gateway_router, tags=["Gateway Compatibility"])
     app.include_router(nmap_router, tags=["Nmap Compatibility"])
+    app.include_router(nmap_gateway_router, tags=["Nmap Gateway Compatibility"])
     app.include_router(enhanced_risk_router, tags=["Enhanced Risk Compatibility"])
     
     @app.on_event("startup")
