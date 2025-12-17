@@ -51,7 +51,8 @@ class PostgresRepository:
                 self.database_url,
                 min_size=2,
                 max_size=10,
-                command_timeout=60
+                command_timeout=60,
+                statement_cache_size=0
             )
             
             # Create tables if not exist
@@ -85,6 +86,14 @@ class PostgresRepository:
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 )
             """)
+            
+            # Ensure updated_at column exists (migration)
+            try:
+                await conn.execute("""
+                    ALTER TABLE nvd_jobs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                """)
+            except Exception as e:
+                logger.warning(f"Migration warning: {e}")
             
             # Create nvd_vulnerabilities table
             await conn.execute("""
@@ -131,30 +140,34 @@ class PostgresRepository:
         
         async with self._pool.acquire() as conn:
             for job in jobs_data:
-                if job.get("status") == "completed" and job.get("vulnerabilities"):
-                    job_id = job.get("job_id", "")
-                    keyword = job.get("keyword", "")
-                    status = job.get("status", "pending")
-                    total_results = int(job.get("total_results", 0))
-                    processed_at = job.get("timestamp", current_time.timestamp())
-                    processed_via = job.get("processed_via", "nvd_microservice")
+                job_id = job.get("job_id", "")
+                if not job_id:
+                    continue
                     
-                    # Convert timestamp to datetime if needed
-                    if isinstance(processed_at, (int, float)):
-                        processed_at = datetime.fromtimestamp(processed_at)
-                    
-                    # Insert or update job
-                    await conn.execute("""
-                        INSERT INTO nvd_jobs (job_id, keyword, status, total_results, processed_at, processed_via, updated_at)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7)
-                        ON CONFLICT (job_id) DO UPDATE SET
-                            status = EXCLUDED.status,
-                            total_results = EXCLUDED.total_results,
-                            processed_at = EXCLUDED.processed_at,
-                            updated_at = EXCLUDED.updated_at
-                    """, job_id, keyword, status, total_results, processed_at, processed_via, current_time)
-                    
-                    # Insert vulnerabilities
+                keyword = job.get("keyword", "")
+                status = job.get("status", "pending")
+                total_results = int(job.get("total_results", 0))
+                processed_at = job.get("timestamp", current_time.timestamp())
+                processed_via = job.get("processed_via", "nvd_microservice")
+                
+                # Convert timestamp to datetime if needed
+                if isinstance(processed_at, (int, float)):
+                    processed_at = datetime.fromtimestamp(processed_at)
+                
+                # Insert or update job
+                result = await conn.execute("""
+                    INSERT INTO nvd_jobs (job_id, keyword, status, total_results, processed_at, processed_via, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    ON CONFLICT (job_id) DO UPDATE SET
+                        status = EXCLUDED.status,
+                        total_results = EXCLUDED.total_results,
+                        processed_at = EXCLUDED.processed_at,
+                        processed_via = EXCLUDED.processed_via,
+                        updated_at = EXCLUDED.updated_at
+                """, job_id, keyword, status, total_results, processed_at, processed_via, current_time)
+                
+                # Insert vulnerabilities
+                if job.get("vulnerabilities"):
                     for vuln in job.get("vulnerabilities", []):
                         if "cve" in vuln:
                             cve_data = vuln["cve"]
@@ -215,8 +228,8 @@ class PostgresRepository:
                             except Exception as e:
                                 logger.warning(f"Error saving vulnerability {cve_id}: {e}")
                     
-                    logger.info(f"Saved job {job_id} with {len(job.get('vulnerabilities', []))} vulnerabilities")
-    
+                logger.info(f"Saved job {job_id} with {len(job.get('vulnerabilities', []))} vulnerabilities")
+
     async def get_all_jobs(self) -> List[Dict[str, Any]]:
         """Get all jobs from PostgreSQL"""
         if not self._pool:
@@ -226,11 +239,14 @@ class PostgresRepository:
             rows = await conn.fetch("""
                 SELECT j.*, 
                        COUNT(v.id) as vulnerabilities_count,
-                       json_agg(
-                           json_build_object(
-                               'cve', v.raw_data::json
-                           )
-                       ) FILTER (WHERE v.id IS NOT NULL) as vulnerabilities
+                       COALESCE(
+                           json_agg(
+                               json_build_object(
+                                   'cve', v.raw_data::json
+                               )
+                           ) FILTER (WHERE v.id IS NOT NULL),
+                           '[]'::json
+                       ) as vulnerabilities
                 FROM nvd_jobs j
                 LEFT JOIN nvd_vulnerabilities v ON j.job_id = v.job_id
                 GROUP BY j.id
@@ -302,6 +318,175 @@ class PostgresRepository:
                     job["vulnerabilities"] = []
                 
                 results.append(job)
+            
+            return results
+    
+    async def get_jobs_by_keyword(self, keyword: str) -> List[Dict[str, Any]]:
+        """Get jobs by keyword from PostgreSQL"""
+        if not self._pool:
+            await self.connect()
+        
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT j.*, 
+                       COUNT(v.id) as vulnerabilities_count,
+                       COALESCE(
+                           json_agg(
+                               json_build_object(
+                                   'cve', v.raw_data::json
+                               )
+                           ) FILTER (WHERE v.id IS NOT NULL),
+                           '[]'::json
+                       ) as vulnerabilities
+                FROM nvd_jobs j
+                LEFT JOIN nvd_vulnerabilities v ON j.job_id = v.job_id
+                WHERE j.keyword = $1
+                GROUP BY j.id
+                ORDER BY j.processed_at DESC
+            """, keyword)
+            
+            results = []
+            for row in rows:
+                job = dict(row)
+                if job.get("processed_at"):
+                    job["processed_at"] = job["processed_at"].timestamp()
+                    job["processed_at_readable"] = datetime.fromtimestamp(
+                        job["processed_at"]
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                
+                if job.get("vulnerabilities"):
+                    try:
+                        if isinstance(job["vulnerabilities"], str):
+                            job["vulnerabilities"] = json.loads(job["vulnerabilities"])
+                    except:
+                        job["vulnerabilities"] = []
+                else:
+                    job["vulnerabilities"] = []
+                
+                results.append(job)
+            
+            return results
+    
+    async def get_job_by_id(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific job by ID from PostgreSQL"""
+        if not self._pool:
+            await self.connect()
+        
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                SELECT j.*, 
+                       COUNT(v.id) as vulnerabilities_count,
+                       COALESCE(
+                           json_agg(
+                               json_build_object(
+                                   'cve', v.raw_data::json
+                               )
+                           ) FILTER (WHERE v.id IS NOT NULL),
+                           '[]'::json
+                       ) as vulnerabilities
+                FROM nvd_jobs j
+                LEFT JOIN nvd_vulnerabilities v ON j.job_id = v.job_id
+                WHERE j.job_id = $1
+                GROUP BY j.id
+            """, job_id)
+            
+            if not row:
+                return None
+                
+            job = dict(row)
+            # Convert datetime to timestamp for compatibility
+            if job.get("processed_at"):
+                job["processed_at"] = job["processed_at"].timestamp()
+            if job.get("created_at"):
+                job["created_at"] = job["created_at"].isoformat()
+            if job.get("updated_at"):
+                job["updated_at"] = job["updated_at"].isoformat()
+            
+            # Parse vulnerabilities JSON
+            if job.get("vulnerabilities"):
+                try:
+                    if isinstance(job["vulnerabilities"], str):
+                        job["vulnerabilities"] = json.loads(job["vulnerabilities"])
+                except:
+                    job["vulnerabilities"] = []
+            else:
+                job["vulnerabilities"] = []
+            
+            return job
+    
+    async def get_all_vulnerabilities(self, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get all vulnerabilities from nvd_vulnerabilities table"""
+        if not self._pool:
+            await self.connect()
+        
+        async with self._pool.acquire() as conn:
+            query = """
+                SELECT v.*, j.keyword, j.status as job_status
+                FROM nvd_vulnerabilities v
+                JOIN nvd_jobs j ON v.job_id = j.job_id
+                ORDER BY v.published DESC, v.cvss_v3_score DESC NULLS LAST
+            """
+            
+            if limit:
+                query += f" LIMIT {limit} OFFSET {offset}"
+            
+            rows = await conn.fetch(query)
+            
+            results = []
+            for row in rows:
+                vuln = dict(row)
+                # Convert datetime to ISO format
+                if vuln.get("published"):
+                    vuln["published"] = vuln["published"].isoformat() if hasattr(vuln["published"], "isoformat") else str(vuln["published"])
+                if vuln.get("last_modified"):
+                    vuln["last_modified"] = vuln["last_modified"].isoformat() if hasattr(vuln["last_modified"], "isoformat") else str(vuln["last_modified"])
+                if vuln.get("created_at"):
+                    vuln["created_at"] = vuln["created_at"].isoformat() if hasattr(vuln["created_at"], "isoformat") else str(vuln["created_at"])
+                
+                # Parse raw_data JSON if it's a string
+                if vuln.get("raw_data") and isinstance(vuln["raw_data"], str):
+                    try:
+                        vuln["raw_data"] = json.loads(vuln["raw_data"])
+                    except:
+                        pass
+                
+                results.append(vuln)
+            
+            return results
+    
+    async def get_vulnerabilities_by_job_id(self, job_id: str) -> List[Dict[str, Any]]:
+        """Get all vulnerabilities for a specific job_id"""
+        if not self._pool:
+            await self.connect()
+        
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT v.*, j.keyword, j.status as job_status
+                FROM nvd_vulnerabilities v
+                JOIN nvd_jobs j ON v.job_id = j.job_id
+                WHERE v.job_id = $1
+                ORDER BY v.cvss_v3_score DESC NULLS LAST, v.published DESC
+            """, job_id)
+            
+            results = []
+            for row in rows:
+                vuln = dict(row)
+                # Convert datetime to ISO format
+                if vuln.get("published"):
+                    vuln["published"] = vuln["published"].isoformat() if hasattr(vuln["published"], "isoformat") else str(vuln["published"])
+                if vuln.get("last_modified"):
+                    vuln["last_modified"] = vuln["last_modified"].isoformat() if hasattr(vuln["last_modified"], "isoformat") else str(vuln["last_modified"])
+                if vuln.get("created_at"):
+                    vuln["created_at"] = vuln["created_at"].isoformat() if hasattr(vuln["created_at"], "isoformat") else str(vuln["created_at"])
+                
+                # Parse raw_data JSON if it's a string
+                if vuln.get("raw_data") and isinstance(vuln["raw_data"], str):
+                    try:
+                        vuln["raw_data"] = json.loads(vuln["raw_data"])
+                    except:
+                        pass
+                
+                results.append(vuln)
             
             return results
     

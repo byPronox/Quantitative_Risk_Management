@@ -90,5 +90,5 @@ Thumbs.db
 *.pem
 *.key
 *.crt
-*.p12
+*.pa12
 *.pfx

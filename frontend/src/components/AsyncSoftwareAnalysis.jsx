@@ -72,14 +72,12 @@ export default function AsyncSoftwareAnalysis() {
         setQueueStatus(queueData);
         setConsumerStatus(consumerData);
 
-        // If consumer is running, check for processed results and load all results
-        if (consumerData.running) {
-          if (jobsHistory.length > 0) {
-            await fetchProcessedResults();
-          }
-          // Also refresh all queue results
-          await loadAllQueueResults();
+        // Always check for processed results and load all results
+        if (jobsHistory.length > 0) {
+          await fetchProcessedResults();
         }
+        // Also refresh all queue results
+        await loadAllQueueResults();
       } catch (error) {
         console.error('Error fetching status:', error);
       }
@@ -488,7 +486,7 @@ export default function AsyncSoftwareAnalysis() {
       )}
 
       {/* All Queue Results - Found Vulnerabilities from Queue Analysis */}
-      {consumerStatus && consumerStatus.running && (<div className="all-queue-results">
+      <div className="all-queue-results">
         <div className="results-header">
           <h4>🔍 Vulnerabilidades Encontradas del Análisis de Cola</h4>
           <div className="results-summary">
@@ -655,36 +653,22 @@ export default function AsyncSoftwareAnalysis() {
             </div>
           </>
         )}
-      </div>
-      )}      {/* Pending Jobs Section */}
-      <div className="pending-jobs-section">
-        <h4>⏳ Trabajos Pendientes</h4>
-        <ul>
-          {Array.isArray(allQueueResults) && allQueueResults.filter(job => job.status !== 'completed').map((job, idx) => (
-            <li key={job.job_id || idx}>
-              {job.keyword} (Estado: {job.status})
-            </li>
-          ))}
-        </ul>
-      </div>
-      {/* Completed Jobs Section */}
-
-      {/* DB History Section */}
+      </div>      {/* DB History Section - Renamed to Reportes de Análisis */}
       <div className="db-history-section" style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
-        <h4>📜 Historial Persistente (Supabase)</h4>
+        <h4>📜 Reportes de Análisis (Historial)</h4>
         <div className="history-list">
           {dbHistory.length === 0 ? (
-            <p>No hay historial registrado en la base de datos.</p>
+            <p>No hay reportes de análisis registrados en la base de datos.</p>
           ) : (
             <div className="table-responsive">
               <table className="table table-striped">
                 <thead>
                   <tr>
                     <th>ID Trabajo</th>
-                    <th>Keyword</th>
+                    <th>Software (Keyword)</th>
                     <th>Estado</th>
                     <th>Resultados</th>
-                    <th>Fecha</th>
+                    <th>Fecha de Análisis</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -694,10 +678,10 @@ export default function AsyncSoftwareAnalysis() {
                       <td>{job.keyword}</td>
                       <td>
                         <span className={`badge ${job.status === 'completed' ? 'bg-success' : 'bg-warning'}`}>
-                          {job.status}
+                          {job.status === 'completed' ? 'Completado' : job.status}
                         </span>
                       </td>
-                      <td>{job.total_results || 0} vulns</td>
+                      <td>{job.total_results || 0} vulnerabilidades</td>
                       <td>{new Date(job.created_at).toLocaleString()}</td>
                     </tr>
                   ))}
@@ -707,6 +691,6 @@ export default function AsyncSoftwareAnalysis() {
           )}
         </div>
       </div>
-    </div >
+    </div>
   );
 }

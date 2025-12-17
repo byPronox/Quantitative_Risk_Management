@@ -50,7 +50,7 @@ def create_app() -> FastAPI:
         allow_origins=["*"],  # Configure properly for production
         allow_credentials=True,
         allow_methods=["*"],
-        allow_headers=["*"],
+        allow_headers=["*", "ngrok-skip-browser-warning"],  # Allow ngrok header to skip browser warning
     )
     
     # Add custom middleware

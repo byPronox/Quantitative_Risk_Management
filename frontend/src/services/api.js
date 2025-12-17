@@ -1,101 +1,85 @@
-import axios from "axios";
+import axios from 'axios';
 
-// Backend URL Configuration
-const getBaseURL = (useBackend = false) => {
-  // For queue consumer endpoints, use local backend
-  if (useBackend) {
-    const backendURL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-    console.log(`Using backend URL: ${backendURL}`);
-    return backendURL;
-  }
+// Get the Kong Gateway URL from environment variables
+const KONG_URL = import.meta.env.VITE_API_URL || 'https://kong-6abab64110usqnlwd.kongcloud.dev';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-  // For NVD API calls, use Kong Gateway
-  const envURL = import.meta.env.VITE_API_URL;
+// Detect if we're in development (localhost)
+const isDevelopment = window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1' || 
+                      window.location.hostname === '';
 
-  if (envURL) {
-    console.log(`Using configured API URL: ${envURL}`);
-    return envURL;
-  }
+// In development, use direct backend to avoid ngrok/CORS issues
+// In production, use Kong Gateway
+const API_BASE_URL = isDevelopment ? BACKEND_URL : KONG_URL;
 
-  // Default to local backend for development
-  console.log('Using default backend URL: http://localhost:8000');
-  return "http://localhost:8000";
-};
-
+// Main API instance
 const api = axios.create({
-  baseURL: getBaseURL(),
-  timeout: 60000,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Client': 'quantitative-risk-frontend'
-  }
+    baseURL: API_BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    timeout: 30000,
 });
 
-// Separate API instance for backend endpoints (queue management)
-const backendApi = axios.create({
-  baseURL: getBaseURL(true), // Use backend URL
-  timeout: 900000, // 15 minutos en milisegundos
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Client': 'quantitative-risk-frontend'
-  }
+// Backend API instance
+export const backendApi = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    timeout: 30000,
 });
 
-// Request interceptor for debugging
+// Request interceptor
 api.interceptors.request.use(
-  (config) => {
-    console.log(`Making ${config.method?.toUpperCase()} request to:`, config.baseURL + config.url);
-    return config;
-  },
-  (error) => {
-    console.error('Request error:', error);
-    return Promise.reject(error);
-  }
+    (config) => {
+        // Add auth token if available
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
 );
 
-// Request interceptor for backend API
-backendApi.interceptors.request.use(
-  (config) => {
-    console.log(`Making ${config.method?.toUpperCase()} backend request to:`, config.baseURL + config.url);
-    return config;
-  },
-  (error) => {
-    console.error('Backend request error:', error);
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor for error handling
+// Response interceptor
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    console.error('API Error:', {
-      url: error.config?.url,
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
-    return Promise.reject(error);
-  }
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Handle unauthorized
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
 );
 
-// Response interceptor for backend API
+// Apply same interceptors to backendApi
+backendApi.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
 backendApi.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    console.error('Backend API Error:', {
-      url: error.config?.url,
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
-    return Promise.reject(error);
-  }
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
 );
 
 export default api;
-export { backendApi };

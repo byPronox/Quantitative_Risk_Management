@@ -130,8 +130,12 @@ class QueueService:
         Returns:
             bool: True if successful, False otherwise
         """
+        connection = None
         try:
-            self._connect()
+            # Create a fresh connection for this operation
+            connection = pika.BlockingConnection(self._connection_params)
+            channel = connection.channel()
+            channel.queue_declare(queue=self.queue_name, durable=True)
             
             message = {
                 "keyword": keyword,
@@ -139,7 +143,7 @@ class QueueService:
                 "timestamp": time.time()
             }
             
-            self.channel.basic_publish(
+            channel.basic_publish(
                 exchange='',
                 routing_key=self.queue_name,
                 body=json.dumps(message),
@@ -155,6 +159,12 @@ class QueueService:
         except Exception as e:
             logger.error("Failed to add vulnerability data to queue: %s", e)
             return False
+        finally:
+            if connection and not connection.is_closed:
+                try:
+                    connection.close()
+                except:
+                    pass
     
     def get_all_vulnerability_data(self) -> List[Dict[str, Any]]:
         """
@@ -183,89 +193,171 @@ class QueueService:
             logger.error("Failed to retrieve vulnerability data from queue: %s", e)
             return []
     
-    def add_job(self, keyword: str, metadata: dict) -> str:
+    async def add_job(self, keyword: str, metadata: dict) -> str:
         """
         Add a new job to the queue and return the job ID.
-        Now publishes the job to RabbitMQ instead of just storing in memory.
+        Persists initial 'pending' state to Supabase before publishing to RabbitMQ.
         """
+        # Generate Job ID
         job_id = str(int(time.time() * 1000)) + '-' + str(len(self._jobs) + 1)
+        
+        # Get distributed time
+        from ..services.time_service import TimeService
+        try:
+            created_at = await TimeService.get_current_timestamp()
+        except Exception as e:
+            logger.warning(f"Failed to get distributed time, using local: {e}")
+            created_at = time.time()
+
+        # Create Job Object
         job = {
             "job_id": job_id,
             "keyword": keyword,
             "metadata": metadata,
-            "status": "queued",
-            "created_at": time.time(),
+            "status": "pending",
+            "created_at": created_at,
+            "processed_via": None,
+            "vulnerabilities": [],
+            "total_results": 0
         }
+        
+        # Update in-memory store
         self._jobs[job_id] = job
-        self._job_status[job_id] = "queued"
-        # Publish job to RabbitMQ
+        self._job_status[job_id] = "pending"
+        
+        # 1. PERSIST TO SUPABASE (Pending State)
         try:
-            # Ensure connection is active - reconnect if needed
-            if not self.connection or self.connection.is_closed or not self.channel or self.channel.is_closed:
-                logger.info("Connection is closed, reconnecting...")
-                self._connect()
-           
+            # Now we can await directly since we are in an async context
+            await self.database_service.save_job_results([job])
+            logger.info(f"Job {job_id} persisted to Supabase with status 'pending'")
+        except Exception as e:
+            logger.error(f"Failed to persist job {job_id} to Supabase: {e}")
+            # We might want to raise here to prevent "ghost" jobs in RabbitMQ
+            raise e
+
+        # 2. PUBLISH TO RABBITMQ
+        connection = None
+        try:
+            # Create a fresh connection for this operation
+            # Note: pika.BlockingConnection is synchronous. 
+            # In a high-concurrency async app, we might want to run this in a thread executor,
+            # but for now, it's acceptable as it's a quick operation.
+            # Alternatively, use aio-pika, but that requires a larger refactor.
+            # We'll stick to BlockingConnection but wrap it in to_thread if needed, 
+            # but let's keep it simple first as it was working (sync) before.
+            connection = pika.BlockingConnection(self._connection_params)
+            channel = connection.channel()
+            channel.queue_declare(queue=self.queue_name, durable=True)
+            
             message = {
                 "job_id": job_id,
                 "keyword": keyword,
                 "metadata": metadata,
-                "created_at": job["created_at"]
+                "created_at": created_at
             }
-            self.channel.basic_publish(
+            
+            channel.basic_publish(
                 exchange='',
                 routing_key=self.queue_name,
                 body=json.dumps(message),
                 properties=pika.BasicProperties(delivery_mode=2)  # Persistent message
             )
             logger.info(f"Job published to RabbitMQ: {job_id} for keyword: {keyword}")
+            
         except Exception as e:
             logger.error(f"Failed to publish job to RabbitMQ: {e}")
             # Log the full traceback for debugging
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Update status to failed if RabbitMQ fails
             self._job_status[job_id] = "failed"
             self._jobs[job_id]["status"] = "failed"
+            
+            # Try to update Supabase to failed
+            try:
+                job["status"] = "failed"
+                await self.database_service.save_job_results([job])
+            except:
+                pass
+                
             # Re-raise to inform the caller
             raise e
+        finally:
+            if connection and not connection.is_closed:
+                try:
+                    connection.close()
+                except:
+                    pass
+                    
         return job_id
 
     def get_job(self, job_id: str) -> dict:
         return self._jobs.get(job_id, {})
 
     def get_job_result(self, job_id: str) -> dict:
-        # Return job info with status
+        # Check memory first
         job = self._jobs.get(job_id)
-        if not job:
-            return None
-        status = self._job_status.get(job_id, "queued")
-        result = {
-            "job_id": job_id,
-            "keyword": job.get("keyword"),
-            "status": status,
-        }
-        if status == "completed":
-            # For completed jobs, fetch the result from the in-memory store
-            # This is kept for backward compatibility with how results are displayed
-            job_data = self._job_results.get(job_id, [])
-            result.update({
-                "total_results": self._jobs.get(job_id, {}).get("total_results", len(job_data)),
-                "vulnerabilities": job_data,
-                "processed_via": "queue_consumer"
-            })
-        return result
-
-    def get_all_job_results(self) -> dict:
-        # Return all jobs for /results/all endpoint
-        jobs = []
-        for job_id, job in self._jobs.items():
+        if job:
             status = self._job_status.get(job_id, "queued")
-            job_copy = job.copy()
-            job_copy["status"] = status
+            result = {
+                "job_id": job_id,
+                "keyword": job.get("keyword"),
+                "status": status,
+            }
             if status == "completed":
-                job_copy["vulnerabilities"] = self._job_results.get(job_id, [])
-                job_copy["total_results"] = job.get("total_results", len(job_copy.get("vulnerabilities", [])))
-            jobs.append(job_copy)
-        return {"jobs": jobs}
+                # For completed jobs, fetch the result from the in-memory store
+                # This is kept for backward compatibility with how results are displayed
+                job_data = self._job_results.get(job_id, [])
+                result.update({
+                    "total_results": self._jobs.get(job_id, {}).get("total_results", len(job_data)),
+                    "vulnerabilities": job_data,
+                    "processed_via": "queue_consumer"
+                })
+            return result
+            
+        # Fallback to Database
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            db_job = loop.run_until_complete(self.database_service.get_job(job_id))
+            loop.close()
+            
+            if db_job:
+                return {
+                    "job_id": db_job.get("job_id"),
+                    "keyword": db_job.get("keyword"),
+                    "status": db_job.get("status"),
+                    "total_results": db_job.get("total_results", 0),
+                    "vulnerabilities": db_job.get("vulnerabilities", []),
+                    "processed_via": db_job.get("processed_via"),
+                    "processed_at": db_job.get("processed_at")
+                }
+        except Exception as e:
+            logger.error(f"Error fetching job {job_id} from database: {e}")
+            
+        return None
+
+    async def get_all_job_results(self) -> dict:
+        """
+        Retrieve all jobs from the database (Supabase).
+        """
+        try:
+            # Fetch all jobs from Supabase
+            # We need to implement get_all_jobs in database_service first
+            jobs = await self.database_service.get_all_jobs()
+            
+            # Convert to list of dicts if they are objects
+            jobs_list = []
+            for job in jobs:
+                # Ensure job is a dict
+                job_dict = dict(job) if not isinstance(job, dict) else job
+                jobs_list.append(job_dict)
+                
+            return {"success": True, "jobs": jobs_list}
+        except Exception as e:
+            logger.error(f"Error fetching all jobs from database: {e}")
+            return {"success": False, "jobs": [], "error": str(e)}
 
     def peek_queue_status(self) -> dict:
         # Use a temporary connection/channel to avoid channel closed errors
@@ -344,9 +436,59 @@ class QueueService:
                             return
                             
                         logger.info(f"Processing job: {job_id} for keyword: {keyword}")
-                        self._job_status[job_id] = "processing"
-                        self._jobs[job_id]["status"] = "processing"
-                        self._processing.add(job_id)
+                        
+                        # Ensure job exists in memory (restore from DB if needed or create placeholder)
+                        if job_id not in self._jobs:
+                            logger.info(f"Job {job_id} not in memory (restart?), initializing placeholder.")
+                            self._jobs[job_id] = {
+                                "job_id": job_id,
+                                "keyword": keyword,
+                                "status": "processing",
+                                "created_at": time.time(), # Approximate if missing
+                                "vulnerabilities": [],
+                                "total_results": 0
+                            }
+                            self._job_status[job_id] = "processing"
+                            self._processing.add(job_id)
+                        else:
+                            self._job_status[job_id] = "processing"
+                            self._jobs[job_id]["status"] = "processing"
+                            self._processing.add(job_id)
+                        
+                        # --- UPDATE SUPABASE TO PROCESSING ---
+                        try:
+                            # Get distributed time
+                            from ..services.time_service import TimeService
+                            try:
+                                processed_at = asyncio.run(TimeService.get_current_timestamp())
+                            except Exception as time_err:
+                                logger.warning(f"Failed to get distributed time, using local: {time_err}")
+                                processed_at = time.time()
+                                
+                            # Create update object
+                            job_update = {
+                                "job_id": job_id,
+                                "status": "processing",
+                                "processed_at": processed_at,
+                                "processed_via": "queue_consumer" # Initial marker
+                            }
+                            
+                            # Save to Supabase synchronously using a local DatabaseService instance
+                            # This avoids sharing the asyncpg pool across threads/loops
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            
+                            db_service = DatabaseService()
+                            try:
+                                loop.run_until_complete(db_service.save_job_results([job_update]))
+                            finally:
+                                loop.run_until_complete(db_service.disconnect())
+                                loop.close()
+                                
+                            logger.info(f"Job {job_id} status updated to 'processing' in Supabase")
+                        except Exception as e:
+                            logger.error(f"Failed to update job {job_id} status to processing: {e}")
+                        # --- END UPDATE ---
                         # --- FETCH REAL VULNERABILITIES VIA KONG GATEWAY ---
                         vulnerabilities = []
                         total_results = 0
@@ -389,7 +531,6 @@ class QueueService:
                         
                         # Use distributed time service for synchronized timestamps
                         from ..services.time_service import TimeService
-                        import asyncio
                         try:
                             # Get distributed timestamp
                             distributed_timestamp = asyncio.run(TimeService.get_current_timestamp())
@@ -486,10 +627,16 @@ class QueueService:
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(
-                self.database_service.save_job_results(jobs_data) # Pass the job(s) as a list
-            )
-            loop.close()
+            
+            db_service = DatabaseService()
+            try:
+                loop.run_until_complete(
+                    db_service.save_job_results(jobs_data) # Pass the job(s) as a list
+                )
+            finally:
+                loop.run_until_complete(db_service.disconnect())
+                loop.close()
+                
             logger.info(f"Successfully saved {len(jobs_data)} job(s) to Supabase.")
         except Exception as e:
             logger.error(f"Failed to save job to Supabase in background thread: {e}")

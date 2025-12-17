@@ -14,8 +14,8 @@ export async function analyzeNvdRisk() {
 }
 
 export async function addKeywordToQueue(keyword) {
-  const response = await backendApi.post("/nvd/queue/add", {
-    keyword: keyword
+  const response = await backendApi.post("/api/v1/queue/job", null, {
+    params: { keyword: keyword }
   });
   return response.data;
 }
@@ -24,7 +24,7 @@ export async function addKeywordToQueue(keyword) {
 export async function analyzeSoftwareAsync(softwareList, params = {}) {
   try {
     // Usar el endpoint del backend que maneja RabbitMQ
-    const response = await backendApi.post("/nvd/analyze_software_async", {
+    const response = await backendApi.post("/api/v1/analyze_software_async", {
       software_list: softwareList,
       metadata: params
     });
@@ -38,7 +38,7 @@ export async function analyzeSoftwareAsync(softwareList, params = {}) {
 
 export async function getQueueStatus() {
   try {
-    const response = await backendApi.get("/nvd/queue/status");
+    const response = await backendApi.get("/api/v1/queue/status");
     return {
       pending_jobs: response.data.pending || response.data.queue_size || 0,
       processing_jobs: response.data.processing || 0,
@@ -74,7 +74,7 @@ export function pollAnalysisResults(jobIds, callback) {
       // Usar el endpoint del backend para obtener resultados de cada job
       for (const jobId of jobIds) {
         try {
-          const response = await backendApi.get(`/nvd/results/${jobId}`);
+          const response = await backendApi.get(`/api/v1/results/${jobId}`);
           const result = response.data;
 
           if (result.status === 'completed' || result.status === 'failed') {
@@ -83,7 +83,7 @@ export function pollAnalysisResults(jobIds, callback) {
               status: result.status,
               software: result.software || jobId.split('-')[0],
               vulnerabilities: result.vulnerabilities || [],
-              totalFound: result.total_found || 0,
+              totalFound: result.total_results || 0,
               error: result.error
             });
           }
@@ -135,12 +135,12 @@ export function pollAnalysisResults(jobIds, callback) {
 
 // Consumer control functions
 export async function startConsumer() {
-  const response = await backendApi.post("/nvd/queue/consumer/start");
+  const response = await backendApi.post("/api/v1/queue/consumer/start");
   return response.data;
 }
 
 export async function stopConsumer() {
-  const response = await backendApi.post("/nvd/queue/consumer/stop");
+  const response = await backendApi.post("/api/v1/queue/consumer/stop");
   return response.data;
 }
 
@@ -171,21 +171,21 @@ export async function getConsumerStatus() {
 // Nueva función para obtener todos los resultados de la cola
 export async function getAllQueueResults() {
   try {
-    const response = await backendApi.get('/nvd/results/all');
+    const response = await backendApi.get('/api/v1/queue/results/all');
     // Return the full response object from the backend
     return response.data;
   } catch (error) {
     console.error('Error fetching all queue results:', error);
-    return [];
+    throw error;
   }
 }
 
 export async function getNvdHistory() {
   try {
-    const response = await backendApi.get('/nvd/history');
+    const response = await backendApi.get('/api/v1/queue/jobs');
     return response.data;
   } catch (error) {
     console.error('Error fetching NVD history:', error);
-    return [];
+    throw error;
   }
 }

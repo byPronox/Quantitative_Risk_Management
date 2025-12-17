@@ -41,7 +41,10 @@ services:
       mode: replicated
       replicas: 1
     volumes:
+      - ./microservices/nvd_service/src:/app/src
       - sqlite_data:/app/data
+    dns:
+      - 8.8.8.8
 
   # Nmap Scanner Microservice
   nmap-scanner-service:

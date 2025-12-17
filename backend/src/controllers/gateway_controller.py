@@ -2,8 +2,8 @@
 Gateway Controller - Central proxy for all microservices
 """
 import logging
-from typing import Dict, Any
-from fastapi import APIRouter, HTTPException, Request
+from typing import Dict, Any, Optional
+from fastapi import APIRouter, HTTPException, Request, Query
 import httpx
 import os
 
@@ -57,7 +57,7 @@ async def services_status():
 # NVD MICROSERVICE PROXY ENDPOINTS
 # =============================================================================
 
-@router.get("/nvd/results/all")
+@router.get("/queue/results/all")
 async def proxy_nvd_results_all():
     """Proxy to NVD microservice for retrieving all results from queue"""
     try:
@@ -69,7 +69,7 @@ async def proxy_nvd_results_all():
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.get("/nvd/queue/status")
+@router.get("/queue/status")
 async def proxy_nvd_queue_status():
     """Proxy to NVD microservice for queue status"""
     try:
@@ -81,7 +81,19 @@ async def proxy_nvd_queue_status():
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.get("/nvd/results/database")
+@router.get("/queue/jobs")
+async def proxy_nvd_queue_jobs():
+    """Proxy to NVD microservice for all queue jobs"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/queue/jobs")
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to NVD service (queue/jobs): %s", str(e))
+        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+
+@router.get("/results/database")
 async def proxy_nvd_results_database():
     """Proxy to NVD microservice for Database results"""
     try:
@@ -93,19 +105,19 @@ async def proxy_nvd_results_database():
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.get("/nvd/results/{job_id}")
+@router.get("/results/{job_id}")
 async def proxy_nvd_job_result(job_id: str):
     """Proxy to NVD microservice for a specific job result"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/queue/job/{job_id}")
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/results/{job_id}")
             return response.json()
     except Exception as e:
         logger.error("Error proxying to NVD service (results/%s): %s", job_id, str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.post("/nvd/analyze_software_async")
+@router.post("/analyze_software_async")
 async def proxy_nvd_analyze_software_async(request: Request):
     """Proxy to NVD microservice for asynchronous software analysis"""
     try:
@@ -118,11 +130,30 @@ async def proxy_nvd_analyze_software_async(request: Request):
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.post("/nvd/queue/consumer/start")
+@router.post("/queue/job")
+async def proxy_nvd_add_job(request: Request):
+    """Proxy to NVD microservice to add a job to the queue"""
+    try:
+        # Extract query params if any, though nvd.js sends keyword as query param in one case
+        # nvd.js: params: { keyword: keyword } -> query param
+        # But backendApi.post("/api/v1/queue/job", null, { params: ... })
+        
+        # We need to forward query params too
+        params = dict(request.query_params)
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(f"{NVD_SERVICE_URL}/api/v1/queue/job", params=params)
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to NVD service (queue/job): %s", str(e))
+        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+
+@router.post("/queue/consumer/start")
 async def proxy_nvd_consumer_start():
     """Proxy to NVD microservice to start the consumer"""
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client: # Increased timeout as this can be a long operation
+        async with httpx.AsyncClient(timeout=60.0) as client: 
             response = await client.post(f"{NVD_SERVICE_URL}/api/v1/queue/consumer/start")
             return response.json()
     except Exception as e:
@@ -130,7 +161,7 @@ async def proxy_nvd_consumer_start():
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.post("/nvd/queue/consumer/stop")
+@router.post("/queue/consumer/stop")
 async def proxy_nvd_consumer_stop():
     """Proxy to NVD microservice to stop the consumer"""
     try:
@@ -142,11 +173,11 @@ async def proxy_nvd_consumer_stop():
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 
-@router.post("/nvd/queue/bulk-save")
+@router.post("/queue/bulk-save")
 async def proxy_nvd_bulk_save():
     """Proxy to NVD microservice to bulk save all completed jobs to Database"""
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client: # Increased timeout
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(f"{NVD_SERVICE_URL}/api/v1/database/bulk-save")
             return response.json()
     except Exception as e:
@@ -179,6 +210,53 @@ async def proxy_reports_detailed_keyword(keyword: str):
             return response.json()
     except Exception as e:
         logger.error("Error proxying to NVD service (database/reports/detailed/%s): %s", keyword, str(e))
+        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+
+@router.get("/nvd/database/jobs")
+async def proxy_nvd_database_jobs():
+    """Proxy to NVD microservice for all jobs from nvd_jobs table"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/jobs")
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to NVD service (database/jobs): %s", str(e))
+        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+
+@router.get("/nvd/database/vulnerabilities")
+async def proxy_nvd_database_vulnerabilities(
+    limit: Optional[int] = Query(None, ge=1, le=1000),
+    offset: int = Query(0, ge=0)
+):
+    """Proxy to NVD microservice for all vulnerabilities from nvd_vulnerabilities table"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            params = {}
+            if limit is not None:
+                params["limit"] = limit
+            if offset > 0:
+                params["offset"] = offset
+            response = await client.get(
+                f"{NVD_SERVICE_URL}/api/v1/database/vulnerabilities",
+                params=params
+            )
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to NVD service (database/vulnerabilities): %s", str(e))
+        raise HTTPException(status_code=503, detail="NVD service unavailable") from e
+
+
+@router.get("/nvd/database/vulnerabilities/job/{job_id}")
+async def proxy_nvd_database_vulnerabilities_by_job(job_id: str):
+    """Proxy to NVD microservice for vulnerabilities by job_id"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(f"{NVD_SERVICE_URL}/api/v1/database/vulnerabilities/job/{job_id}")
+            return response.json()
+    except Exception as e:
+        logger.error("Error proxying to NVD service (database/vulnerabilities/job/%s): %s", job_id, str(e))
         raise HTTPException(status_code=503, detail="NVD service unavailable") from e
 
 

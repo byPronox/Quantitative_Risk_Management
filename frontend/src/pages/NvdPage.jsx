@@ -1,206 +1,114 @@
 import React, { useEffect, useState } from "react";
-import { getAllQueueResults, startConsumer, stopConsumer, getConsumerStatus } from "../services/nvd";
-import AsyncSoftwareAnalysis from "../components/AsyncSoftwareAnalysis";
-import ScannerModule from "../components/ScannerModule";
-import { Bar } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  BarElement,
-  CategoryScale,
-  LinearScale,
-  Tooltip,
-  Legend
-} from "chart.js";
-
-ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
-
-function NvdDashboard({ allQueueResults, loading }) {
-  // Ensure allQueueResults is always an array
-  const safeResults = Array.isArray(allQueueResults) ? allQueueResults : [];
-
-  // Calculate dashboard metrics
-  const totalJobs = safeResults.length;
-  const completedJobs = safeResults.filter(j => j.status === "completed").length;
-  const inProgressJobs = safeResults.filter(j => j.status === "processing" || j.status === "pending").length;
-  const totalVulnerabilities = safeResults.reduce((sum, job) => sum + (job.vulnerabilities ? job.vulnerabilities.length : 0), 0);
-
-  // Prepare chart data: vulnerabilities per job
-  const chartLabels = safeResults.map(j => j.keyword || `Trabajo ${j.job_id}`);
-  const chartData = safeResults.map(j => (j.vulnerabilities ? j.vulnerabilities.length : 0));
-  const barData = {
-    labels: chartLabels, datasets: [
-      {
-        label: "Vulnerabilidades por Trabajo",
-        data: chartData,
-        backgroundColor: "#2563eb",
-        borderRadius: 8,
-        maxBarThickness: 40
-      }
-    ]
-  };
-  const barOptions = {
-    responsive: true,
-    plugins: {
-      legend: { display: false },
-      tooltip: { enabled: true }
-    },
-    scales: {
-      x: {
-        title: { display: true, text: "Trabajo" },
-        ticks: { color: "#64748b" }
-      },
-      y: {
-        title: { display: true, text: "Vulnerabilidades" },
-        beginAtZero: true,
-        ticks: { color: "#64748b", precision: 0 }
-      }
-    }
-  };
-
-  return (
-    <div style={{ marginTop: "2.5rem" }}>
-      <div style={{
-        display: "flex",
-        gap: "2rem",
-        marginBottom: "2rem",
-        justifyContent: "center"
-      }}>
-        <div style={{
-          background: "#f1f5f9",
-          borderRadius: "1rem",
-          padding: "1.5rem 2rem",
-          minWidth: "180px",
-          textAlign: "center",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.04)"
-        }}>
-          <div style={{ fontSize: "2rem" }}>📦</div>          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#1e40af" }}>{loading ? "..." : totalJobs}</div>
-          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Total de Trabajos</div>
-        </div>
-        <div style={{
-          background: "#f1f5f9",
-          borderRadius: "1rem",
-          padding: "1.5rem 2rem",
-          minWidth: "180px",
-          textAlign: "center",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.04)"
-        }}>
-          <div style={{ fontSize: "2rem" }}>✅</div>
-          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#16a34a" }}>{loading ? "..." : completedJobs}</div>
-          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Completados</div>
-        </div>
-        <div style={{
-          background: "#f1f5f9",
-          borderRadius: "1rem",
-          padding: "1.5rem 2rem",
-          minWidth: "180px",
-          textAlign: "center",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.04)"
-        }}>
-          <div style={{ fontSize: "2rem" }}>⏳</div>
-          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#f59e42" }}>{loading ? "..." : inProgressJobs}</div>
-          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>En Progreso</div>
-        </div>
-        <div style={{
-          background: "#f1f5f9",
-          borderRadius: "1rem",
-          padding: "1.5rem 2rem",
-          minWidth: "180px",
-          textAlign: "center",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.04)"
-        }}>
-          <div style={{ fontSize: "2rem" }}>🚨</div>
-          <div style={{ fontWeight: 700, fontSize: "1.2rem", color: "#dc2626" }}>{loading ? "..." : totalVulnerabilities}</div>
-          <div style={{ color: "#64748b", fontSize: "0.95rem" }}>Vulnerabilidades Encontradas</div>
-        </div>
-      </div>
-      <div style={{
-        background: "#fff",
-        borderRadius: "1rem",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.04)",
-        padding: "2rem",
-        maxWidth: "900px",
-        margin: "0 auto"
-      }}>        <h3 style={{ color: "#1e40af", fontWeight: 600, marginBottom: "1.5rem" }}>Vulnerabilidades por Trabajo</h3>
-        {chartLabels.length === 0 ? (
-          <div style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
-            No hay trabajos para mostrar.
-          </div>
-        ) : (
-          <Bar data={barData} options={barOptions} height={260} />
-        )}
-      </div>
-    </div>
-  );
-}
+import { addKeywordToQueue, getAllQueueResults, startConsumer, getConsumerStatus } from "../services/nvd";
+import { backendApi } from "../services/api";
 
 export default function NvdPage() {
-  const [allQueueResults, setAllQueueResults] = useState([]);
-  const [loadingAllResults, setLoadingAllResults] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [queueJobs, setQueueJobs] = useState([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
   const [consumerRunning, setConsumerRunning] = useState(false);
   const [loadingConsumer, setLoadingConsumer] = useState(false);
 
-  const loadAllQueueResults = async () => {
-    setLoadingAllResults(true);
+  // Cargar jobs de RabbitMQ y estado del consumidor
+  const loadQueueJobs = async () => {
+    setLoadingJobs(true);
     setError("");
     try {
       const results = await getAllQueueResults();
-      // This is the fix: check for a successful response and extract the 'jobs' array
+      // El endpoint devuelve {success: true, jobs: [...]} o directamente un array
       if (results && results.success && Array.isArray(results.jobs)) {
-        setAllQueueResults(results.jobs);
+        setQueueJobs(results.jobs);
+      } else if (Array.isArray(results)) {
+        setQueueJobs(results);
       } else {
-        // If the call fails or the format is wrong, ensure it's an empty array
-        setAllQueueResults(Array.isArray(results) ? results : []);
+        setQueueJobs([]);
       }
     } catch (error) {
-      setError("Error al cargar resultados de cola");
+      console.error("Error loading queue jobs:", error);
+      setError("Error al cargar trabajos de la cola");
+      setQueueJobs([]);
     } finally {
-      setLoadingAllResults(false);
+      setLoadingJobs(false);
     }
   };
 
+  // Verificar estado del consumidor
   const checkConsumerStatus = async () => {
     try {
       const status = await getConsumerStatus();
       setConsumerRunning(status.running);
     } catch (e) {
       console.error("Error checking consumer status:", e);
+      setConsumerRunning(false);
     }
   };
 
-  const toggleConsumer = async () => {
-    setLoadingConsumer(true);
+  // Enviar keyword a la cola de RabbitMQ
+  const handleSubmitToQueue = async (e) => {
+    e.preventDefault();
+    if (!keyword.trim()) {
+      setError("Por favor ingresa una keyword");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
     try {
-      if (consumerRunning) {
-        await stopConsumer();
-      } else {
-        await startConsumer();
-      }
-      // Wait a bit and check status again
-      setTimeout(checkConsumerStatus, 1000);
-      setTimeout(loadAllQueueResults, 2000); // Also refresh results
-    } catch (e) {
-      setError("Error al cambiar estado del consumidor: " + e.message);
+      const result = await addKeywordToQueue(keyword.trim());
+      setSuccess(`Trabajo enviado a la cola: ${result.job_id || "ID generado"}`);
+      setKeyword("");
+      // Recargar jobs después de enviar
+      setTimeout(loadQueueJobs, 1000);
+    } catch (error) {
+      console.error("Error adding keyword to queue:", error);
+      setError(`Error al enviar a la cola: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Iniciar consumidor
+  const handleStartConsumer = async () => {
+    setLoadingConsumer(true);
+    setError("");
+    try {
+      await startConsumer();
+      setSuccess("Consumidor iniciado correctamente");
+      // Esperar un poco y verificar estado
+      setTimeout(checkConsumerStatus, 1500);
+      // Recargar jobs después de iniciar consumidor
+      setTimeout(loadQueueJobs, 2000);
+    } catch (error) {
+      console.error("Error starting consumer:", error);
+      setError(`Error al iniciar consumidor: ${error.response?.data?.detail || error.message}`);
     } finally {
       setLoadingConsumer(false);
     }
   };
 
+  // Cargar datos al montar el componente
   useEffect(() => {
-    loadAllQueueResults();
+    loadQueueJobs();
     checkConsumerStatus();
-    // Poll consumer status every 10 seconds
-    const interval = setInterval(checkConsumerStatus, 10000);
+    // Polling cada 5 segundos para actualizar datos
+    const interval = setInterval(() => {
+      loadQueueJobs();
+      checkConsumerStatus();
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="nvd-page" style={{
+    <div style={{
       padding: "2rem",
-      maxWidth: "1400px",
+      maxWidth: "1200px",
       margin: "0 auto",
-      width: "100%",
-      minHeight: "100vh"
+      width: "100%"
     }}>
       <div style={{ textAlign: "center", marginBottom: "2rem" }}>
         <h1 style={{
@@ -209,18 +117,17 @@ export default function NvdPage() {
           color: "#1e40af",
           marginBottom: "0.5rem"
         }}>
-          🛡️ Sistema de Gestión de Vulnerabilidades NVD
+          🛡️ Vulnerabilidades NVD
         </h1>
         <p style={{
           fontSize: "1.1rem",
-          color: "#64748b",
-          maxWidth: "600px",
-          margin: "0 auto"
+          color: "#64748b"
         }}>
-          Plataforma integral de evaluación de vulnerabilidades y análisis de riesgos
+          Analiza vulnerabilidades usando NVD con RabbitMQ
         </p>
       </div>
-      {/* Async Analysis Section */}
+
+      {/* Formulario para enviar keyword a la cola */}
       <div style={{
         background: "#ffffff",
         padding: "2rem",
@@ -228,9 +135,140 @@ export default function NvdPage() {
         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
         marginBottom: "2rem"
       }}>
-        <AsyncSoftwareAnalysis />
+        <h2 style={{
+          fontSize: "1.5rem",
+          color: "#1e40af",
+          marginBottom: "1.5rem",
+          fontWeight: "600"
+        }}>
+          📤 Enviar Keyword a Cola RabbitMQ
+        </h2>
+
+        {error && (
+          <div style={{
+            background: "#fee2e2",
+            color: "#dc2626",
+            padding: "1rem",
+            borderRadius: "0.5rem",
+            border: "1px solid #fecaca",
+            marginBottom: "1rem"
+          }}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        {success && (
+          <div style={{
+            background: "#dcfce7",
+            color: "#166534",
+            padding: "1rem",
+            borderRadius: "0.5rem",
+            border: "1px solid #bbf7d0",
+            marginBottom: "1rem"
+          }}>
+            <strong>Éxito:</strong> {success}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmitToQueue} style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }}>
+            <label style={{
+              display: "block",
+              marginBottom: "0.5rem",
+              color: "#374151",
+              fontWeight: "500"
+            }}>
+              Keyword (ej: apache, mysql, java)
+            </label>
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="Ingresa una keyword para buscar vulnerabilidades"
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                borderRadius: "0.5rem",
+                border: "1px solid #d1d5db",
+                fontSize: "1rem"
+              }}
+              disabled={loading}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              background: "#2563eb",
+              color: "white",
+              border: "none",
+              padding: "0.75rem 2rem",
+              borderRadius: "0.5rem",
+              fontWeight: "600",
+              cursor: loading ? "not-allowed" : "pointer",
+              fontSize: "1rem",
+              marginTop: "1.75rem",
+              opacity: loading ? 0.6 : 1
+            }}
+          >
+            {loading ? "⏳ Enviando..." : "📨 Enviar a Cola"}
+          </button>
+        </form>
       </div>
-      {/* Found Vulnerabilities Section (always visible) */}
+
+      {/* Botón para iniciar consumidor */}
+      <div style={{
+        background: "#ffffff",
+        padding: "2rem",
+        borderRadius: "1rem",
+        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+        marginBottom: "2rem"
+      }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}>
+          <div>
+            <h2 style={{
+              fontSize: "1.5rem",
+              color: "#1e40af",
+              marginBottom: "0.5rem",
+              fontWeight: "600"
+            }}>
+              ⚙️ Consumidor de Cola
+            </h2>
+            <p style={{ color: "#64748b", margin: 0 }}>
+              {consumerRunning 
+                ? "✅ Consumidor activo - Procesando trabajos de la cola" 
+                : "⏸️ Consumidor detenido - Inicia para procesar trabajos"}
+            </p>
+          </div>
+          <button
+            onClick={handleStartConsumer}
+            disabled={loadingConsumer || consumerRunning}
+            style={{
+              background: consumerRunning ? "#10b981" : "#2563eb",
+              color: "white",
+              border: "none",
+              padding: "0.75rem 2rem",
+              borderRadius: "0.5rem",
+              fontWeight: "600",
+              cursor: (loadingConsumer || consumerRunning) ? "not-allowed" : "pointer",
+              fontSize: "1rem",
+              opacity: (loadingConsumer || consumerRunning) ? 0.6 : 1
+            }}
+          >
+            {loadingConsumer 
+              ? "⏳ Iniciando..." 
+              : consumerRunning 
+                ? "✅ Consumidor Activo" 
+                : "▶️ Iniciar Consumidor"}
+          </button>
+        </div>
+      </div>
+
+      {/* Lista de trabajos en la cola */}
       <div style={{
         background: "#ffffff",
         padding: "2rem",
@@ -241,277 +279,173 @@ export default function NvdPage() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "2rem"
+          marginBottom: "1.5rem"
         }}>
           <h2 style={{
-            fontSize: "1.75rem",
+            fontSize: "1.5rem",
             color: "#1e40af",
             margin: 0,
             fontWeight: "600"
-          }}>            🔍 Vulnerabilidades Encontradas del Análisis de Cola
+          }}>
+            📋 Trabajos en Cola RabbitMQ ({queueJobs.length})
           </h2>
           <button
-            onClick={loadAllQueueResults}
-            disabled={loadingAllResults}
+            onClick={loadQueueJobs}
+            disabled={loadingJobs}
             style={{
               background: "#2563eb",
               color: "white",
               border: "none",
-              padding: "0.75rem 1.5rem",
+              padding: "0.5rem 1rem",
               borderRadius: "0.5rem",
               fontWeight: "600",
-              cursor: loadingAllResults ? "not-allowed" : "pointer",
-              fontSize: "0.9rem"
-            }}
-          >
-            {loadingAllResults ? "🔄 Cargando..." : "🔄 Actualizar Resultados"}
-          </button>
-          <style>
-            {`
-              @keyframes pulse-ring {
-                0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
-                70% { box-shadow: 0 0 0 10px rgba(22, 163, 74, 0); }
-                100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
-              }
-              @keyframes spin {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-              }
-            `}
-          </style>
-          <button
-            onClick={toggleConsumer}
-            disabled={loadingConsumer}
-            style={{
-              background: consumerRunning ? "#dc2626" : "#16a34a",
-              color: "white",
-              border: "none",
-              padding: "0.75rem 1.5rem",
-              borderRadius: "0.5rem",
-              fontWeight: "600",
-              cursor: loadingConsumer ? "not-allowed" : "pointer",
+              cursor: loadingJobs ? "not-allowed" : "pointer",
               fontSize: "0.9rem",
-              marginLeft: "1rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              animation: consumerRunning ? "pulse-ring 2s infinite" : "none",
-              transition: "all 0.3s ease",
-              opacity: loadingConsumer ? 0.8 : 1
+              opacity: loadingJobs ? 0.6 : 1
             }}
           >
-            {loadingConsumer ? (
-              <>
-                <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⏳</span>
-                <span>Procesando...</span>
-              </>
-            ) : consumerRunning ? (
-              <>
-                <span style={{ display: "inline-block", animation: "spin 2s linear infinite" }}>⚙️</span>
-                <span>Consumidor Activo (Procesando...)</span>
-              </>
-            ) : (
-              <>▶️ Iniciar Consumidor de Cola</>
-            )}
+            {loadingJobs ? "🔄 Cargando..." : "🔄 Actualizar"}
           </button>
         </div>
-        {error && (
+
+        {loadingJobs ? (
           <div style={{
-            background: "#fee2e2",
-            color: "#dc2626",
-            padding: "1rem",
+            textAlign: "center",
+            padding: "3rem",
+            color: "#64748b"
+          }}>
+            <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>⏳</div>
+            <p>Cargando trabajos de la cola...</p>
+          </div>
+        ) : queueJobs.length === 0 ? (
+          <div style={{
+            textAlign: "center",
+            padding: "3rem",
+            background: "#f8fafc",
             borderRadius: "0.5rem",
-            border: "1px solid #fecaca",
-            marginBottom: "1rem"
-          }}>            <strong>Error:</strong> {error}
-          </div>
-        )}
-        {loadingAllResults ? (
-          <div style={{
-            textAlign: "center",
-            padding: "3rem",
-            background: "#f8fafc",
-            borderRadius: "1rem",
             border: "1px solid #e2e8f0"
           }}>
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🔄</div>
-            <p style={{ color: "#64748b", fontSize: "1.1rem" }}>
-              Cargando resultados de vulnerabilidades...
-            </p>
-          </div>
-        ) : allQueueResults.length === 0 ? (
-          <div style={{
-            textAlign: "center",
-            padding: "3rem",
-            background: "#f8fafc",
-            borderRadius: "1rem",
-            border: "1px solid #e2e8f0"
-          }}>
-            <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📋</div>
+            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📭</div>
             <h3 style={{ color: "#374151", marginBottom: "0.5rem" }}>
-              No se Encontraron Resultados de Vulnerabilidades
+              No hay trabajos en la cola
             </h3>
-            <p style={{ color: "#64748b", fontSize: "1rem", maxWidth: "500px", margin: "0 auto" }}>
-              Ejecuta algún análisis de software usando la sección de Análisis Asíncrono para ver los resultados aquí.
+            <p style={{ color: "#64748b" }}>
+              Envía una keyword para crear un trabajo en la cola
             </p>
           </div>
         ) : (
-          <div style={{ display: "grid", gap: "2rem" }}>
-            {Array.isArray(allQueueResults) && allQueueResults.map((job, index) => (
+          <div style={{ display: "grid", gap: "1rem" }}>
+            {queueJobs.map((job, index) => (
               <div
                 key={job.job_id || index}
                 style={{
                   background: "#f8fafc",
                   border: "1px solid #e2e8f0",
-                  borderRadius: "1rem",
-                  padding: "1.5rem",
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
+                  borderRadius: "0.75rem",
+                  padding: "1.5rem"
                 }}
               >
                 <div style={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginBottom: "1rem"
+                  marginBottom: "0.5rem"
                 }}>
                   <h3 style={{
                     color: "#1e40af",
                     margin: 0,
-                    fontSize: "1.25rem",
+                    fontSize: "1.1rem",
                     fontWeight: "600"
                   }}>
-                    📦 {job.keyword || `Trabajo ${job.job_id}`}
+                    📦 {job.keyword || `Trabajo ${job.job_id?.slice(0, 8)}`}
                   </h3>
-                  <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                    <span style={{
-                      background: job.status === "completed" ? "#dcfce7" : "#fef3c7",
-                      color: job.status === "completed" ? "#166534" : "#92400e",
-                      padding: "0.25rem 0.75rem",
-                      borderRadius: "0.5rem",
-                      fontSize: "0.8rem",
-                      fontWeight: "600",
-                      textTransform: "uppercase"
-                    }}>
-                      {(() => {
-                        const statusMap = {
-                          "completed": "Completado",
-                          "processing": "Procesando",
-                          "pending": "Pendiente",
-                          "failed": "Fallido"
-                        };
-                        return statusMap[job.status] || job.status || "Desconocido";
-                      })()}
-                    </span>
-                    <span style={{
-                      color: "#64748b",
-                      fontSize: "0.9rem"
-                    }}>
-                      ID: {job.job_id}
-                    </span>
-                  </div>
+                  <span style={{
+                    background: job.status === "completed" ? "#dcfce7" : 
+                               job.status === "processing" ? "#dbeafe" : "#fef3c7",
+                    color: job.status === "completed" ? "#166534" : 
+                           job.status === "processing" ? "#1e40af" : "#92400e",
+                    padding: "0.25rem 0.75rem",
+                    borderRadius: "0.5rem",
+                    fontSize: "0.8rem",
+                    fontWeight: "600",
+                    textTransform: "uppercase"
+                  }}>
+                    {job.status === "completed" ? "✅ Completado" :
+                     job.status === "processing" ? "⚙️ Procesando" :
+                     job.status === "pending" ? "⏳ Pendiente" :
+                     job.status || "❓ Desconocido"}
+                  </span>
                 </div>
-                {job.processed_at && (<p style={{
-                  color: "#64748b",
+                <div style={{
+                  display: "flex",
+                  gap: "1.5rem",
                   fontSize: "0.9rem",
-                  margin: "0 0 1rem 0"
+                  color: "#64748b",
+                  marginTop: "0.5rem"
                 }}>
-                  🕒 Procesado: {new Date(job.processed_at).toLocaleString()}
-                </p>
-                )}
-                {job.vulnerabilities && job.vulnerabilities.length > 0 ? (
-                  <div>
-                    <h4 style={{
-                      color: "#374151",
-                      marginBottom: "1rem",
-                      fontSize: "1.1rem"
-                    }}>
-                      🚨 Vulnerabilidades Encontradas ({job.total_results || job.vulnerabilities.length})
-                    </h4>
-                    <div style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
-                      gap: "1rem",
-                      maxHeight: "400px",
-                      overflowY: "auto"
-                    }}>
-                      {job.vulnerabilities.map((vuln, vulnIndex) => (
-                        <div
-                          key={`${job.job_id}-${vulnIndex}`}
-                          style={{
-                            background: "#ffffff",
-                            border: "1px solid #d1d5db",
-                            borderRadius: "0.75rem",
-                            padding: "1rem",
-                            borderLeft: "4px solid #dc2626"
-                          }}
-                        >
-                          <div style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "flex-start",
-                            marginBottom: "0.75rem"
-                          }}>
-                            <h5 style={{
-                              color: "#dc2626",
-                              margin: 0,
-                              fontSize: "0.95rem",
-                              fontWeight: "600",
-                              lineHeight: "1.2"
-                            }}>
-                              {vuln.cve?.id || "CVE Desconocido"}
-                            </h5>
-                          </div>
-                          {vuln.cve?.descriptions?.[0]?.value && (
-                            <p style={{
-                              color: "#475569",
-                              fontSize: "0.85rem",
-                              lineHeight: "1.4",
-                              margin: "0 0 0.75rem 0",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 3,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden"
-                            }}>
-                              {vuln.cve.descriptions[0].value}
-                            </p>
-                          )}
-                          <div style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr 1fr",
-                            gap: "0.5rem",
-                            fontSize: "0.8rem",
-                            color: "#64748b"
-                          }}>                            {vuln.cve?.published && (
-                            <div>
-                              <strong>Publicado:</strong><br />
-                              {new Date(vuln.cve.published).toLocaleDateString()}
-                            </div>
-                          )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (<div style={{
-                  background: "#ffffff",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "0.75rem",
-                  padding: "2rem",
-                  textAlign: "center"
-                }}>
-                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>✅</div>
-                  <p style={{ color: "#10b981", fontWeight: "600", margin: 0 }}>
-                    No se encontraron vulnerabilidades para este software
-                  </p>
+                  <span><strong>ID:</strong> {job.job_id?.slice(0, 20)}...</span>
+                  {job.total_results !== undefined && (
+                    <span><strong>Vulnerabilidades:</strong> {job.total_results}</span>
+                  )}
+                  {job.processed_at && (
+                    <span><strong>Procesado:</strong> {new Date(job.processed_at).toLocaleString()}</span>
+                  )}
                 </div>
+                {job.vulnerabilities && job.vulnerabilities.length > 0 && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <details>
+                      <summary style={{
+                        cursor: "pointer",
+                        color: "#2563eb",
+                        fontWeight: "500"
+                      }}>
+                        Ver {job.vulnerabilities.length} vulnerabilidades encontradas
+                      </summary>
+                      <div style={{
+                        marginTop: "1rem",
+                        display: "grid",
+                        gap: "0.75rem",
+                        maxHeight: "300px",
+                        overflowY: "auto"
+                      }}>
+                        {job.vulnerabilities.slice(0, 10).map((vuln, vulnIndex) => (
+                          <div
+                            key={vulnIndex}
+                            style={{
+                              background: "#ffffff",
+                              border: "1px solid #d1d5db",
+                              borderRadius: "0.5rem",
+                              padding: "0.75rem"
+                            }}
+                          >
+                            <strong style={{ color: "#dc2626" }}>
+                              {vuln.cve?.id || "CVE Desconocido"}
+                            </strong>
+                            {vuln.cve?.descriptions?.[0]?.value && (
+                              <p style={{
+                                margin: "0.5rem 0 0 0",
+                                fontSize: "0.85rem",
+                                color: "#475569"
+                              }}>
+                                {vuln.cve.descriptions[0].value.substring(0, 150)}...
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                        {job.vulnerabilities.length > 10 && (
+                          <p style={{ color: "#64748b", fontSize: "0.85rem", textAlign: "center" }}>
+                            ... y {job.vulnerabilities.length - 10} más
+                          </p>
+                        )}
+                      </div>
+                    </details>
+                  </div>
                 )}
               </div>
             ))}
           </div>
         )}
       </div>
-      {/* NVD Dashboard (moved below) */}
-      <NvdDashboard allQueueResults={allQueueResults} loading={loadingAllResults} />
     </div>
   );
 }

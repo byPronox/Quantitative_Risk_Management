@@ -33,7 +33,12 @@ class NVDAPIService:
             # Direct NVD API connection
             return {
                 "url": self.base_url,
-                "headers": {"apiKey": self.api_key} if self.api_key else {}
+                "headers": {
+                    "apiKey": self.api_key,
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                } if self.api_key else {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
             }
     
     async def search_vulnerabilities(
@@ -71,7 +76,7 @@ class NVDAPIService:
         logger.info(f"Searching NVD for keyword: '{search_keyword}' with {max_results} results per page")
         
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=60.0, verify=False) as client:
                 response = await client.get(
                     config["url"],
                     headers=config["headers"],

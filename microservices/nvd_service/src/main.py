@@ -57,7 +57,9 @@ async def startup_event():
             logger.info("RabbitMQ connection test: OK")
         except Exception as rabbit_err:
             logger.error(f"RabbitMQ connection failed at startup: {rabbit_err}")
-        logger.info("Consumer auto-start disabled for manual control testing")
+        # Auto-start consumer disabled per user request for manual control
+        # queue_service.start_consumer()
+        logger.info("Consumer auto-start disabled. Waiting for manual start.")
     except Exception as e:
         logger.warning(f"Failed to start queue consumer on startup: {str(e)}")
 

@@ -88,7 +88,7 @@ async def get_vulnerability(cve_id: str):
 # Database endpoints
 @router.get("/database/results/all")
 async def get_all_database_results():
-    """Get all Database results"""
+    """Get all Database results (jobs with vulnerabilities)"""
     try:
         results = await database_service.get_all_jobs()
         return {
@@ -98,6 +98,52 @@ async def get_all_database_results():
         }
     except Exception as e:
         logger.error("Error getting all Database results: %s", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/database/jobs")
+async def get_all_jobs():
+    """Get all jobs from nvd_jobs table"""
+    try:
+        results = await database_service.get_all_jobs()
+        return {
+            "success": True,
+            "total_jobs": len(results),
+            "jobs": results
+        }
+    except Exception as e:
+        logger.error("Error getting all jobs: %s", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/database/vulnerabilities")
+async def get_all_vulnerabilities(
+    limit: Optional[int] = Query(None, ge=1, le=1000, description="Maximum number of vulnerabilities to return"),
+    offset: int = Query(0, ge=0, description="Number of vulnerabilities to skip")
+):
+    """Get all vulnerabilities from nvd_vulnerabilities table"""
+    try:
+        results = await database_service.get_all_vulnerabilities(limit=limit, offset=offset)
+        return {
+            "success": True,
+            "total_vulnerabilities": len(results),
+            "vulnerabilities": results
+        }
+    except Exception as e:
+        logger.error("Error getting all vulnerabilities: %s", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/database/vulnerabilities/job/{job_id}")
+async def get_vulnerabilities_by_job(job_id: str):
+    """Get all vulnerabilities for a specific job_id"""
+    try:
+        results = await database_service.get_vulnerabilities_by_job_id(job_id)
+        return {
+            "success": True,
+            "job_id": job_id,
+            "total_vulnerabilities": len(results),
+            "vulnerabilities": results
+        }
+    except Exception as e:
+        logger.error("Error getting vulnerabilities for job %s: %s", job_id, str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/database/reports/keywords")
@@ -138,7 +184,7 @@ async def add_queue_job(
     try:
         if metadata is None:
             metadata = {}
-        job_id = queue_service.add_job(keyword, metadata)
+        job_id = await queue_service.add_job(keyword, metadata)
         return {
             "job_id": job_id,
             "status": "queued",
@@ -162,7 +208,7 @@ async def analyze_software_async(request_data: Dict[str, Any]):
         # Create jobs for each software package
         job_ids = []
         for software in software_list:
-            job_id = queue_service.add_job(software, metadata)
+            job_id = await queue_service.add_job(software, metadata)
             job_ids.append(job_id)
         
         return {
@@ -189,6 +235,11 @@ async def get_queue_job(job_id: str):
     except Exception as e:
         logger.error(f"Failed to get job {job_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get job: {str(e)}")
+
+@router.get("/results/{job_id}")
+async def get_job_results_frontend(job_id: str):
+    """Get job results (Frontend compatibility endpoint)"""
+    return await get_queue_job(job_id)
 
 @router.get("/queue/results/all")
 async def get_all_queue_results():

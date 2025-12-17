@@ -3,7 +3,7 @@ Database Service for NVD microservice using PostgreSQL/Supabase
 Replaces MongoDB service with clean architecture
 """
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 import time
 
@@ -43,6 +43,10 @@ class DatabaseService:
     async def get_all_jobs(self) -> List[Dict[str, Any]]:
         """Get all jobs from PostgreSQL"""
         return await self.repository.get_all_jobs()
+    
+    async def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific job by ID"""
+        return await self.repository.get_job_by_id(job_id)
     
     async def get_reports_by_keywords(self) -> List[Dict[str, Any]]:
         """Get vulnerability data grouped by keywords"""
@@ -162,6 +166,14 @@ class DatabaseService:
         except Exception as e:
             logger.error("Error getting detailed report for keyword %s: %s", keyword, str(e))
             raise
+    
+    async def get_all_vulnerabilities(self, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get all vulnerabilities from nvd_vulnerabilities table"""
+        return await self.repository.get_all_vulnerabilities(limit=limit, offset=offset)
+    
+    async def get_vulnerabilities_by_job_id(self, job_id: str) -> List[Dict[str, Any]]:
+        """Get all vulnerabilities for a specific job_id"""
+        return await self.repository.get_vulnerabilities_by_job_id(job_id)
 
 
 # Alias for backward compatibility

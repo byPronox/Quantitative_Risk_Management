@@ -1,0 +1,28 @@
+{
+    "name": "docker-mcp-server",
+    "version": "1.0.0",
+    "description": "MCP server for Docker management",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dev": "tsc && node dist/index.js"
+    },
+    "keywords": [
+        "mcp",
+        "docker",
+        "server"
+    ],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.1",
+        "dockerode": "^4.0.2",
+        "zod": "^3.23.8"
+    },
+    "devDependencies": {
+        "@types/dockerode": "^3.3.31",
+        "@types/node": "^20.14.9",
+        "typescript": "^5.5.3"
+    }
+}
