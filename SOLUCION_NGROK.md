@@ -14,3 +14,4 @@ Crear una ruta específica en Kong para `/nvd/database/*` que apunte al `backend
 ### Opción 3: Configurar ngrok con headers
 Ejecutar ngrok con la opción para omitir la página de advertencia.
 
+

@@ -53,16 +53,16 @@ services:
       - "8004:8004"
     restart: always
     env_file: .env
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+    # depends_on: # Removed - using CloudAMQP instead of local RabbitMQ
+    #   rabbitmq:
+    #     condition: service_healthy
     deploy:
       mode: replicated
       replicas: 1
     environment:
       - NVD_SERVICE_URL=http://nvd-service:8002
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - DATABASE_URL=${DATABASE_URL}
+      # RABBITMQ_URL is read from .env (CloudAMQP)
     volumes:
       - nmap_temp:/app/temp
       - sqlite_data:/app/data
@@ -86,7 +86,6 @@ services:
       - nvd-service
       - nmap-scanner-service
     restart: always
-
   # Database
   # db:
   #   image: postgres:15
@@ -100,27 +99,27 @@ services:
   #   volumes:
   #     - pgdata:/var/lib/postgresql/data
 
-  # Message Queue
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    restart: always
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # Message Queue - REMOVED: Using CloudAMQP instead
+  # rabbitmq:
+  #   image: rabbitmq:3-management
+  #   ports:
+  #     - "5672:5672"
+  #     - "15672:15672"
+  #   restart: always
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: guest
+  #     RABBITMQ_DEFAULT_PASS: guest
+  #   volumes:
+  #     - rabbitmq_data:/var/lib/rabbitmq
+  #   healthcheck:
+  #     test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
 volumes:
   # pgdata:
-  rabbitmq_data:
+  # rabbitmq_data: # Removed - using CloudAMQP
   report_data:
   nmap_temp:
   sqlite_data:

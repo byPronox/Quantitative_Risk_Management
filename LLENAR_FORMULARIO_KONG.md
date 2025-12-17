@@ -75,3 +75,4 @@ Si "Strip Path" está DESMARCADO (como debe ser):
 - ✅ Tu backend recibe `/nvd/database/jobs` completo
 - ✅ Funcionará correctamente
 
+

@@ -50,3 +50,4 @@ Puedes crear un plugin en Kong que agregue el header automáticamente a todas la
 
 **La Solución 1 es la más fácil y rápida** - solo modificar el archivo del frontend.
 
+

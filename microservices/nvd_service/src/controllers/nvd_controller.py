@@ -245,7 +245,7 @@ async def get_job_results_frontend(job_id: str):
 async def get_all_queue_results():
     """Get all queue job results"""
     try:
-        results = queue_service.get_all_job_results()
+        results = await queue_service.get_all_job_results()
         return results
     except Exception as e:
         logger.error(f"Failed to get queue results: {str(e)}")

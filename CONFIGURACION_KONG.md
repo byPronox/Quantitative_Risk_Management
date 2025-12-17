@@ -53,3 +53,4 @@ Pero esto requiere modificar cómo ejecutas ngrok.
 
 En producción, cuando despliegues, simplemente configura las variables de entorno `VITE_API_URL` y `VITE_BACKEND_URL` para que apunten a Kong.
 
+

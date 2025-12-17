@@ -67,3 +67,4 @@ La ruta `/nvd/database` captura todo lo que empiece con `/nvd/database/`, así q
 - `/nvd/database/vulnerabilities` ✅
 - `/nvd/database/vulnerabilities/job/123` ✅
 
+

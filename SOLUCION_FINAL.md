@@ -41,3 +41,4 @@ Cuando despliegues en producción, configura las variables de entorno:
 
 El código automáticamente usará Kong Gateway cuando no esté en localhost.
 
+

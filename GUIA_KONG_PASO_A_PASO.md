@@ -160,3 +160,4 @@ Si después de crear la ruta sigue sin funcionar:
    - Ve a: `https://kong-6abab64110usqnlwd.kongcloud.dev/nvd/database/jobs`
    - Deberías ver un JSON con los jobs (o un error de autenticación, pero NO el HTML de ngrok)
 
+

@@ -17,8 +17,6 @@ async def get_nvd_history(skip: int = 0, limit: int = 50, db: Session = Depends(
 
 @router.get("/nvd/vulnerabilities")
 async def get_vulnerabilities(
-# ... rest of file ...
-async def get_vulnerabilities(
     cpe_name: Optional[str] = Query(None, description="CPE name to search for"),
     keyword: Optional[str] = Query(None, description="Keyword to search for"),
     limit: int = Query(10, description="Number of results to return", ge=1, le=100)

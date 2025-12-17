@@ -91,16 +91,11 @@ export default function NvdPage() {
     }
   };
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente (solo una vez)
   useEffect(() => {
     loadQueueJobs();
     checkConsumerStatus();
-    // Polling cada 5 segundos para actualizar datos
-    const interval = setInterval(() => {
-      loadQueueJobs();
-      checkConsumerStatus();
-    }, 5000);
-    return () => clearInterval(interval);
+    // Removed auto-refresh interval - data now only updates on manual refresh
   }, []);
 
   return (
@@ -239,8 +234,8 @@ export default function NvdPage() {
               ⚙️ Consumidor de Cola
             </h2>
             <p style={{ color: "#64748b", margin: 0 }}>
-              {consumerRunning 
-                ? "✅ Consumidor activo - Procesando trabajos de la cola" 
+              {consumerRunning
+                ? "✅ Consumidor activo - Procesando trabajos de la cola"
                 : "⏸️ Consumidor detenido - Inicia para procesar trabajos"}
             </p>
           </div>
@@ -259,10 +254,10 @@ export default function NvdPage() {
               opacity: (loadingConsumer || consumerRunning) ? 0.6 : 1
             }}
           >
-            {loadingConsumer 
-              ? "⏳ Iniciando..." 
-              : consumerRunning 
-                ? "✅ Consumidor Activo" 
+            {loadingConsumer
+              ? "⏳ Iniciando..."
+              : consumerRunning
+                ? "✅ Consumidor Activo"
                 : "▶️ Iniciar Consumidor"}
           </button>
         </div>
@@ -360,10 +355,10 @@ export default function NvdPage() {
                     📦 {job.keyword || `Trabajo ${job.job_id?.slice(0, 8)}`}
                   </h3>
                   <span style={{
-                    background: job.status === "completed" ? "#dcfce7" : 
-                               job.status === "processing" ? "#dbeafe" : "#fef3c7",
-                    color: job.status === "completed" ? "#166534" : 
-                           job.status === "processing" ? "#1e40af" : "#92400e",
+                    background: job.status === "completed" ? "#dcfce7" :
+                      job.status === "processing" ? "#dbeafe" : "#fef3c7",
+                    color: job.status === "completed" ? "#166534" :
+                      job.status === "processing" ? "#1e40af" : "#92400e",
                     padding: "0.25rem 0.75rem",
                     borderRadius: "0.5rem",
                     fontSize: "0.8rem",
@@ -371,9 +366,9 @@ export default function NvdPage() {
                     textTransform: "uppercase"
                   }}>
                     {job.status === "completed" ? "✅ Completado" :
-                     job.status === "processing" ? "⚙️ Procesando" :
-                     job.status === "pending" ? "⏳ Pendiente" :
-                     job.status || "❓ Desconocido"}
+                      job.status === "processing" ? "⚙️ Procesando" :
+                        job.status === "pending" ? "⏳ Pendiente" :
+                          job.status || "❓ Desconocido"}
                   </span>
                 </div>
                 <div style={{
