@@ -164,7 +164,6 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
   const category = mapScoreToCategory(score);
   const product = vuln.context?.product || vuln.product || 'servicio desconocido';
   const port = vuln.context?.port || 'N/A';
-  const serviceName = vuln.context?.service || product;
 
   // --- 1. Descripción del Hallazgo ---
   let descriptionText = vuln.description || '';
@@ -186,16 +185,24 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
     treatment = 'transferir';
   }
 
-  // --- 3. Motivos (Personalizados) ---
+  // --- 3. Motivos (Personalizados - PORQUE) ---
   let theoreticalMotive = '';
+
+  // ACEPTAR
   if (treatment === 'aceptar') {
-    theoreticalMotive = `El riesgo calculado (${score}/100) para ${product} en el puerto ${port} es bajo. El impacto potencial no justifica controles adicionales costosos en este momento.`;
-  } else if (treatment === 'mitigar') {
-    theoreticalMotive = `El riesgo (${score}/100) es considerable. La vulnerabilidad en ${product} podría ser explotada para comprometer la ${classification.toLowerCase()}. Se requieren controles compensatorios.`;
-  } else if (treatment === 'evitar') {
-    theoreticalMotive = `El riesgo es crítico (${score}/100). La exposición de ${product} presenta una amenaza inaceptable para la organización. La única opción segura es eliminar la causa raíz o desconectar el servicio.`;
-  } else if (treatment === 'transferir') {
-    theoreticalMotive = `Al ser ${product} un servicio gestionado/externo, el riesgo operativo debe ser transferido al proveedor mediante SLAs y contratos de seguridad.`;
+    theoreticalMotive = `PORQUE: El riesgo calculado es bajo (${score}/100). El servicio ${product} en el puerto ${port} no presenta vulnerabilidades críticas conocidas ni está expuesto de manera peligrosa. El costo operativo de implementar controles adicionales supera el beneficio de seguridad en este escenario. Se acepta el riesgo residual bajo monitoreo continuo.`;
+  }
+  // MITIGAR
+  else if (treatment === 'mitigar') {
+    theoreticalMotive = `PORQUE: El riesgo es considerable (${score}/100). Aunque el servicio ${product} es necesario para la operación, presenta vulnerabilidades o configuraciones que podrían ser explotadas. No es posible eliminar el servicio, por lo que se deben aplicar controles compensatorios (parches, firewall, WAF) para reducir la probabilidad o el impacto de un ataque a un nivel aceptable.`;
+  }
+  // EVITAR
+  else if (treatment === 'evitar') {
+    theoreticalMotive = `PORQUE: El riesgo es crítico (${score}/100) e inaceptable. La presencia de ${product} en el puerto ${port} introduce una superficie de ataque que compromete gravemente la integridad del sistema. La única estrategia segura es eliminar la causa raíz: deshabilitar el servicio, cerrar el puerto o rediseñar la arquitectura para no exponer este componente, ya que los controles de mitigación no son suficientes.`;
+  }
+  // TRANSFERIR
+  else if (treatment === 'transferir') {
+    theoreticalMotive = `PORQUE: El servicio ${product} es gestionado por un tercero (SaaS/Cloud). La organización no tiene control directo sobre la infraestructura subyacente para mitigar las vulnerabilidades técnicas. Por lo tanto, la gestión del riesgo se transfiere contractualmente al proveedor mediante Acuerdos de Nivel de Servicio (SLA) y cláusulas de seguridad, compartiendo la responsabilidad financiera y operativa.`;
   }
 
   // --- 4. Remediación Sugerida (ÚNICA Y PERSONALIZADA) ---
@@ -231,6 +238,12 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
     remediationSteps.push(`Aplicar el parche de seguridad referenciado en ${nvdData.id || 'el boletín del proveedor'} para ${product}.`);
   } else if (score > 50) {
     remediationSteps.push(`Actualizar ${product} a la última versión estable inmediatamente para mitigar vulnerabilidades conocidas.`);
+  }
+
+  // Fallback remediation if empty
+  if (remediationSteps.length === 0) {
+    remediationSteps.push(`Realizar un análisis de configuración manual sobre ${product}.`);
+    remediationSteps.push(`Consultar la documentación del proveedor para prácticas de hardening.`);
   }
 
   // Ensure uniqueness in the list

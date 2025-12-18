@@ -4,6 +4,7 @@ import {
     getAllQueueResults,
     getQueueStatus,
     startConsumer,
+    stopConsumer,
     getConsumerStatus
 } from '../services/nmap';
 
@@ -24,8 +25,7 @@ export default function NmapPage() {
         whatIs: false,
         whatFor: false,
         whyImportant: false,
-        riskFormula: false,
-        architecture: false
+        riskFormula: false
     });
 
     // Load queue data and consumer status
@@ -98,18 +98,23 @@ export default function NmapPage() {
         }
     };
 
-    const handleStartConsumer = async () => {
+    const handleToggleConsumer = async () => {
         setLoadingConsumer(true);
         setError(null);
         setSuccess(null);
         try {
-            await startConsumer();
-            setSuccess('✅ Consumidor iniciado correctamente');
+            if (consumerRunning) {
+                await stopConsumer();
+                setSuccess('✅ Consumidor detenido correctamente');
+            } else {
+                await startConsumer();
+                setSuccess('✅ Consumidor iniciado correctamente');
+            }
             setTimeout(checkConsumerStatusFn, 1500);
             setTimeout(loadQueueData, 2000);
         } catch (error) {
-            console.error('Error starting consumer:', error);
-            setError(`Error al iniciar consumidor: ${error.response?.data?.detail || error.message}`);
+            console.error('Error toggling consumer:', error);
+            setError(`Error al cambiar estado del consumidor: ${error.response?.data?.detail || error.message}`);
         } finally {
             setLoadingConsumer(false);
         }
@@ -388,147 +393,45 @@ export default function NmapPage() {
                         )}
                     </div>
 
-                    {/* Arquitectura del Sistema Distribuido */}
-                    <div className="mb-4">
-                        <button
-                            onClick={() => toggleSection('architecture')}
-                            className="w-full flex justify-between items-center text-left hover:bg-gray-50 p-3 rounded-lg transition-colors"
-                        >
-                            <span className="text-lg font-semibold text-blue-900">
-                                🏗️ Arquitectura del Sistema Distribuido
-                            </span>
-                            <span className="text-2xl text-blue-600">
-                                {expandedSections.architecture ? '▲' : '▼'}
-                            </span>
-                        </button>
-                        {expandedSections.architecture && (
-                            <div className="mt-4 pl-6 text-gray-700 space-y-4">
-                                <div className="bg-gray-50 p-6 rounded-lg border border-gray-300">
-                                    <pre className="text-sm font-mono overflow-x-auto">
-                                        {`┌─────────────────┐
-│   Frontend      │  React + Vite
-│   (Port 5173)   │  
-└────────┬────────┘
-         │ HTTP
-         ▼
-┌─────────────────┐
-│  Kong Cloud     │  API Gateway + Rate Limiting
-│  Gateway        │  + Authentication
-└────────┬────────┘
-         │ HTTP
-         ▼
-┌─────────────────┐
-│  Backend        │  FastAPI (Python)
-│  (Port 8000)    │  Middleware + Validation
-└────────┬────────┘
-         │ AMQP
-         ▼
-┌─────────────────┐
-│  RabbitMQ       │  CloudAMQP (Message Queue)
-│  Cloud          │  Asynchronous Processing
-└────────┬────────┘
-         │ Consumer
-         ▼
-┌─────────────────┐
-│  Nmap Scanner   │  Node.js + Nmap
-│  Service        │  Vulnerability Detection
-│  (Port 8004)    │
-└────────┬────────┘
-         │ PostgreSQL
-         ▼
-┌─────────────────┐
-│  Supabase       │  Distributed Database
-│  (PostgreSQL)   │  + Real-time subscriptions
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  WorldTimeAPI   │  Time Synchronization
-│  + Docker Time  │  (Fallback mechanism)
-└─────────────────┘`}
-                                    </pre>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <h5 className="font-bold text-gray-900">Características del Sistema Distribuido:</h5>
-                                    <ul className="space-y-2 text-sm">
-                                        <li className="flex items-start">
-                                            <span className="text-green-600 mr-2">✓</span>
-                                            <div>
-                                                <strong>Escalabilidad Horizontal:</strong> Múltiples consumers pueden procesar la cola simultáneamente
-                                            </div>
-                                        </li>
-                                        <li className="flex items-start">
-                                            <span className="text-green-600 mr-2">✓</span>
-                                            <div>
-                                                <strong>Tolerancia a Fallos:</strong> RabbitMQ garantiza entrega de mensajes, fallback de tiempo
-                                            </div>
-                                        </li>
-                                        <li className="flex items-start">
-                                            <span className="text-green-600 mr-2">✓</span>
-                                            <div>
-                                                <strong>Procesamiento Asíncrono:</strong> Escaneos largos no bloquean la interfaz de usuario
-                                            </div>
-                                        </li>
-                                        <li className="flex items-start">
-                                            <span className="text-green-600 mr-2">✓</span>
-                                            <div>
-                                                <strong>Persistencia Distribuida:</strong> Supabase replica datos en múltiples zonas geográficas
-                                            </div>
-                                        </li>
-                                        <li className="flex items-start">
-                                            <span className="text-green-600 mr-2">✓</span>
-                                            <div>
-                                                <strong>API Gateway:</strong> Kong Cloud maneja rate limiting, autenticación y enrutamiento
-                                            </div>
-                                        </li>
-                                        <li className="flex items-start">
-                                            <span className="text-green-600 mr-2">✓</span>
-                                            <div>
-                                                <strong>Sincronización de Tiempo:</strong> WorldTimeAPI con fallback a Docker para timestamps consistentes
-                                            </div>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        )}
-                    </div>
                 </div>
             </div>
 
+
             {/* Queue Status Card */}
-            {queueStatus && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-6 shadow-sm">
-                    <h2 className="text-lg font-semibold mb-4 text-blue-900">📊 Estado de RabbitMQ Cloud</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <p className="text-xs text-gray-600 mb-1">En Cola</p>
-                            <p className="text-3xl font-bold text-blue-600">{queueStatus.queue_size || 0}</p>
-                            <p className="text-xs text-gray-500 mt-1">Mensajes en RabbitMQ</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <p className="text-xs text-gray-600 mb-1">Pendientes</p>
-                            <p className="text-3xl font-bold text-yellow-600">{queueStatus.jobs?.pending || 0}</p>
-                            <p className="text-xs text-gray-500 mt-1">Sin procesar</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <p className="text-xs text-gray-600 mb-1">Procesando</p>
-                            <p className="text-3xl font-bold text-blue-600">{queueStatus.jobs?.processing || 0}</p>
-                            <p className="text-xs text-gray-500 mt-1">En ejecución</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <p className="text-xs text-gray-600 mb-1">Completados</p>
-                            <p className="text-3xl font-bold text-green-600">{queueStatus.jobs?.completed || 0}</p>
-                            <p className="text-xs text-gray-500 mt-1">Finalizados</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <p className="text-xs text-gray-600 mb-1">Fallidos</p>
-                            <p className="text-3xl font-bold text-red-600">{queueStatus.jobs?.failed || 0}</p>
-                            <p className="text-xs text-gray-500 mt-1">Con errores</p>
+            {
+                queueStatus && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-6 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-4 text-blue-900">📊 Estado de RabbitMQ Cloud</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                <p className="text-xs text-gray-600 mb-1">En Cola</p>
+                                <p className="text-3xl font-bold text-blue-600">{queueStatus.queue_size || 0}</p>
+                                <p className="text-xs text-gray-500 mt-1">Mensajes en RabbitMQ</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                <p className="text-xs text-gray-600 mb-1">Pendientes</p>
+                                <p className="text-3xl font-bold text-yellow-600">{queueStatus.jobs?.pending || 0}</p>
+                                <p className="text-xs text-gray-500 mt-1">Sin procesar</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                <p className="text-xs text-gray-600 mb-1">Procesando</p>
+                                <p className="text-3xl font-bold text-blue-600">{queueStatus.jobs?.processing || 0}</p>
+                                <p className="text-xs text-gray-500 mt-1">En ejecución</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                <p className="text-xs text-gray-600 mb-1">Completados</p>
+                                <p className="text-3xl font-bold text-green-600">{queueStatus.jobs?.completed || 0}</p>
+                                <p className="text-xs text-gray-500 mt-1">Finalizados</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                <p className="text-xs text-gray-600 mb-1">Fallidos</p>
+                                <p className="text-3xl font-bold text-red-600">{queueStatus.jobs?.failed || 0}</p>
+                                <p className="text-xs text-gray-500 mt-1">Con errores</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Submit IP Form */}
             <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
@@ -591,14 +494,16 @@ export default function NmapPage() {
                     </div>
 
                     <button
-                        onClick={handleStartConsumer}
-                        disabled={loadingConsumer || consumerRunning}
+                        onClick={handleToggleConsumer}
+                        disabled={loadingConsumer}
                         className={`px-6 py-2 rounded-lg font-medium transition-colors ${consumerRunning
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-300'
-                            }`}
+                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                            } disabled:bg-gray-300 disabled:cursor-not-allowed`}
                     >
-                        {loadingConsumer ? '⏳ Iniciando...' : consumerRunning ? '✅ Consumidor Activo' : '▶️ Iniciar Consumidor'}
+                        {loadingConsumer
+                            ? (consumerRunning ? '⏳ Deteniendo...' : '⏳ Iniciando...')
+                            : (consumerRunning ? '⏹️ Detener Consumidor' : '▶️ Iniciar Consumidor')}
                     </button>
                 </div>
             </div>
@@ -641,7 +546,7 @@ export default function NmapPage() {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
 
