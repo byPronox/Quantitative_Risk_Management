@@ -718,6 +718,7 @@ function DetailedResults({ job, getRiskColor, getRiskCategory }) {
 // Vulnerability Card Component
 function VulnerabilityCard({ vulnerability, getRiskColor, getRiskCategory }) {
     const [showRemediation, setShowRemediation] = useState(false);
+    const [showDetails, setShowDetails] = useState(true);
 
     return (
         <div className="border border-gray-300 rounded-lg p-5 bg-white shadow-sm">
@@ -738,9 +739,11 @@ function VulnerabilityCard({ vulnerability, getRiskColor, getRiskCategory }) {
                         </p>
                     )}
 
-                    <p className="text-sm text-gray-700 mb-3">
-                        {vulnerability.description || 'Sin descripción disponible'}
-                    </p>
+                    {vulnerability.description && (
+                        <p className="text-sm text-gray-700 mb-3">
+                            {vulnerability.description}
+                        </p>
+                    )}
 
                     {vulnerability.context && (
                         <div className="bg-gray-50 p-3 rounded border border-gray-200 mb-3">
@@ -749,6 +752,72 @@ function VulnerabilityCard({ vulnerability, getRiskColor, getRiskCategory }) {
                                 <strong>Puerto:</strong> {vulnerability.context.port} |
                                 <strong className="ml-2">Servicio:</strong> {vulnerability.context.product || 'N/A'}
                             </p>
+                        </div>
+                    )}
+
+                    {/* Structured Vulnerabilities Table */}
+                    {vulnerability.structured_vulns && vulnerability.structured_vulns.length > 0 && (
+                        <div className="mt-4 mb-4">
+                            <h6 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                                📋 Detalles de Vulnerabilidades (CVEs)
+                                <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200" title="Lista detallada de vulnerabilidades y exposiciones comunes detectadas">
+                                    ℹ️ Info
+                                </span>
+                            </h6>
+                            <div className="overflow-x-auto border rounded-lg">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" title="Common Vulnerabilities and Exposures ID">
+                                                CVE ID ❓
+                                            </th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" title="Common Vulnerability Scoring System (0-10)">
+                                                CVSS Score ❓
+                                            </th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" title="Indica si existe código público para explotar esta vulnerabilidad">
+                                                Exploit? ❓
+                                            </th>
+                                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Referencia
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {vulnerability.structured_vulns.map((vuln, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50">
+                                                <td className="px-3 py-2 text-sm font-mono text-blue-600 font-medium">
+                                                    <a href={vuln.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                        {vuln.id}
+                                                    </a>
+                                                </td>
+                                                <td className="px-3 py-2 text-sm">
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${vuln.score >= 9.0 ? 'bg-red-100 text-red-800' :
+                                                        vuln.score >= 7.0 ? 'bg-orange-100 text-orange-800' :
+                                                            vuln.score >= 4.0 ? 'bg-yellow-100 text-yellow-800' :
+                                                                'bg-green-100 text-green-800'
+                                                        }`}>
+                                                        {vuln.score || 'N/A'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-2 text-sm">
+                                                    {vuln.is_exploit ? (
+                                                        <span className="text-red-600 font-bold flex items-center gap-1">
+                                                            ⚠️ SÍ
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-400">No detectado</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-2 text-sm text-blue-500">
+                                                    <a href={vuln.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                        Ver Detalles ↗
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -760,9 +829,14 @@ function VulnerabilityCard({ vulnerability, getRiskColor, getRiskCategory }) {
                     <p className="text-sm font-semibold text-blue-900 mb-2">
                         📋 Estrategia de Tratamiento: <span className="uppercase">{vulnerability.treatment.treatment}</span>
                     </p>
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-gray-700 mb-2">
                         <strong>Justificación:</strong> {vulnerability.treatment.reason}
                     </p>
+                    {vulnerability.treatment.theoretical_motive && (
+                        <div className="mt-2 text-xs text-blue-800 bg-blue-100 p-2 rounded italic border-l-4 border-blue-400">
+                            <strong>💡 Concepto Teórico:</strong> {vulnerability.treatment.theoretical_motive}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -788,6 +862,7 @@ function VulnerabilityCard({ vulnerability, getRiskColor, getRiskCategory }) {
                                     </li>
                                 ))}
                             </ul>
+
                         </div>
                     )}
                 </div>

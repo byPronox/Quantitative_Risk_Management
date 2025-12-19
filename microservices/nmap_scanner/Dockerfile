@@ -24,7 +24,7 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nmap -u 1001 -G nodejs
 
 # Create directory for XML files
-RUN mkdir -p /app/temp && chown -R nmap:nodejs /app
+RUN mkdir -p /app/temp && chown -R nmap:nodejs /app/temp
 
 # Switch to non-root user
 USER nmap

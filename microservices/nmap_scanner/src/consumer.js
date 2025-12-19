@@ -9,6 +9,9 @@ dotenv.config();
 const QUEUE_NAME = 'nmap_scan_queue';
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@rabbitmq:5672/';
 
+let connection = null;
+let channel = null;
+
 export async function startConsumer() {
     let retryCount = 0;
     const maxRetries = 10;
@@ -16,8 +19,8 @@ export async function startConsumer() {
     const connect = async () => {
         try {
             console.log(`🐰 Connecting to RabbitMQ at ${RABBITMQ_URL}...`);
-            const connection = await amqp.connect(RABBITMQ_URL);
-            const channel = await connection.createChannel();
+            connection = await amqp.connect(RABBITMQ_URL);
+            channel = await connection.createChannel();
 
             // Handle connection close
             connection.on('close', () => {
@@ -78,7 +81,8 @@ export async function startConsumer() {
                             open_ports_count: openPorts.length,
                             closed_ports_count: closedPorts.length,
                             filtered_ports_count: filteredPorts.length,
-                            scan_results: scanResult
+                            scan_results: scanResult,
+                            error_message: null // Clear any previous error message
                         });
 
                         // Save individual port results to nmap_scan_results table
@@ -141,4 +145,24 @@ export async function startConsumer() {
     };
 
     await connect();
+}
+
+export async function stopConsumer() {
+    if (connection) {
+        try {
+            console.log('🛑 Stopping RabbitMQ consumer...');
+            await connection.close();
+            connection = null;
+            channel = null;
+            console.log('✅ RabbitMQ consumer stopped');
+        } catch (error) {
+            console.error('❌ Error stopping consumer:', error);
+        }
+    } else {
+        console.log('⚠️ Consumer is not running');
+    }
+}
+
+export function isConsumerRunning() {
+    return !!connection;
 }

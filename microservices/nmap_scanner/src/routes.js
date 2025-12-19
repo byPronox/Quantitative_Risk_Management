@@ -5,12 +5,12 @@ import rateLimit from 'express-rate-limit';
 import { scanIP, validateIP, validateHostname, testNmapInstallation, getAvailableScripts } from './scanner.js';
 import queueService from './queue_service.js';
 import databaseService from './database_service.js';
-import { startConsumer } from './consumer.js';
+import { startConsumer, stopConsumer, isConsumerRunning } from './consumer.js';
 
 const router = express.Router();
 
 // Consumer state tracking
-let consumerRunning = false;
+// Consumer state tracking handled in consumer.js
 
 // Rate limiting configuration
 const scanLimiter = rateLimit({
@@ -239,7 +239,7 @@ router.get('/database/results/:jobId', async (req, res) => {
  */
 router.post('/queue/consumer/start', async (req, res) => {
   try {
-    if (consumerRunning) {
+    if (isConsumerRunning()) {
       return res.json({
         success: true,
         message: 'Consumer is already running',
@@ -250,9 +250,7 @@ router.post('/queue/consumer/start', async (req, res) => {
     // Start consumer (don't await - let it run in background)
     startConsumer().catch(err => {
       console.error('[Consumer] Error in background consumer:', err);
-      consumerRunning = false;
     });
-    consumerRunning = true;
 
     // Give it a moment to connect
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -278,12 +276,11 @@ router.post('/queue/consumer/start', async (req, res) => {
  */
 router.post('/queue/consumer/stop', async (req, res) => {
   try {
-    consumerRunning = false;
+    await stopConsumer();
     res.json({
       success: true,
-      message: 'Consumer stop signal sent',
-      status: 'stopped',
-      note: 'Consumer will stop after processing current job'
+      message: 'Consumer stopped successfully',
+      status: 'stopped'
     });
   } catch (error) {
     console.error('[Consumer] Error stopping consumer:', error);
@@ -301,11 +298,12 @@ router.post('/queue/consumer/stop', async (req, res) => {
  */
 router.get('/queue/consumer/status', async (req, res) => {
   try {
+    const running = isConsumerRunning();
     res.json({
       success: true,
-      running: consumerRunning,
-      status: consumerRunning ? 'running' : 'stopped',
-      description: consumerRunning
+      running: running,
+      status: running ? 'running' : 'stopped',
+      description: running
         ? 'Consumer is actively processing jobs from the queue'
         : 'Consumer is stopped. Start it to process queued jobs'
     });

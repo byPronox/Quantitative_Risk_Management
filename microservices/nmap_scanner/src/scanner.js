@@ -90,14 +90,25 @@ const fetchNvdForCve = async (cveId) => {
   }
   const url = `${NVD_SERVICE_URL.replace(/\/$/, '')}/vulnerabilities/${encodeURIComponent(cveId)}`;
   try {
-    // Use global fetch (Node 18+) - if not available, environment should provide a polyfill.
-    const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
-    if (!res.ok) {
-      console.warn(`NVD service returned ${res.status} for ${cveId}`);
-      return null;
+    // Use global fetch (Node 18+) with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+      if (!res.ok) {
+        console.warn(`NVD service returned ${res.status} for ${cveId}`);
+        return null;
+      }
+      const data = await res.json();
+      return data;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    const data = await res.json();
-    return data;
   } catch (e) {
     console.warn(`Failed to fetch NVD data for ${cveId}:`, e.message);
     return null;
@@ -160,7 +171,7 @@ const mapScoreToCategory = (score) => {
  * Determine recommended treatment and provide personalized justification and remediation steps.
  * Treatments: aceptar, mitigar, transferir, evitar
  */
-const determineTreatment = (vuln, score, classification, nvdData) => {
+const determineTreatment = async (vuln, score, classification, nvdData) => {
   const category = mapScoreToCategory(score);
   const product = vuln.context?.product || vuln.product || 'servicio desconocido';
   const port = vuln.context?.port || 'N/A';
@@ -171,6 +182,11 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
     if (port !== 'N/A') descriptionText = `Se ha detectado el puerto ${port} abierto, ejecutando ${product}.`;
     else descriptionText = `Se ha detectado el servicio ${product} en el host.`;
   }
+  // Translate description if it's likely English (simple heuristic: if it came from Nmap output)
+  if (vuln.output && descriptionText === vuln.output) {
+    descriptionText = await translateText(descriptionText);
+  }
+
   if (descriptionText.length > 300) descriptionText = descriptionText.substring(0, 300) + '...';
 
   // --- 2. Tratamiento Recomendado ---
@@ -219,18 +235,42 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
   }
 
   // Product specific steps (Unique context)
-  if (productLower.includes('http') || productLower.includes('apache') || productLower.includes('nginx') || productLower.includes('iis')) {
-    remediationSteps.push(`Revisar la configuración de ${product} para ocultar la versión del servidor (ServerTokens Prod / server_tokens off).`);
-    remediationSteps.push(`Habilitar cabeceras de seguridad HTTP (HSTS, X-Frame-Options) en el servidor web en el puerto ${port}.`);
-    if (score > 50) remediationSteps.push(`Implementar un WAF (Web Application Firewall) delante de ${product} para filtrar ataques comunes.`);
+  // Product specific steps (Unique context)
+  if (productLower.includes('apache')) {
+    remediationSteps.push(`Configurar 'ServerTokens Prod' y 'ServerSignature Off' en httpd.conf para ocultar la versión.`);
+    remediationSteps.push(`Deshabilitar módulos innecesarios (e.g., mod_info, mod_status) para reducir la superficie de ataque.`);
+  }
+  if (productLower.includes('nginx')) {
+    remediationSteps.push(`Configurar 'server_tokens off' en nginx.conf para ocultar la versión.`);
+    remediationSteps.push(`Limitar el tamaño de los buffers para mitigar ataques de desbordamiento.`);
+  }
+  if (productLower.includes('iis')) {
+    remediationSteps.push(`Usar URLScan o Request Filtering para restringir tipos de archivos y verbos HTTP.`);
+    remediationSteps.push(`Remover cabeceras 'X-Powered-By' y 'Server' mediante web.config.`);
+  }
+  if (productLower.includes('uvicorn') || productLower.includes('gunicorn') || productLower.includes('python')) {
+    remediationSteps.push(`Ejecutar ${product} detrás de un proxy inverso (Nginx/Apache) para manejo robusto de conexiones.`);
+    remediationSteps.push(`Asegurar que la aplicación no se ejecute con privilegios de root/administrador.`);
+  }
+
+  // General HTTP advice
+  if (productLower.includes('http') || productLower.includes('apache') || productLower.includes('nginx') || productLower.includes('iis') || productLower.includes('uvicorn')) {
+    remediationSteps.push(`Habilitar cabeceras de seguridad HTTP (HSTS, X-Frame-Options, X-Content-Type-Options) en el puerto ${port}.`);
+    if (port === '80' || port === '8080') {
+      remediationSteps.push(`Redirigir todo el tráfico HTTP a HTTPS para cifrar las comunicaciones.`);
+    }
+    if (score > 50) remediationSteps.push(`Implementar un WAF (Web Application Firewall) para proteger ${product}.`);
   } else if (productLower.includes('ssh')) {
     remediationSteps.push(`Deshabilitar el acceso root y la autenticación por contraseña en el servicio SSH (puerto ${port}).`);
     remediationSteps.push(`Implementar Fail2Ban o similar para bloquear intentos de fuerza bruta contra SSH.`);
+    remediationSteps.push(`Restringir el acceso SSH a direcciones IP confiables mediante reglas de firewall.`);
   } else if (productLower.includes('sql') || productLower.includes('database') || productLower.includes('mysql') || productLower.includes('postgres')) {
     remediationSteps.push(`Asegurar que el gestor de base de datos ${product} no esté expuesto a Internet pública.`);
     remediationSteps.push(`Habilitar SSL/TLS para todas las conexiones entrantes a la base de datos en el puerto ${port}.`);
+    remediationSteps.push(`Auditar los usuarios y privilegios de la base de datos, eliminando cuentas por defecto o sin uso.`);
   } else if (productLower.includes('ftp')) {
     remediationSteps.push(`Considerar migrar de FTP a SFTP para asegurar la confidencialidad de las credenciales y datos.`);
+    remediationSteps.push(`Deshabilitar el acceso anónimo si no es estrictamente necesario.`);
   }
 
   // Vulnerability specific steps
@@ -242,8 +282,9 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
 
   // Fallback remediation if empty
   if (remediationSteps.length === 0) {
-    remediationSteps.push(`Realizar un análisis de configuración manual sobre ${product}.`);
-    remediationSteps.push(`Consultar la documentación del proveedor para prácticas de hardening.`);
+    remediationSteps.push(`Realizar un análisis de configuración manual sobre ${product} para identificar configuraciones inseguras.`);
+    remediationSteps.push(`Consultar la documentación oficial de ${product} para aplicar las mejores prácticas de hardening.`);
+    remediationSteps.push(`Mantener el servicio ${product} actualizado a la última versión soportada.`);
   }
 
   // Ensure uniqueness in the list
@@ -263,7 +304,7 @@ const determineTreatment = (vuln, score, classification, nvdData) => {
       
       <div class="report-section">
         <h3>🔍 Hallazgo: ${product} ${port !== 'N/A' ? `(Puerto ${port})` : ''}</h3>
-        <p>${descriptionText}</p>
+        ${descriptionText ? `<p>${descriptionText}</p>` : ''}
       </div>
 
       <div class="report-section">
@@ -315,7 +356,27 @@ const extractScriptOutput = (script) => {
   }
 };
 
-const normalizeScript = (script, context = {}) => {
+import { translate } from 'google-translate-api-x';
+
+/**
+ * Helper to translate text to Spanish
+ */
+const translateText = async (text) => {
+  if (!text) return '';
+  try {
+    // Race between translation and a 5-second timeout
+    const translationPromise = translate(text, { to: 'es' });
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Translation timeout')), 5000));
+
+    const res = await Promise.race([translationPromise, timeoutPromise]);
+    return res.text;
+  } catch (e) {
+    console.warn(`Translation failed for text "${text.substring(0, 20)}...":`, e.message);
+    return text;
+  }
+};
+
+const normalizeScript = async (script, context = {}) => {
   const id = script && script.$ && script.$.id ? script.$.id : 'unknown';
 
   // Force rawOutput to string to avoid boolean/false values showing as false
@@ -385,6 +446,20 @@ const normalizeScript = (script, context = {}) => {
     }
   }
 
+  // Parse vulners output if available
+  let structuredVulns = [];
+  if (id === 'vulners') {
+    structuredVulns = parseVulnersOutput(rawOutput);
+  }
+
+  // Translate title and description
+  if (title && title !== 'Unknown Vulnerability') {
+    title = await translateText(title);
+  }
+  if (description) {
+    description = await translateText(description);
+  }
+
   // Build normalized object
   return {
     id,
@@ -394,6 +469,7 @@ const normalizeScript = (script, context = {}) => {
     cve,
     output: rawOutput,
     table: script.table || null,
+    structured_vulns: structuredVulns,
     context: {
       type: context.type || 'host',
       port: context.port || null,
@@ -542,19 +618,19 @@ const processXMLOutput = async (xmlFilePath, target) => {
     const vulnerabilities = [];
     if (host.hostscript && host.hostscript[0] && host.hostscript[0].script) {
       const scripts = host.hostscript[0].script;
-      scripts.forEach(script => {
+      for (const script of scripts) {
         try {
-          const vuln = normalizeScript(script, { type: 'host' });
+          const vuln = await normalizeScript(script, { type: 'host' });
           if (!shouldIgnoreVuln(vuln)) vulnerabilities.push(vuln);
         } catch (e) {
           console.warn('Failed to normalize host script:', e.message);
         }
-      });
+      }
     }
 
     if (host.ports && host.ports[0] && host.ports[0].port) {
       const ports = host.ports[0].port;
-      ports.forEach(port => {
+      for (const port of ports) {
         const portAttr = port && port.$ ? port.$ : {};
         const portId = portAttr.portid || null;
         const portScripts = [];
@@ -569,18 +645,18 @@ const processXMLOutput = async (xmlFilePath, target) => {
         }
 
         if (Array.isArray(portScripts) && portScripts.length > 0) {
-          portScripts.forEach(scriptNode => {
+          for (const scriptNode of portScripts) {
             try {
               // Pass product from portProductMap to ensure product is available
               const product = portProductMap[String(portId)] || '';
-              const vuln = normalizeScript(scriptNode, { type: 'port', port: portId, product });
+              const vuln = await normalizeScript(scriptNode, { type: 'port', port: portId, product });
               if (!shouldIgnoreVuln(vuln)) vulnerabilities.push(vuln);
             } catch (e) {
               console.warn(`Failed to normalize script for port ${portId}:`, e.message);
             }
-          });
+          }
         }
-      });
+      }
     }
 
     // Enrichment: classify assets and compute per-vuln risk/treatment
@@ -643,9 +719,9 @@ const processXMLOutput = async (xmlFilePath, target) => {
         const exposedPorts = ['80', '443', '8080', '8443', '21', '22', '23', '25', '3306', '5432', '27017', '3389'];
         const isExposed = !!(v.context && v.context.port && exposedPorts.includes(String(v.context.port)));
 
-        const score = computeRiskScore(cvssBase, isExposed, vulnCountForAsset);
+        const score = computeRiskScore(cvssBase, isExposed, 'low', classification);
         const category = mapScoreToCategory(score);
-        const treatmentInfo = determineTreatment(v, score, classification, nvdData);
+        const treatmentInfo = await determineTreatment(v, score, classification, nvdData);
 
         // Ensure we always include risk and treatment objects (avoid empty values in output)
         enhancedVulns.push({

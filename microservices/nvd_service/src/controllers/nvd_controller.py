@@ -255,7 +255,7 @@ async def get_all_queue_results():
 async def get_queue_status():
     """Get queue status"""
     try:
-        status = queue_service.peek_queue_status()
+        status = await queue_service.peek_queue_status()
         return status
     except Exception as e:
         logger.error(f"Failed to get queue status: {str(e)}")
@@ -335,7 +335,7 @@ async def get_enterprise_metrics():
 async def get_service_metrics():
     """Get service metrics"""
     try:
-        metrics = queue_service.get_metrics()
+        metrics = await queue_service.get_metrics()
         
         return {
             "service_name": "nvd_service",

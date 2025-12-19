@@ -16,12 +16,12 @@ const ReportsPage = () => {
         try {
             setLoading(true);
             setError(null);
-            
+
             // Load jobs from nvd_jobs table
             console.log('Loading jobs from /nvd/database/jobs...');
             const jobsResponse = await backendApi.get('/nvd/database/jobs');
             console.log('Jobs response:', jobsResponse.data);
-            
+
             if (jobsResponse.data) {
                 if (jobsResponse.data.success !== false && jobsResponse.data.jobs) {
                     setNvdJobs(jobsResponse.data.jobs || []);
@@ -37,14 +37,14 @@ const ReportsPage = () => {
             } else {
                 setNvdJobs([]);
             }
-            
+
             // Load vulnerabilities from nvd_vulnerabilities table
             console.log('Loading vulnerabilities from /nvd/database/vulnerabilities...');
             const vulnsResponse = await backendApi.get('/nvd/database/vulnerabilities', {
                 params: { limit: 100 }
             });
             console.log('Vulnerabilities response:', vulnsResponse.data);
-            
+
             if (vulnsResponse.data) {
                 if (vulnsResponse.data.success !== false && vulnsResponse.data.vulnerabilities) {
                     setVulnerabilities(vulnsResponse.data.vulnerabilities || []);
@@ -162,86 +162,83 @@ const ReportsPage = () => {
                     ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
                             {nvdJobs.map((job) => (
-                        <div
-                            key={job.job_id}
-                            style={{
-                                border: '1px solid #ddd',
-                                borderRadius: '8px',
-                                padding: '20px',
-                                backgroundColor: 'white',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                            }}
-                        >
-                            <div style={{ marginBottom: '15px' }}>
-                                <h3 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>
-                                    🔍 {job.keyword}
-                                </h3>
-                                <div style={{ fontSize: '0.85em', color: '#6c757d' }}>
-                                    <span>ID: {job.job_id.substring(0, 12)}...</span>
-                                </div>
-                            </div>
+                                <div
+                                    key={job.job_id}
+                                    style={{
+                                        border: '1px solid #ddd',
+                                        borderRadius: '8px',
+                                        padding: '20px',
+                                        backgroundColor: 'white',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                    }}
+                                >
+                                    <div style={{ marginBottom: '15px' }}>
+                                        <h3 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>
+                                            🔍 {job.keyword}
+                                        </h3>
+                                        <div style={{ fontSize: '0.85em', color: '#6c757d' }}>
+                                            <span>ID: {job.job_id.substring(0, 12)}...</span>
+                                        </div>
+                                    </div>
 
-                            <div style={{ marginBottom: '15px' }}>
-                                <div style={{ marginBottom: '8px' }}>
-                                    <strong>Estado:</strong>{' '}
-                                    <span
-                                        style={{
-                                            padding: '4px 8px',
-                                            borderRadius: '4px',
-                                            backgroundColor: job.status === 'completed' ? '#28a745' : '#ffc107',
-                                            color: 'white',
-                                            fontSize: '0.85em'
-                                        }}
-                                    >
-                                        {job.status === 'completed' ? 'Completado' : job.status}
-                                    </span>
-                                </div>
-                                <div style={{ marginBottom: '8px' }}>
-                                    <strong>Vulnerabilidades:</strong> {job.total_results || 0}
-                                </div>
-                                <div style={{ marginBottom: '8px' }}>
-                                    <strong>Procesado vía:</strong> {job.processed_via || 'N/A'}
-                                </div>
-                                <div style={{ fontSize: '0.85em', color: '#6c757d' }}>
-                                    <strong>Fecha:</strong> {new Date(job.created_at).toLocaleString()}
-                                </div>
-                            </div>
-
-                            {job.vulnerabilities && job.vulnerabilities.length > 0 && (
-                                <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                                    <strong style={{ display: 'block', marginBottom: '10px' }}>
-                                        Vulnerabilities detectadas ({job.vulnerabilities.length}):
-                                    </strong>
-                                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                        {job.vulnerabilities.slice(0, 5).map((vuln, idx) => (
-                                            <div
-                                                key={idx}
+                                    <div style={{ marginBottom: '15px' }}>
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <strong>Estado:</strong>{' '}
+                                            <span
                                                 style={{
-                                                    padding: '8px',
-                                                    marginBottom: '8px',
-                                                    backgroundColor: '#f8f9fa',
+                                                    padding: '4px 8px',
                                                     borderRadius: '4px',
+                                                    backgroundColor: job.status === 'completed' ? '#28a745' : '#ffc107',
+                                                    color: 'white',
                                                     fontSize: '0.85em'
                                                 }}
                                             >
-                                                <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                                                    {vuln.cve?.id || 'N/A'}
-                                                </div>
-                                                <div style={{ color: '#6c757d', fontSize: '0.9em' }}>
-                                                    {vuln.cve?.descriptions?.[0]?.value?.substring(0, 100) || 'No description'}...
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {job.vulnerabilities.length > 5 && (
-                                            <div style={{ textAlign: 'center', color: '#6c757d', marginTop: '10px' }}>
-                                                ... y {job.vulnerabilities.length - 5} más
-                                            </div>
-                                        )}
+                                                {job.status === 'completed' ? 'Completado' : job.status}
+                                            </span>
+                                        </div>
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <strong>Vulnerabilidades:</strong> {job.total_results || 0}
+                                        </div>
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <strong>Procesado vía:</strong> {job.processed_via || 'N/A'}
+                                        </div>
+                                        <div style={{ fontSize: '0.85em', color: '#6c757d' }}>
+                                            <strong>Fecha:</strong> {new Date(job.created_at).toLocaleString()}
+                                        </div>
                                     </div>
+
+                                    {job.vulnerabilities && job.vulnerabilities.length > 0 && (
+                                        <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                            <strong style={{ display: 'block', marginBottom: '10px' }}>
+                                                Vulnerabilities detectadas ({job.vulnerabilities.length}):
+                                            </strong>
+                                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                    {job.vulnerabilities.map((vuln, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            style={{
+                                                                padding: '8px',
+                                                                marginBottom: '8px',
+                                                                backgroundColor: '#f8f9fa',
+                                                                borderRadius: '4px',
+                                                                fontSize: '0.85em'
+                                                            }}
+                                                        >
+                                                            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                                                                {vuln.cve?.id || 'N/A'}
+                                                            </div>
+                                                            <div style={{ color: '#6c757d', fontSize: '0.9em' }}>
+                                                                {vuln.cve?.descriptions?.[0]?.value?.substring(0, 100) || 'No description'}...
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                            </div>
-                        ))}
+                            ))}
                         </div>
                     )}
                 </>
@@ -256,10 +253,10 @@ const ReportsPage = () => {
                             <p>Ejecute análisis de NVD para ver vulnerabilidades aquí</p>
                         </div>
                     ) : (
-                        <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', 
-                            gap: '20px' 
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+                            gap: '20px'
                         }}>
                             {vulnerabilities.map((vuln, idx) => (
                                 <div
@@ -292,10 +289,10 @@ const ReportsPage = () => {
                                                     style={{
                                                         padding: '4px 8px',
                                                         borderRadius: '4px',
-                                                        backgroundColor: 
+                                                        backgroundColor:
                                                             vuln.cvss_v3_score >= 9 ? '#dc3545' :
-                                                            vuln.cvss_v3_score >= 7 ? '#fd7e14' :
-                                                            vuln.cvss_v3_score >= 4 ? '#ffc107' : '#28a745',
+                                                                vuln.cvss_v3_score >= 7 ? '#fd7e14' :
+                                                                    vuln.cvss_v3_score >= 4 ? '#ffc107' : '#28a745',
                                                         color: 'white',
                                                         fontSize: '0.9em',
                                                         fontWeight: 'bold'
@@ -312,10 +309,10 @@ const ReportsPage = () => {
                                                     style={{
                                                         padding: '4px 8px',
                                                         borderRadius: '4px',
-                                                        backgroundColor: 
+                                                        backgroundColor:
                                                             vuln.cvss_v3_severity === 'CRITICAL' ? '#dc3545' :
-                                                            vuln.cvss_v3_severity === 'HIGH' ? '#fd7e14' :
-                                                            vuln.cvss_v3_severity === 'MEDIUM' ? '#ffc107' : '#28a745',
+                                                                vuln.cvss_v3_severity === 'HIGH' ? '#fd7e14' :
+                                                                    vuln.cvss_v3_severity === 'MEDIUM' ? '#ffc107' : '#28a745',
                                                         color: 'white',
                                                         fontSize: '0.85em'
                                                     }}
@@ -332,9 +329,9 @@ const ReportsPage = () => {
                                         {vuln.description && (
                                             <div style={{ marginBottom: '8px' }}>
                                                 <strong>Descripción:</strong>
-                                                <div style={{ 
-                                                    marginTop: '5px', 
-                                                    fontSize: '0.9em', 
+                                                <div style={{
+                                                    marginTop: '5px',
+                                                    fontSize: '0.9em',
                                                     color: '#6c757d',
                                                     maxHeight: '100px',
                                                     overflowY: 'auto'

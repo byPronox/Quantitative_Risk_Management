@@ -65,6 +65,7 @@ services:
       - RABBITMQ_QUEUE=nmap_scan_queue # Override global queue name
       # RABBITMQ_URL is read from .env (CloudAMQP)
     volumes:
+      - ./microservices/nmap_scanner/src:/app/src
       - nmap_temp:/app/temp
       - sqlite_data:/app/data
     privileged: true # Required for nmap network scanning

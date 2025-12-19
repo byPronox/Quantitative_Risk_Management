@@ -175,6 +175,10 @@ class DatabaseService:
         """Get all vulnerabilities for a specific job_id"""
         return await self.repository.get_vulnerabilities_by_job_id(job_id)
 
+    async def get_job_counts(self) -> Dict[str, int]:
+        """Get counts of jobs by status"""
+        return await self.repository.get_job_counts_by_status()
+
 
 # Alias for backward compatibility
 MongoDBService = DatabaseService

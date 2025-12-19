@@ -490,6 +490,37 @@ class PostgresRepository:
             
             return results
     
+    async def get_job_counts_by_status(self) -> Dict[str, int]:
+        """Get counts of jobs by status"""
+        if not self._pool:
+            await self.connect()
+        
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT status, COUNT(*) as count
+                FROM nvd_jobs
+                GROUP BY status
+            """)
+            
+            counts = {
+                "pending": 0,
+                "processing": 0,
+                "completed": 0,
+                "failed": 0
+            }
+            
+            for row in rows:
+                status = row["status"]
+                count = row["count"]
+                # Normalize status keys if needed, but usually they match
+                if status in counts:
+                    counts[status] = count
+                else:
+                    # Add unknown statuses or map them
+                    counts[status] = count
+            
+            return counts
+
     def _parse_datetime(self, date_str) -> Optional[datetime]:
         """Convert date string to datetime object"""
         if not date_str:

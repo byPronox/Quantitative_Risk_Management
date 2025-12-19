@@ -33,7 +33,7 @@ class DatabaseService {
                 },
                 max: 20, // Maximum pool size
                 idleTimeoutMillis: 30000,
-                connectionTimeoutMillis: 2000,
+                connectionTimeoutMillis: 10000, // Increased to 10s to avoid timeouts
             });
 
             // Test connection

@@ -6,7 +6,7 @@ import AssetList from "./components/AssetList";
 import CombinedAnalysisForm from "./components/CombinedAnalysisForm";
 import NvdPage from "./pages/NvdPage";
 import ReportsPage from "./pages/ReportsPage";
-import NmapPage from "./pages/NmapPage";
+import NmapPage from "./pages/NmapPageEnhanced";
 import Login from "./pages/Login";
 
 const mockAssets = [

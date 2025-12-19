@@ -359,35 +359,54 @@ class QueueService:
             logger.error(f"Error fetching all jobs from database: {e}")
             return {"success": False, "jobs": [], "error": str(e)}
 
-    def peek_queue_status(self) -> dict:
+    async def peek_queue_status(self) -> dict:
         # Use a temporary connection/channel to avoid channel closed errors
+        queue_size = 0
         try:
-            connection = pika.BlockingConnection(self._connection_params)
-            channel = connection.channel()
-            method = channel.queue_declare(queue=self.queue_name, passive=True)
-            pending = method.method.message_count
-            connection.close()
-            processing = len(self._processing)
-            completed = len(self._completed)
-            return {
-                "queue_size": pending,
-                "pending": pending,
-                "processing": processing,
-                "completed": completed,
-                "queue_name": self.queue_name,
-                "status": "healthy"
-            }
+            # We need to run the blocking pika call in a thread to avoid blocking the async loop
+            def get_rabbitmq_count():
+                try:
+                    connection = pika.BlockingConnection(self._connection_params)
+                    channel = connection.channel()
+                    method = channel.queue_declare(queue=self.queue_name, passive=True)
+                    count = method.method.message_count
+                    connection.close()
+                    return count
+                except Exception as e:
+                    logger.error(f"Failed to get RabbitMQ queue size: {e}")
+                    return 0
+            
+            queue_size = await asyncio.to_thread(get_rabbitmq_count)
+            
         except Exception as e:
-            logger.error(f"Failed to get queue status: {e}")
-            return {
-                "queue_size": 0,
-                "pending": 0,
-                "processing": 0,
-                "completed": 0,
-                "queue_name": self.queue_name,
-                "status": "unhealthy",
-                "error": str(e)
-            }
+            logger.error(f"Failed to get queue status wrapper: {e}")
+
+        # Get persistent counts from Database
+        db_counts = {
+            "pending": 0,
+            "processing": 0,
+            "completed": 0,
+            "failed": 0
+        }
+        try:
+            raw_counts = await self.database_service.get_job_counts()
+            # Normalize keys to lowercase to handle potential case differences
+            for k, v in raw_counts.items():
+                db_counts[k.lower()] = db_counts.get(k.lower(), 0) + v
+        except Exception as e:
+            logger.error(f"Failed to get DB job counts: {e}")
+
+        return {
+            "queue_size": queue_size,
+            "jobs": {
+                "pending": db_counts.get("pending", 0),
+                "processing": db_counts.get("processing", 0),
+                "completed": db_counts.get("completed", 0),
+                "failed": db_counts.get("failed", 0)
+            },
+            "queue_name": self.queue_name,
+            "status": "healthy"
+        }
 
     def _save_all_existing_jobs_to_mongodb(self):
         """Save all existing completed jobs from /nvd/results/all endpoint to MongoDB Atlas"""
@@ -654,10 +673,10 @@ class QueueService:
             logger.error("Queue health check failed: %s", e)
             return False
     
-    def get_metrics(self) -> Dict[str, Any]:
+    async def get_metrics(self) -> Dict[str, Any]:
         """Get queue metrics."""
         try:
-            status = self.peek_queue_status()
+            status = await self.peek_queue_status()
             return {
                 "uptime_seconds": 0,  # Would need to track service start time
                 "total_requests": 0,  # Would need to track this

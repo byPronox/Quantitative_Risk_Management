@@ -7,6 +7,9 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from ..config.settings import settings
 
+import asyncio
+from deep_translator import GoogleTranslator
+
 logger = logging.getLogger(__name__)
 
 class NVDAPIService:
@@ -17,6 +20,7 @@ class NVDAPIService:
         self.api_key = settings.NVD_API_KEY
         self.kong_proxy_url = settings.KONG_PROXY_URL
         self.use_kong = settings.USE_KONG_NVD
+        self.translator = GoogleTranslator(source='auto', target='es')
         
     def _get_api_config(self) -> Dict[str, Any]:
         """Get API configuration based on environment settings."""
@@ -40,6 +44,31 @@ class NVDAPIService:
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
                 }
             }
+
+    async def _translate_text(self, text: str) -> str:
+        """Translate text to Spanish using deep-translator."""
+        if not text:
+            return ""
+        try:
+            # Run translation in a separate thread to avoid blocking the event loop
+            return await asyncio.to_thread(self.translator.translate, text)
+        except Exception as e:
+            logger.warning(f"Translation failed: {e}")
+            return text
+
+    async def _translate_vulnerabilities(self, vulnerabilities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Translate vulnerability descriptions to Spanish."""
+        for vuln in vulnerabilities:
+            cve = vuln.get("cve", {})
+            descriptions = cve.get("descriptions", [])
+            for desc in descriptions:
+                if desc.get("lang") == "en":
+                    original_text = desc.get("value", "")
+                    if original_text:
+                        translated_text = await self._translate_text(original_text)
+                        desc["value"] = translated_text
+                        desc["lang"] = "es" # Mark as Spanish
+        return vulnerabilities
     
     async def search_vulnerabilities(
         self, 
@@ -91,6 +120,9 @@ class NVDAPIService:
                 vulnerabilities = data.get("vulnerabilities", [])
                 total_results = data.get("totalResults", 0)
                 
+                # Translate vulnerabilities
+                vulnerabilities = await self._translate_vulnerabilities(vulnerabilities)
+
                 logger.info(
                     "NVD search successful for keyword '%s' via %s - Found %d vulnerabilities (Total: %d)",
                     search_keyword,
@@ -149,6 +181,9 @@ class NVDAPIService:
                     logger.warning(f"CVE {cve_id} not found")
                     return None
                 
+                # Translate vulnerability
+                vulnerabilities = await self._translate_vulnerabilities(vulnerabilities)
+
                 logger.info(
                     "Retrieved CVE %s via %s",
                     cve_id,
@@ -193,6 +228,11 @@ class NVDAPIService:
                 response.raise_for_status()
                 
                 data = response.json()
+                vulnerabilities = data.get("vulnerabilities", [])
+                
+                # Translate vulnerabilities
+                vulnerabilities = await self._translate_vulnerabilities(vulnerabilities)
+
                 logger.info(
                     "NVD CPE search successful for '%s' via %s",
                     cpe_name,
@@ -200,7 +240,7 @@ class NVDAPIService:
                 )
                 
                 return {
-                    "vulnerabilities": data.get("vulnerabilities", []),
+                    "vulnerabilities": vulnerabilities,
                     "total_results": data.get("totalResults", 0),
                     "results_per_page": data.get("resultsPerPage", 0),
                     "start_index": data.get("startIndex", 0)
