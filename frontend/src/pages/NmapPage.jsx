@@ -149,9 +149,7 @@ export default function NmapPage() {
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
                     🔍 Nmap Scanner - Análisis de Puertos
                 </h1>
-                <p className="text-lg text-gray-600">
-                    Sistema Distribuido de Escaneo de Vulnerabilidades
-                </p>
+
             </div>
 
             {/* Educational Sections - Collapsible */}

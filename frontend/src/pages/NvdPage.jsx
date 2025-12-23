@@ -360,7 +360,7 @@ export default function NvdPage() {
           marginBottom: "1.5rem",
           fontWeight: "600"
         }}>
-          📤 Enviar Keyword a Cola RabbitMQ
+          📤 Enviar Vulnerabilidad a Cola RabbitMQ
         </h2>
 
         {error && (
@@ -397,7 +397,7 @@ export default function NvdPage() {
               color: "#374151",
               fontWeight: "500"
             }}>
-              Keyword (ej: apache, mysql, java)
+              Vulnerabilidad (ej: apache, mysql, java)
             </label>
             <input
               type="text"

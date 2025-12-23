@@ -424,7 +424,8 @@ class PostgresRepository:
                 SELECT v.*, j.keyword, j.status as job_status
                 FROM nvd_vulnerabilities v
                 JOIN nvd_jobs j ON v.job_id = j.job_id
-                ORDER BY v.published DESC, v.cvss_v3_score DESC NULLS LAST
+                JOIN nvd_jobs j ON v.job_id = j.job_id
+                ORDER BY v.cve_id DESC, v.published DESC
             """
             
             if limit:

@@ -74,6 +74,29 @@ const ReportsPage = () => {
         }
     };
 
+    // Helper function to translate job status
+    const translateStatus = (status) => {
+        const map = {
+            'completed': 'Completado',
+            'pending': 'Pendiente',
+            'processing': 'Procesando',
+            'failed': 'Fallido'
+        };
+        return map[status] || status;
+    };
+
+    // Helper function to translate severity
+    const translateSeverity = (severity) => {
+        if (!severity) return 'Desconocido';
+        const map = {
+            'CRITICAL': 'CRÍTICO',
+            'HIGH': 'ALTO',
+            'MEDIUM': 'MEDIO',
+            'LOW': 'BAJO'
+        };
+        return map[severity.toUpperCase()] || severity;
+    };
+
     if (loading) {
         return (
             <div style={{ padding: '40px', textAlign: 'center' }}>
@@ -93,11 +116,19 @@ const ReportsPage = () => {
         );
     }
 
+    // Extract unique keywords for filter
+    const uniqueKeywords = [...new Set(vulnerabilities.map(v => v.keyword).filter(k => k))].sort();
+    const [selectedKeyword, setSelectedKeyword] = useState('ALL');
+
+    // Filter vulnerabilities
+    const filteredVulnerabilities = selectedKeyword === 'ALL'
+        ? vulnerabilities
+        : vulnerabilities.filter(v => v.keyword === selectedKeyword);
+
     return (
         <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
             <div style={{ marginBottom: '30px', textAlign: 'center' }}>
                 <h1 style={{ color: '#2c3e50', marginBottom: '10px' }}>📊 Reportes de Análisis NVD</h1>
-                <p style={{ color: '#6c757d' }}>Datos desde las tablas nvd_jobs y nvd_vulnerabilities en Supabase</p>
             </div>
 
             {/* Tab Navigation */}
@@ -116,7 +147,7 @@ const ReportsPage = () => {
                         transition: 'all 0.3s ease'
                     }}
                 >
-                    📋 Jobs ({nvdJobs.length})
+                    📋 Trabajos ({nvdJobs.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('vulnerabilities')}
@@ -193,7 +224,7 @@ const ReportsPage = () => {
                                                     fontSize: '0.85em'
                                                 }}
                                             >
-                                                {job.status === 'completed' ? 'Completado' : job.status}
+                                                {translateStatus(job.status)}
                                             </span>
                                         </div>
                                         <div style={{ marginBottom: '8px' }}>
@@ -210,7 +241,7 @@ const ReportsPage = () => {
                                     {job.vulnerabilities && job.vulnerabilities.length > 0 && (
                                         <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
                                             <strong style={{ display: 'block', marginBottom: '10px' }}>
-                                                Vulnerabilities detectadas ({job.vulnerabilities.length}):
+                                                Vulnerabilidades detectadas ({job.vulnerabilities.length}):
                                             </strong>
                                             <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                                 <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -229,7 +260,7 @@ const ReportsPage = () => {
                                                                 {vuln.cve?.id || 'N/A'}
                                                             </div>
                                                             <div style={{ color: '#6c757d', fontSize: '0.9em' }}>
-                                                                {vuln.cve?.descriptions?.[0]?.value?.substring(0, 100) || 'No description'}...
+                                                                {vuln.cve?.descriptions?.[0]?.value || 'Sin descripción'}
                                                             </div>
                                                         </div>
                                                     ))}
@@ -247,10 +278,38 @@ const ReportsPage = () => {
             {/* Vulnerabilities Tab Content */}
             {activeTab === 'vulnerabilities' && (
                 <>
-                    {vulnerabilities.length === 0 ? (
+                    <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <label htmlFor="keyword-filter" style={{ fontWeight: 'bold', color: '#495057' }}>Filtrar por Keyword:</label>
+                        <select
+                            id="keyword-filter"
+                            value={selectedKeyword}
+                            onChange={(e) => setSelectedKeyword(e.target.value)}
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: '4px',
+                                border: '1px solid #ced4da',
+                                backgroundColor: 'white',
+                                fontSize: '1rem',
+                                minWidth: '200px'
+                            }}
+                        >
+                            <option value="ALL">Todas ({vulnerabilities.length})</option>
+                            {uniqueKeywords.map(keyword => (
+                                <option key={keyword} value={keyword}>
+                                    {keyword} ({vulnerabilities.filter(v => v.keyword === keyword).length})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {filteredVulnerabilities.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
                             <h3 style={{ color: '#6c757d' }}>No hay vulnerabilidades disponibles</h3>
-                            <p>Ejecute análisis de NVD para ver vulnerabilidades aquí</p>
+                            <p>
+                                {vulnerabilities.length > 0
+                                    ? "No hay vulnerabilidades que coincidan con el filtro seleccionado."
+                                    : "Ejecute análisis de NVD para ver vulnerabilidades aquí"}
+                            </p>
                         </div>
                     ) : (
                         <div style={{
@@ -258,7 +317,7 @@ const ReportsPage = () => {
                             gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
                             gap: '20px'
                         }}>
-                            {vulnerabilities.map((vuln, idx) => (
+                            {filteredVulnerabilities.map((vuln, idx) => (
                                 <div
                                     key={vuln.id || idx}
                                     style={{
@@ -276,7 +335,7 @@ const ReportsPage = () => {
                                         <div style={{ fontSize: '0.85em', color: '#6c757d' }}>
                                             <span>Job ID: {vuln.job_id ? vuln.job_id.substring(0, 12) + '...' : 'N/A'}</span>
                                             {vuln.keyword && (
-                                                <span style={{ marginLeft: '10px' }}>• Keyword: {vuln.keyword}</span>
+                                                <span style={{ marginLeft: '10px' }}>• Palabra clave: {vuln.keyword}</span>
                                             )}
                                         </div>
                                     </div>
@@ -284,7 +343,7 @@ const ReportsPage = () => {
                                     <div style={{ marginBottom: '15px' }}>
                                         {vuln.cvss_v3_score !== null && vuln.cvss_v3_score !== undefined && (
                                             <div style={{ marginBottom: '8px' }}>
-                                                <strong>CVSS v3 Score:</strong>{' '}
+                                                <strong>Puntaje CVSS v3:</strong>{' '}
                                                 <span
                                                     style={{
                                                         padding: '4px 8px',
@@ -317,7 +376,7 @@ const ReportsPage = () => {
                                                         fontSize: '0.85em'
                                                     }}
                                                 >
-                                                    {vuln.cvss_v3_severity}
+                                                    {translateSeverity(vuln.cvss_v3_severity)}
                                                 </span>
                                             </div>
                                         )}
@@ -336,8 +395,7 @@ const ReportsPage = () => {
                                                     maxHeight: '100px',
                                                     overflowY: 'auto'
                                                 }}>
-                                                    {vuln.description.substring(0, 200)}
-                                                    {vuln.description.length > 200 ? '...' : ''}
+                                                    {vuln.description}
                                                 </div>
                                             </div>
                                         )}

@@ -25,7 +25,8 @@ export default function NmapPage() {
         whatIs: false,
         whatFor: false,
         whyImportant: false,
-        riskFormula: false
+        riskFormula: false,
+        riskStrategies: false
     });
 
     // Load queue data and consumer status
@@ -154,9 +155,7 @@ export default function NmapPage() {
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
                     🔍 Nmap Scanner - Análisis de Puertos
                 </h1>
-                <p className="text-lg text-gray-600">
-                    Sistema Distribuido de Escaneo de Vulnerabilidades
-                </p>
+
             </div>
 
             {/* Educational Sections - Collapsible */}
@@ -386,6 +385,103 @@ export default function NmapPage() {
                                             Prioriza la <strong>severidad técnica</strong> (40%) porque determina el daño potencial, seguida de la <strong>exposición</strong> (30%)
                                             que indica la probabilidad de ataque. La <strong>explotabilidad</strong> (20%) considera la facilidad de ataque, y el <strong>impacto</strong> (10%)
                                             contextualiza el riesgo al negocio específico.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Estrategias de Tratamiento de Riesgos */}
+                    <div className="mb-4 border-b border-gray-200 pb-4">
+                        <button
+                            onClick={() => toggleSection('riskStrategies')}
+                            className="w-full flex justify-between items-center text-left hover:bg-gray-50 p-3 rounded-lg transition-colors"
+                        >
+                            <span className="text-lg font-semibold text-blue-900">
+                                🛡️ Estrategias de Tratamiento de Riesgos
+                            </span>
+                            <span className="text-2xl text-blue-600">
+                                {expandedSections.riskStrategies ? '▲' : '▼'}
+                            </span>
+                        </button>
+                        {expandedSections.riskStrategies && (
+                            <div className="mt-4 pl-6 text-gray-700 space-y-4">
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
+                                    <h4 className="font-bold text-gray-900 mb-2">📊 Metodología de Decisión (Cálculo)</h4>
+                                    <p className="text-sm mb-3">
+                                        La elección de la estrategia se basa en la intersección de <strong>Probabilidad</strong> e <strong>Impacto</strong>,
+                                        y se valida mediante un <strong>Análisis Costo-Beneficio</strong>.
+                                    </p>
+                                    <ul className="list-disc list-inside text-sm space-y-1 text-gray-700">
+                                        <li><strong>ALE (Annualized Loss Expectancy):</strong> Pérdida Esperada Anual = (Probabilidad de Incidente) × (Pérdida por Incidente).</li>
+                                        <li><strong>Costo del Control:</strong> Costo de implementar la mitigación.</li>
+                                        <li><strong>Regla de Oro:</strong> Solo se mitiga si el <em>Costo del Control &lt; ALE</em>.</li>
+                                    </ul>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* AVOID */}
+                                    <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                                        <h5 className="font-bold text-red-900 flex items-center gap-2">
+                                            🚫 Avoid (Evitar)
+                                        </h5>
+                                        <div className="text-xs font-semibold text-red-700 mt-1 mb-2">
+                                            Alta Probabilidad / Alto Impacto
+                                        </div>
+                                        <p className="text-sm text-gray-700">
+                                            <strong>Acción:</strong> Eliminar la causa del riesgo por completo.
+                                        </p>
+                                        <p className="text-sm text-gray-600 mt-2 italic">
+                                            "Si un servicio web antiguo es demasiado riesgoso y no es crítico, lo apagamos."
+                                        </p>
+                                    </div>
+
+                                    {/* MITIGATE */}
+                                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                        <h5 className="font-bold text-orange-900 flex items-center gap-2">
+                                            🛡️ Mitigate (Mitigar)
+                                        </h5>
+                                        <div className="text-xs font-semibold text-orange-700 mt-1 mb-2">
+                                            Alta Probabilidad / Alto Impacto (Inevitable)
+                                        </div>
+                                        <p className="text-sm text-gray-700">
+                                            <strong>Acción:</strong> Implementar controles para reducir la probabilidad o el impacto.
+                                        </p>
+                                        <p className="text-sm text-gray-600 mt-2 italic">
+                                            "Parchear vulnerabilidades, instalar WAF, segmentar redes."
+                                        </p>
+                                    </div>
+
+                                    {/* TRANSFER */}
+                                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                                        <h5 className="font-bold text-yellow-900 flex items-center gap-2">
+                                            🤝 Transfer (Transferir)
+                                        </h5>
+                                        <div className="text-xs font-semibold text-yellow-700 mt-1 mb-2">
+                                            Baja Probabilidad / Alto Impacto
+                                        </div>
+                                        <p className="text-sm text-gray-700">
+                                            <strong>Acción:</strong> Compartir el riesgo con un tercero.
+                                        </p>
+                                        <p className="text-sm text-gray-600 mt-2 italic">
+                                            "Contratar ciberseguros o externalizar servicios críticos a la nube."
+                                        </p>
+                                    </div>
+
+                                    {/* ACCEPT */}
+                                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                        <h5 className="font-bold text-green-900 flex items-center gap-2">
+                                            ✅ Accept (Aceptar)
+                                        </h5>
+                                        <div className="text-xs font-semibold text-green-700 mt-1 mb-2">
+                                            Baja Probabilidad / Bajo Impacto
+                                        </div>
+                                        <p className="text-sm text-gray-700">
+                                            <strong>Acción:</strong> Reconocer el riesgo y monitorearlo.
+                                        </p>
+                                        <p className="text-sm text-gray-600 mt-2 italic">
+                                            "El costo de arreglarlo es mayor que la pérdida potencial. Se asume el riesgo."
                                         </p>
                                     </div>
                                 </div>
