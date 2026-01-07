@@ -7,6 +7,7 @@ const ReportsPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' or 'vulnerabilities'
+    const [selectedKeyword, setSelectedKeyword] = useState('ALL');
 
     useEffect(() => {
         loadNvdReports();
@@ -118,7 +119,6 @@ const ReportsPage = () => {
 
     // Extract unique keywords for filter
     const uniqueKeywords = [...new Set(vulnerabilities.map(v => v.keyword).filter(k => k))].sort();
-    const [selectedKeyword, setSelectedKeyword] = useState('ALL');
 
     // Filter vulnerabilities
     const filteredVulnerabilities = selectedKeyword === 'ALL'
