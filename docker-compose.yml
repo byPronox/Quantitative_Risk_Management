@@ -62,20 +62,39 @@ services:
     environment:
       - NVD_SERVICE_URL=http://nvd-service:8002
       - DATABASE_URL=${DATABASE_URL}
-      - RABBITMQ_QUEUE=nmap_scan_queue # Override global queue name
+      - RABBITMQ_QUEUE=nmap_scan_queue
       - WORLDTIME_API_URL=${WORLDTIME_API_URL}
-      # RABBITMQ_URL is read from .env (CloudAMQP)
+
     volumes:
       - ./microservices/nmap_scanner/src:/app/src
       - nmap_temp:/app/temp
       - sqlite_data:/app/data
-    privileged: true # Required for nmap network scanning
+    privileged: true
     cap_add:
       - NET_ADMIN
       - NET_RAW
     dns:
       - 8.8.8.8
       - 8.8.4.4
+
+  # Health Monitor Service
+  health-monitor:
+    build: ./microservices/health_monitor
+    restart: always
+    env_file: .env
+    depends_on:
+      - nmap-scanner-service
+    environment:
+      - NMAP_SERVICE_URL=http://nmap-scanner-service:8004
+      - HEALTH_CHECK_INTERVAL_MS=${HEALTH_CHECK_INTERVAL_MS}
+      - ALERT_EMAIL=${ALERT_EMAIL}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+    dns:
+      - 8.8.8.8
     # Frontend
   frontend:
     build:
