@@ -63,6 +63,7 @@ services:
       - NVD_SERVICE_URL=http://nvd-service:8002
       - DATABASE_URL=${DATABASE_URL}
       - RABBITMQ_QUEUE=nmap_scan_queue # Override global queue name
+      - WORLDTIME_API_URL=${WORLDTIME_API_URL}
       # RABBITMQ_URL is read from .env (CloudAMQP)
     volumes:
       - ./microservices/nmap_scanner/src:/app/src
@@ -72,8 +73,10 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
-
-  # Frontend
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    # Frontend
   frontend:
     build:
       context: ./frontend

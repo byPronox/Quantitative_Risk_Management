@@ -11,20 +11,21 @@ class TimeService {
      */
     static async getCurrentTimestamp() {
         try {
-            // Attempt 1: WorldTimeAPI (external reliable source)
-            const response = await axios.get('http://worldtimeapi.org/api/timezone/Etc/UTC', {
+            // Attempt 1: WorldTimeAPI (configurable via .env)
+            const worldTimeUrl = process.env.WORLDTIME_API_URL || 'http://worldtimeapi.org/api/timezone/Etc/UTC';
+            const response = await axios.get(worldTimeUrl, {
                 timeout: 2000 // 2 second timeout
             });
 
             const timestamp = response.data.unixtime;
-            console.log(`[TimeService] Using WorldTimeAPI timestamp: ${timestamp}`);
+            console.log(`✅ [TimeService] Using WorldTimeAPI (${worldTimeUrl}): ${timestamp}`);
             return timestamp;
 
         } catch (error) {
             // Attempt 2: Docker container time (fallback)
-            console.warn(`[TimeService] WorldTimeAPI failed: ${error.message}, using local time`);
+            console.warn(`⚠️ [TimeService] WorldTimeAPI failed: ${error.message}`);
             const timestamp = Math.floor(Date.now() / 1000);
-            console.log(`[TimeService] Using local Docker time: ${timestamp}`);
+            console.log(`🐳 [TimeService] Using local Docker time: ${timestamp}`);
             return timestamp;
         }
     }
