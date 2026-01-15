@@ -1,13 +1,13 @@
 import axios from 'axios';
 
 // Get the Kong Gateway URL from environment variables
-const KONG_URL = import.meta.env.VITE_API_URL || 'https://kong-6abab64110usqnlwd.kongcloud.dev';
+const KONG_URL = import.meta.env.VITE_API_URL || 'https://kong-b065c576f9usf20kv.kongcloud.dev';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 // Detect if we're in development (localhost)
-const isDevelopment = window.location.hostname === 'localhost' || 
-                      window.location.hostname === '127.0.0.1' || 
-                      window.location.hostname === '';
+const isDevelopment = window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '';
 
 // In development, use direct backend to avoid ngrok/CORS issues
 // In production, use Kong Gateway
